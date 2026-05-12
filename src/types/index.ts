@@ -148,3 +148,202 @@ export interface DashboardStats {
     total: number;
   }>;
 }
+
+// ============================================
+// PHASE 2 — Advanced Module Types
+// ============================================
+
+// --- Supplier ---
+export interface Supplier {
+  _id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  gstNumber?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  totalPurchases: number;
+  totalAmount: number;
+  outstandingAmount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Transporter ---
+export interface Transporter {
+  _id: string;
+  name: string;
+  vehicleNumber?: string;
+  phone: string;
+  address?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Purchase ---
+export interface PurchaseItem {
+  product: string | Product;
+  name: string;
+  sku: string;
+  quantity: number;
+  purchaseRate: number;
+  discount: number;
+  discountAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+}
+
+export type PurchaseStatus = "draft" | "confirmed" | "received" | "cancelled" | "returned";
+export type PurchasePaymentStatus = "paid" | "pending" | "partial";
+
+export interface Purchase {
+  _id: string;
+  purchaseNumber: string;
+  supplier: Supplier | string;
+  supplierName: string;
+  transporter?: Transporter | string;
+  transporterName?: string;
+  invoiceNumber?: string;
+  purchaseDate: string;
+  items: PurchaseItem[];
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  shippingCharges: number;
+  totalAmount: number;
+  amountPaid: number;
+  dueAmount: number;
+  status: PurchaseStatus;
+  paymentStatus: PurchasePaymentStatus;
+  paymentMethod?: "cash" | "card" | "upi" | "bank_transfer" | "cheque";
+  notes?: string;
+  createdBy: User | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PurchaseReturn {
+  _id: string;
+  returnNumber: string;
+  purchase: Purchase | string;
+  purchaseNumber: string;
+  supplier: Supplier | string;
+  supplierName: string;
+  items: PurchaseItem[];
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  reason: string;
+  status: "pending" | "approved" | "completed";
+  createdBy: User | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Expense ---
+export interface ExpenseCategory {
+  _id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Expense {
+  _id: string;
+  title: string;
+  amount: number;
+  category: ExpenseCategory | string;
+  categoryName: string;
+  date: string;
+  description?: string;
+  receiptImage?: string;
+  paymentMethod: "cash" | "card" | "upi" | "bank_transfer";
+  reference?: string;
+  createdBy: User | string;
+  isRecurring: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Stock / Inventory ---
+export type StockMovementType = "purchase" | "sale" | "return" | "adjustment" | "transfer";
+
+export interface StockMovement {
+  _id: string;
+  product: Product | string;
+  productName: string;
+  type: StockMovementType;
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  reference?: string;
+  referenceId?: string;
+  notes?: string;
+  createdBy: User | string;
+  createdAt: string;
+}
+
+export interface StockAdjustment {
+  _id: string;
+  adjustmentNumber: string;
+  product: Product | string;
+  productName: string;
+  previousStock: number;
+  adjustedStock: number;
+  difference: number;
+  reason: string;
+  notes?: string;
+  createdBy: User | string;
+  createdAt: string;
+}
+
+// --- Notifications ---
+export type NotificationType = "low_stock" | "sale" | "purchase" | "expense" | "system" | "alert";
+
+export interface Notification {
+  _id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  isRead: boolean;
+  link?: string;
+  createdAt: string;
+}
+
+// --- Activity Logs ---
+export type ActivityAction = "create" | "update" | "delete" | "login" | "logout" | "stock_adjust" | "sale" | "purchase";
+
+export interface ActivityLog {
+  _id: string;
+  user: User | string;
+  userName: string;
+  action: ActivityAction;
+  module: string;
+  description: string;
+  details?: Record<string, unknown>;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+// --- Supplier Ledger ---
+export interface SupplierLedgerEntry {
+  _id: string;
+  type: "purchase" | "payment" | "return" | "adjustment";
+  reference: string;
+  referenceId: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  date: string;
+  notes?: string;
+}

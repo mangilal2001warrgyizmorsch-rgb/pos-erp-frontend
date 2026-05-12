@@ -244,13 +244,17 @@ export default function ProductsPage() {
                         {formatCurrency(product.sellingPrice)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge variant={product.stock === 0 ? "destructive" : product.stock <= product.lowStockThreshold ? "warning" : "success"}>
+                        <Badge 
+                          variant={product.stock === 0 ? "destructive" : product.stock <= product.lowStockThreshold ? "warning" : "success"}
+                          className="whitespace-nowrap"
+                        >
                           {product.stock} {product.unit}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> Active
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Active
                         </span>
                       </TableCell>
                       <TableCell className="text-right">

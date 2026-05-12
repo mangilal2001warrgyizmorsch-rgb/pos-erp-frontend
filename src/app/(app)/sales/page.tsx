@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { ShoppingCart, Eye, Receipt } from "lucide-react";
+import { ShoppingCart, Eye, Receipt, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -72,7 +73,13 @@ export default function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Sales" description="View sales history" icon={ShoppingCart} />
+      <PageHeader title="Sales" description="View sales history" icon={ShoppingCart}>
+        <Link href="/sales/create">
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" /> Create Sale
+          </Button>
+        </Link>
+      </PageHeader>
 
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }}
