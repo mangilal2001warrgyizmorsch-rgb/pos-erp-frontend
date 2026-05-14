@@ -83,7 +83,7 @@ export default function SalesPage() {
         </Link>
       </PageHeader>
 
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap mb-4">
         <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }}
           placeholder="Search invoice or customer..." className="flex-1 max-w-sm" />
         <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v); setPage(1); }}>
@@ -95,11 +95,36 @@ export default function SalesPage() {
             <SelectItem value="upi">UPI</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex gap-2 items-center">
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-[150px]" />
-          <span className="text-muted-foreground text-sm">to</span>
-          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-[150px]" />
+        <div className="flex gap-2 items-center bg-card border rounded-md px-3 py-1 text-sm">
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-[130px] border-0 bg-transparent h-8 p-0 focus-visible:ring-0" />
+          <span className="text-muted-foreground">to</span>
+          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-[130px] border-0 bg-transparent h-8 p-0 focus-visible:ring-0" />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card className="p-4 flex flex-col justify-between bg-card border-0 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-sm font-medium text-muted-foreground">Total Sales Amount</span>
+            <div className="flex flex-col items-end">
+              <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-0">100% ↗</Badge>
+              <span className="text-[10px] text-muted-foreground mt-1">vs last month</span>
+            </div>
+          </div>
+          <div className="text-2xl font-bold mb-4">₹ 1,606.40</div>
+          <div className="flex items-center gap-4 text-xs font-medium bg-muted/30 p-2 rounded-md">
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">Received:</span>
+              <span className="text-emerald-500">₹ 1,318.40</span>
+            </div>
+            <div className="w-px h-3 bg-border"></div>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">Balance:</span>
+              <span className="text-red-500">₹ 288.00</span>
+            </div>
+          </div>
+          <div className="absolute top-0 left-0 w-1 h-full bg-primary rounded-l-md"></div>
+        </Card>
       </div>
 
       {loading ? <TableSkeleton rows={8} /> : sales.length === 0 ? (

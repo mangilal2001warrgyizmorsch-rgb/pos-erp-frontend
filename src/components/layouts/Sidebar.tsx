@@ -21,8 +21,16 @@ import {
   Warehouse,
   IndianRupee,
   UserCheck,
-  Database,
   Layers,
+  FileText,
+  ArrowLeftRight,
+  Wallet,
+  Building,
+  Cloud,
+  CloudLightning,
+  Wrench,
+  ScanBarcode,
+  ArrowDownUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/themeStore";
@@ -47,28 +55,91 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return "children" in entry;
 }
 
-// ---------- Navigation Structure (matches workflow diagrams) ----------
+// ---------- Navigation Structure ----------
 const navEntries: NavEntry[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  // { label: "POS Billing", href: "/pos", icon: Zap },
-  { label: "Sales", href: "/sales", icon: ShoppingCart },
+  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
   {
-    label: "Masters",
-    icon: Database,
+    label: "Parties",
+    icon: Users,
     children: [
-      { label: "Categories", href: "/categories", icon: Tags },
-      { label: "Subcategories", href: "/subcategories", icon: Layers },
-      { label: "Products", href: "/products", icon: Package },
-      { label: "Suppliers", href: "/suppliers", icon: UserCheck },
       { label: "Customers", href: "/customers", icon: Users },
+      { label: "Suppliers", href: "/suppliers", icon: UserCheck },
       { label: "Transporters", href: "/transporters", icon: Truck },
     ],
   },
-  { label: "Purchase", href: "/purchases", icon: Receipt },
-  { label: "Expenses", href: "/expenses", icon: IndianRupee },
-  { label: "Current Stock", href: "/inventory", icon: Warehouse },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
-  { label: "Settings", href: "/settings", icon: Settings },
+  {
+    label: "Items",
+    icon: Package,
+    children: [
+      { label: "Products", href: "/products", icon: Package },
+      { label: "Categories", href: "/categories", icon: Tags },
+      { label: "Subcategories", href: "/subcategories", icon: Layers },
+    ],
+  },
+  {
+    label: "Sale",
+    icon: ShoppingCart,
+    children: [
+      { label: "Sale Invoices", href: "/sales", icon: FileText },
+      { label: "POS Billing", href: "/sales/create", icon: Zap },
+      { label: "Sale Return", href: "/sales/return", icon: ArrowLeftRight },
+    ],
+  },
+  {
+    label: "Purchase & Expense",
+    icon: Receipt,
+    children: [
+      { label: "Purchase Bills", href: "/purchases", icon: FileText },
+      { label: "Purchase Return", href: "/purchases/return", icon: Receipt },
+      { label: "Expenses", href: "/expenses", icon: IndianRupee },
+    ],
+  },
+  {
+    label: "Inventory",
+    icon: Warehouse,
+    children: [
+      { label: "Current Stock", href: "/inventory", icon: Warehouse },
+    ],
+  },
+  {
+    label: "Cash & Bank",
+    icon: Wallet,
+    children: [
+      { label: "Bank Accounts", href: "/bank", icon: Building },
+      { label: "Cash In Hand", href: "/cash", icon: IndianRupee },
+      { label: "Cheques", href: "/cheques", icon: Receipt },
+      { label: "Loan Accounts", href: "/loans", icon: Building },
+    ],
+  },
+  {
+    label: "Reports",
+    icon: BarChart3,
+    children: [
+      { label: "All Reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Sync & Backup",
+    icon: Cloud,
+    children: [
+      { label: "Backup & Restore", href: "/backup", icon: CloudLightning },
+    ],
+  },
+  {
+    label: "Utilities",
+    icon: Wrench,
+    children: [
+      { label: "Barcode Generator", href: "/utilities/barcode", icon: ScanBarcode },
+      { label: "Import/Export", href: "/utilities/import-export", icon: ArrowDownUp },
+    ],
+  },
+  {
+    label: "Settings",
+    icon: Settings,
+    children: [
+      { label: "General Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 // ---------- Component ----------
@@ -80,11 +151,25 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useThemeStore();
-  const [mastersOpen, setMastersOpen] = useState(() => {
-    // Auto-open Masters if current route is inside it
-    const masterPaths = ["/categories", "/subcategories", "/products", "/suppliers", "/customers", "/transporters"];
-    return masterPaths.some((p) => pathname.startsWith(p));
+  
+  // Track open state for multiple groups
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = {};
+    navEntries.forEach((entry) => {
+      if (isGroup(entry)) {
+        initialState[entry.label] = entry.children.some((child) => pathname.startsWith(child.href) && child.href !== "/");
+      }
+    });
+    return initialState;
   });
+
+  const toggleGroup = (label: string) => {
+    if (sidebarCollapsed) return;
+    setOpenGroups((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
 
   const isLinkActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -134,17 +219,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     );
   };
 
-  // Renders a collapsible group (Masters)
+  // Renders a collapsible group
   const renderGroup = (group: NavGroup) => {
     const isAnyChildActive = group.children.some((c) => isLinkActive(c.href));
+    const isOpen = openGroups[group.label] || false;
 
     return (
       <div key={group.label}>
         <button
-          onClick={() => {
-            if (sidebarCollapsed) return;
-            setMastersOpen((prev) => !prev);
-          }}
+          onClick={() => toggleGroup(group.label)}
           className={cn(
             "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full group relative",
             isAnyChildActive
@@ -174,7 +257,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             <ChevronDown
               className={cn(
                 "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                mastersOpen && "rotate-180"
+                isOpen && "rotate-180"
               )}
             />
           )}
@@ -182,7 +265,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
         {/* Submenu items */}
         <AnimatePresence initial={false}>
-          {(mastersOpen || sidebarCollapsed) && (
+          {(isOpen || sidebarCollapsed) && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}

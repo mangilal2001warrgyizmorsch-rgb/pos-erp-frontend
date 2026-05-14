@@ -1,0 +1,180 @@
+"use client";
+
+import { useState } from "react";
+import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { motion } from "framer-motion";
+import { formatCurrency, cn } from "@/lib/utils";
+
+const mockTransactions = [
+  { id: "1", type: "Lite Sale", name: "Dinesh", date: "14/05/2026", amount: 1318.4, isPositive: true },
+];
+
+export default function CashInHandPage() {
+  const [search, setSearch] = useState("");
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [form, setForm] = useState({
+    amount: "", type: "add", date: new Date().toISOString().split('T')[0], remarks: ""
+  });
+  
+  const balance = 1318.4; // Derived from sum of transactions
+
+  const handleSave = () => {
+    console.log("Adjusting Cash:", form);
+    setIsAdjustModalOpen(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">Cash In Hand</h1>
+          <span className={cn(
+            "text-xl font-semibold",
+            balance >= 0 ? "text-emerald-500" : "text-red-500"
+          )}>
+            {formatCurrency(balance)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => setIsAdjustModalOpen(true)}>
+            <SlidersHorizontal className="mr-2 h-4 w-4" /> Adjust Cash
+          </Button>
+        </div>
+      </div>
+
+      <Card className="border-0 shadow-sm bg-card overflow-hidden">
+        {/* Table Toolbar */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="font-semibold text-sm">Transactions</div>
+          <div className="relative">
+            <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search..." 
+              className="w-64 pr-10 bg-muted/30 border-transparent focus-visible:ring-1 focus-visible:ring-primary"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th className="text-left p-4 font-medium text-muted-foreground">
+                  <div className="flex items-center justify-between">
+                    Type <Filter className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="text-left p-4 font-medium text-muted-foreground">
+                  <div className="flex items-center justify-between">
+                    Name <Filter className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="text-left p-4 font-medium text-muted-foreground">
+                  <div className="flex items-center justify-between">
+                    Date <Settings2 className="h-3 w-3" />
+                  </div>
+                </th>
+                <th className="text-right p-4 font-medium text-muted-foreground">
+                  <div className="flex items-center justify-end gap-2">
+                    <Filter className="h-3 w-3" /> Amount
+                  </div>
+                </th>
+                <th className="w-[50px] p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {mockTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-8 text-muted-foreground">
+                    No transactions found.
+                  </td>
+                </tr>
+              ) : (
+                mockTransactions.map((tx, i) => (
+                  <motion.tr 
+                    key={tx.id} 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    transition={{ delay: i * 0.05 }}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors group"
+                  >
+                    <td className="p-4 font-medium">{tx.type}</td>
+                    <td className="p-4">{tx.name}</td>
+                    <td className="p-4">{tx.date}</td>
+                    <td className="p-4 text-right">
+                      <span className={cn(
+                        "font-medium",
+                        tx.isPositive ? "text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md" : "text-foreground"
+                      )}>
+                        {tx.isPositive ? "+" : ""}{formatCurrency(tx.amount)}
+                      </span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Adjust Cash Modal */}
+      <Dialog open={isAdjustModalOpen} onOpenChange={setIsAdjustModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IndianRupee className="h-5 w-5 text-primary" /> Adjust Cash In Hand
+            </DialogTitle>
+            <DialogDescription>
+              Add or reduce cash directly. Useful for petty cash handling or unrecorded adjustments.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="type">Adjustment Type</Label>
+              <Select value={form.type} onValueChange={(v) => setForm({...form, type: v})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="add">Add Cash (+)</SelectItem>
+                  <SelectItem value="reduce">Reduce Cash (-)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="amt">Amount</Label>
+              <Input id="amt" type="number" placeholder="₹ 0.00" value={form.amount} onChange={(e) => setForm({...form, amount: e.target.value})} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="date">Date</Label>
+              <Input id="date" type="date" value={form.date} onChange={(e) => setForm({...form, date: e.target.value})} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="remarks">Remarks</Label>
+              <Input id="remarks" placeholder="Optional notes" value={form.remarks} onChange={(e) => setForm({...form, remarks: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAdjustModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave}>Save Adjustment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

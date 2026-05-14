@@ -79,8 +79,12 @@ export interface Customer {
   email?: string;
   phone: string;
   address?: string;
+  shippingAddress?: string;
   gstNumber?: string;
+  gstType?: "Unregistered/Consumer" | "Registered/Regular" | "Composition";
   stateCode?: string;
+  openingBalance?: number;
+  openingBalanceType?: "Payable" | "Receivable";
   totalPurchases: number;
   totalSpent: number;
   isActive: boolean;
@@ -196,13 +200,18 @@ export interface Supplier {
   email?: string;
   phone: string;
   gstNumber?: string;
+  gstType?: "Unregistered/Consumer" | "Registered/Regular" | "Composition";
   address?: string;
+  shippingAddress?: string;
   city?: string;
   state?: string;
   pincode?: string;
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
+  openingBalance?: number;
+  openingBalanceType?: "Payable" | "Receivable";
+  creditLimit?: number;
   totalPurchases: number;
   totalAmount: number;
   outstandingAmount: number;
@@ -382,3 +391,56 @@ export interface SupplierLedgerEntry {
   date: string;
   notes?: string;
 }
+
+// --- Bank, Cash & Loans ---
+export interface BankAccount {
+  _id: string;
+  accountName: string;
+  accountNumber: string;
+  ifscCode: string;
+  openingBalance: number;
+  currentBalance: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Loan {
+  _id: string;
+  loanName: string;
+  lenderName: string;
+  totalAmount: number;
+  interestRate: number;
+  currentBalance: number;
+  status: "Active" | "Closed";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Cheque {
+  _id: string;
+  type: "received" | "issued";
+  chequeNumber: string;
+  amount: number;
+  date: string;
+  partyName: string;
+  bankName: string;
+  status: "Pending" | "Cleared" | "Bounced";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Transaction {
+  _id: string;
+  ledgerType: "Cash" | "Bank" | "Loan" | "Other";
+  accountId?: string | BankAccount | Loan;
+  accountModel?: "BankAccount" | "Loan";
+  transactionType: "Credit" | "Debit";
+  amount: number;
+  date: string;
+  remarks?: string;
+  referenceId?: string;
+  referenceModel?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+

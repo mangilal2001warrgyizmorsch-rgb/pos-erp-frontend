@@ -19,7 +19,7 @@ export const saleService = {
   },
 
   getDashboardStats: async (): Promise<DashboardStats> => {
-    const { data } = await api.get("/sales/dashboard/stats");
+    const { data } = await api.get("/sales/stats/dashboard");
     return data.data;
   },
 };
