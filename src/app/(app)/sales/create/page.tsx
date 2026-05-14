@@ -20,6 +20,7 @@ import { customerService } from "@/services/customerService";
 import { productService } from "@/services/productService";
 import { saleService } from "@/services/saleService";
 import { formatCurrency } from "@/lib/utils";
+import axios from "axios";
 import type { Customer, Product } from "@/types";
 
 // ---------- Item Row Type ----------
@@ -29,6 +30,7 @@ interface ItemRow {
   productSearch: string;
   quantity: number;
   unitPrice: number;
+  purchasePrice: number; // Added
   discount: number;
   taxRate: number;
   total: number;
@@ -40,6 +42,7 @@ const newItem = (): ItemRow => ({
   productSearch: "",
   quantity: 1,
   unitPrice: 0,
+  purchasePrice: 0,
   discount: 0,
   taxRate: 0,
   total: 0,
@@ -123,20 +126,46 @@ export default function CreateSalePage() {
   };
 
   // Select product for item row
-  const selectProduct = (idx: number, product: Product) => {
+  const selectProduct = async (idx: number, product: Product) => {
+    // Optimistically populate from product master data immediately
     const updated = [...items];
     updated[idx] = {
       ...updated[idx],
       product,
       productSearch: product.name,
-      unitPrice: product.sellingPrice || 0,
+      unitPrice: (product as any).salesPrice || 0,
+      purchasePrice: (product as any).purchasePrice || 0,
       taxRate: 0,
-      total: (product.sellingPrice || 0) * updated[idx].quantity,
+      total: ((product as any).salesPrice || 0) * updated[idx].quantity,
     };
     updated[idx].total = calcItemTotal(updated[idx]);
     setItems(updated);
     setProductResults([]);
     setActiveSearchIdx(null);
+
+    // Then try to fetch batch-level pricing (FIFO/latest) and update if available
+    try {
+      const pricing = await productService.getPricing(product._id);
+      setItems((prev) => {
+        const next = [...prev];
+        // Only update if this row still holds the same product
+        if (next[idx]?.product?._id !== product._id) return prev;
+        next[idx] = {
+          ...next[idx],
+          unitPrice: pricing.salesPrice ?? next[idx].unitPrice,
+          purchasePrice: pricing.purchasePrice ?? next[idx].purchasePrice,
+          taxRate: pricing.taxPercent ?? next[idx].taxRate,
+        };
+        next[idx].total = calcItemTotal(next[idx]);
+        return next;
+      });
+    } catch {
+      // No stock batch found — product master prices already applied above.
+      // Only warn if there really is no price at all.
+      if (!(product as any).salesPrice) {
+        toast.warning(`No batch pricing found for "${product.name}". Please enter the rate manually.`);
+      }
+    }
   };
 
   // Update item field
@@ -199,6 +228,7 @@ export default function CreateSalePage() {
           sku: i.product!.sku,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
+          purchasePrice: i.purchasePrice, // Added
           total: i.total,
         })),
         subtotal,
@@ -215,10 +245,15 @@ export default function CreateSalePage() {
         notes,
       };
 
-      await saleService.create(payload);
+      const response = await saleService.create(payload);
       toast.success("Sale created! Stock updated automatically.");
       
-      router.push("/sales");
+      // Redirect to the newly created sale invoice
+      if (response.data && response.data._id) {
+        router.push(`/sales/${response.data._id}`);
+      } else {
+        router.push("/sales");
+      }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || "Failed to create sale");
@@ -352,10 +387,9 @@ export default function CreateSalePage() {
                                       SKU: {p.sku} {p.barcode ? `• ${p.barcode}` : ""}
                                     </p>
                                   </div>
-                                  <div className="text-right shrink-0">
-                                    <p className="text-xs font-medium">{formatCurrency(p.sellingPrice || 0)}</p>
-                                    <Badge variant="secondary" className="text-[10px]">{p.stock} in stock</Badge>
-                                  </div>
+                                   <div className="text-right shrink-0">
+                                     <Badge variant="secondary" className="text-[10px]">{p.stock} in stock</Badge>
+                                   </div>
                                 </button>
                               ))
                             )}

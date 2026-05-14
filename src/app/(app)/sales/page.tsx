@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ShoppingCart, Eye, Receipt, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Sale } from "@/types";
 
 export default function SalesPage() {
+  const router = useRouter();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -119,7 +121,9 @@ export default function SalesPage() {
               <tbody>
                 {sales.map((sale, i) => (
                   <motion.tr key={sale._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.03 }} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/sales/${sale._id}`)}
+                  >
                     <td className="p-4">
                       <p className="text-sm font-mono font-medium">{sale.invoiceNumber}</p>
                     </td>
@@ -132,7 +136,7 @@ export default function SalesPage() {
                     </td>
                     <td className="p-4 text-sm text-right font-semibold">{formatCurrency(sale.totalAmount)}</td>
                     <td className="p-4 text-right">
-                      <Button variant="ghost" size="icon-sm" onClick={() => viewSale(sale._id)}>
+                      <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); viewSale(sale._id); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
                     </td>

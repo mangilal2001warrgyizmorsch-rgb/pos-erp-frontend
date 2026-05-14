@@ -156,11 +156,31 @@ body {
 
 /* Print styles */
 @media print {
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+
   body {
     background: white !important;
     color: black !important;
+    margin: 0;
+    padding: 0;
   }
+
   .no-print {
     display: none !important;
   }
+}
+
+/* Remove number input spin buttons globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

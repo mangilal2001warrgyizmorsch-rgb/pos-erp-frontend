@@ -49,7 +49,7 @@ export default function ProductsPage() {
   // Form state
   const [form, setForm] = useState({
     name: "", sku: "", barcode: "", description: "", category: "", subcategoryId: "",
-    hsnCode: "", purchasePrice: "", sellingPrice: "", stock: "", lowStockThreshold: "10", 
+    hsnCode: "", stock: "", lowStockThreshold: "10", 
     unit: "piece", images: [] as string[]
   });
 
@@ -83,7 +83,7 @@ export default function ProductsPage() {
     setEditProduct(null);
     setForm({ 
       name: "", sku: "", barcode: "", description: "", category: "", subcategoryId: "",
-      hsnCode: "", purchasePrice: "", sellingPrice: "", stock: "", lowStockThreshold: "10", 
+      hsnCode: "", stock: "", lowStockThreshold: "10", 
       unit: "piece", images: []
     });
     setDialogOpen(true);
@@ -97,8 +97,8 @@ export default function ProductsPage() {
     setForm({
       name: product.name, sku: product.sku, barcode: product.barcode || "",
       description: product.description || "", category: catId, subcategoryId: subcatId,
-      hsnCode: product.hsnCode || "", purchasePrice: String(product.purchasePrice), 
-      sellingPrice: String(product.sellingPrice), stock: String(product.stock), 
+      hsnCode: product.hsnCode || "",
+      stock: String(product.stock), 
       lowStockThreshold: String(product.lowStockThreshold), unit: product.unit,
       images: product.images || (product.image ? [product.image] : [])
     });
@@ -106,7 +106,7 @@ export default function ProductsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.sku || !form.category || !form.purchasePrice || !form.sellingPrice || !form.stock) {
+    if (!form.name || !form.sku || !form.category || !form.stock) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -120,8 +120,6 @@ export default function ProductsPage() {
         category: form.category,
         subcategoryId: form.subcategoryId || undefined,
         hsnCode: form.hsnCode,
-        purchasePrice: Number(form.purchasePrice),
-        sellingPrice: Number(form.sellingPrice),
         stock: Number(form.stock),
         lowStockThreshold: Number(form.lowStockThreshold),
         unit: form.unit as "piece" | "kg" | "liter" | "meter" | "box" | "dozen",
@@ -196,7 +194,6 @@ export default function ProductsPage() {
                   <TableHead>Product Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>SKU / HSN</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -239,9 +236,6 @@ export default function ProductsPage() {
                           <p>{product.sku}</p>
                           <p className="text-muted-foreground">{product.hsnCode || "—"}</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(product.sellingPrice)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge 
@@ -358,23 +352,6 @@ export default function ProductsPage() {
               <div className="space-y-2">
                 <Label>Barcode</Label>
                 <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Barcode" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
-              <div className="space-y-2">
-                <Label>Purchase Price *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
-                  <Input type="number" className="pl-7" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} placeholder="0.00" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Selling Price *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
-                  <Input type="number" className="pl-7" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} placeholder="0.00" />
-                </div>
               </div>
             </div>
 

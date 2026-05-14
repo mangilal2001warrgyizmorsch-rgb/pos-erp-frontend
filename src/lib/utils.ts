@@ -14,16 +14,22 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: string | Date): string {
+  if (!date) return "N/A";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "N/A";
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(date));
+  }).format(d);
 }
 
 export function formatDateShort(date: string | Date): string {
+  if (!date) return "N/A";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "N/A";
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
-  }).format(new Date(date));
+  }).format(d);
 }
 
 export function generateSKU(prefix: string): string {

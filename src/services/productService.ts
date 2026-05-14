@@ -20,6 +20,11 @@ export const productService = {
     return data.data;
   },
 
+  getByBarcode: async (barcode: string): Promise<Product> => {
+    const { data } = await api.get<ApiResponse<Product>>(`/products/barcode/${barcode}`);
+    return data.data;
+  },
+
   create: async (payload: Partial<Product>): Promise<Product> => {
     const { data } = await api.post<ApiResponse<Product>>("/products", payload);
     return data.data;
@@ -36,6 +41,18 @@ export const productService = {
 
   getStats: async () => {
     const { data } = await api.get("/products/stats/overview");
+    return data.data;
+  },
+
+  getPricing: async (id: string, strategy: "latest" | "fifo" = "latest"): Promise<{
+    productId: string;
+    batchNo: string;
+    purchasePrice: number;
+    salesPrice: number;
+    availableQty: number;
+    taxPercent: number;
+  }> => {
+    const { data } = await api.get<ApiResponse<any>>(`/products/${id}/pricing`, { params: { strategy } });
     return data.data;
   },
 };

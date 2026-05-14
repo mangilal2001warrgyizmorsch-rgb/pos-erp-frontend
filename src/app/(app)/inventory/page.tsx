@@ -41,7 +41,7 @@ export default function InventoryPage() {
     return { label: "In Stock", variant: "default", icon: CheckCircle2 };
   };
 
-  const totalValue = products.reduce((acc, p) => acc + (p.stock * p.purchasePrice), 0);
+  const totalValue = 0; // Will be replaced by stats or dynamic fetch if needed
 
   return (
     <div className="space-y-6">
@@ -82,8 +82,6 @@ export default function InventoryPage() {
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground w-12">#</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Product Details</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden md:table-cell">Category</th>
-                  <th className="text-right p-4 text-sm font-medium text-muted-foreground">Purchase Rate</th>
-                  <th className="text-right p-4 text-sm font-medium text-muted-foreground">Sales Rate</th>
                   <th className="text-right p-4 text-sm font-medium text-muted-foreground">Current Stock</th>
                   <th className="text-center p-4 text-sm font-medium text-muted-foreground">Status</th>
                 </tr>
@@ -123,12 +121,6 @@ export default function InventoryPage() {
                         {typeof p.category === "object" && p.category !== null && "name" in p.category 
                           ? String(p.category.name) 
                           : typeof p.category === "string" ? p.category : "—"}
-                      </td>
-                      <td className="p-4 text-sm text-right font-medium">
-                        {formatCurrency(p.purchasePrice)}
-                      </td>
-                      <td className="p-4 text-sm text-right font-medium text-primary">
-                        {formatCurrency(p.sellingPrice)}
                       </td>
                       <td className="p-4 text-right">
                         <span className="text-lg font-bold">

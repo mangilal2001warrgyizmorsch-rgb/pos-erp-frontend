@@ -15,13 +15,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supplierService } from "@/services/supplierService";
 import { transporterService } from "@/services/transporterService";
 import { productService } from "@/services/productService";
 import { purchaseService } from "@/services/purchaseService";
+import { categoryService } from "@/services/categoryService";
+import { subcategoryService } from "@/services/subcategoryService";
+import { ImageUploader } from "@/components/shared/ImageUploader";
 import { formatCurrency } from "@/lib/utils";
-import type { Supplier, Transporter, Product } from "@/types";
+import type { Supplier, Transporter, Product, Category, Subcategory } from "@/types";
 
 // ---------- Item Row Type ----------
 interface ItemRow {
@@ -30,9 +34,13 @@ interface ItemRow {
   productSearch: string;
   quantity: number;
   purchaseRate: number;
+  salesPrice: number;
   discount: number;
   taxRate: number;
   total: number;
+  isNewProduct?: boolean;
+  newProductData?: any;
+  _autoCalculated?: number;
 }
 
 const newItem = (): ItemRow => ({
@@ -41,6 +49,7 @@ const newItem = (): ItemRow => ({
   productSearch: "",
   quantity: 1,
   purchaseRate: 0,
+  salesPrice: 0,
   discount: 0,
   taxRate: 0,
   total: 0,
@@ -64,6 +73,17 @@ export default function CreatePurchasePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productResults, setProductResults] = useState<Product[]>([]);
   const [activeSearchIdx, setActiveSearchIdx] = useState<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  
+  // New Product Modal state
+  const [newProductModalOpen, setNewProductModalOpen] = useState(false);
+  const [newProductIdx, setNewProductIdx] = useState<number | null>(null);
+  const [newProductSaving, setNewProductSaving] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({
+    name: "", description: "", barcode: "", sku: "", category: "", subcategoryId: "",
+    hsnCode: "", unit: "piece", stock: "0", lowStockThreshold: "10", images: [] as string[]
+  });
 
   // Form state
   const [supplierId, setSupplierId] = useState("");
@@ -80,11 +100,12 @@ export default function CreatePurchasePage() {
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
   const [saving, setSaving] = useState(false);
 
-  // Load master data
   useEffect(() => {
     supplierService.getAll({ limit: 200 }).then((r) => setSuppliers(r.data)).catch(() => {});
     transporterService.getAll({ limit: 200 }).then((r) => setTransporters(r.data)).catch(() => {});
     productService.getAll({ limit: 500 }).then((r) => setProducts(r.data)).catch(() => {});
+    categoryService.getAll().then((r) => setCategories(r)).catch(() => {});
+    subcategoryService.getAll().then((r) => setSubcategories(r)).catch(() => {});
   }, []);
 
   // On supplier select
@@ -135,14 +156,72 @@ export default function CreatePurchasePage() {
       ...updated[idx],
       product,
       productSearch: product.name,
-      purchaseRate: product.purchasePrice,
-      taxRate: 0,
-      total: product.purchasePrice * updated[idx].quantity,
+      purchaseRate: (product as any).purchasePrice || 0,
+      salesPrice: (product as any).salesPrice || 0,
+      taxRate: (product as any).taxRate || 0,
+      total: 0,
+      isNewProduct: false,
+      newProductData: undefined,
     };
     updated[idx].total = calcItemTotal(updated[idx]);
     setItems(updated);
     setProductResults([]);
     setActiveSearchIdx(null);
+  };
+
+  const handleAddNewProductSubmit = async () => {
+    if (newProductIdx === null) return;
+    if (!newProductForm.name || !newProductForm.category || !newProductForm.sku) {
+      toast.error("Please fill Name, Category, and SKU");
+      return;
+    }
+    try {
+      setNewProductSaving(true);
+      const payload: Partial<Product> = {
+        name: newProductForm.name,
+        description: newProductForm.description,
+        sku: newProductForm.sku,
+        barcode: newProductForm.barcode,
+        category: newProductForm.category,
+        subcategoryId: newProductForm.subcategoryId || undefined,
+        hsnCode: newProductForm.hsnCode,
+        stock: Number(newProductForm.stock) || 0,
+        lowStockThreshold: Number(newProductForm.lowStockThreshold) || 10,
+        unit: newProductForm.unit as any,
+        images: newProductForm.images,
+        image: newProductForm.images.length > 0 ? newProductForm.images[0] : undefined,
+      };
+      const savedProduct = await productService.create(payload);
+      // Add saved product to local list so it's searchable
+      setProducts(prev => [...prev, savedProduct]);
+      // Populate the item row with the real saved product
+      const updated = [...items];
+      updated[newProductIdx] = {
+        ...updated[newProductIdx],
+        product: savedProduct,
+        productSearch: savedProduct.name,
+        purchaseRate: 0,
+        salesPrice: 0,
+        taxRate: 0,
+        total: 0,
+        isNewProduct: false,
+        newProductData: undefined,
+      };
+      setItems(updated);
+      setNewProductModalOpen(false);
+      setNewProductForm({
+        name: "", description: "", barcode: "", sku: "", category: "", subcategoryId: "",
+        hsnCode: "", unit: "piece", stock: "0", lowStockThreshold: "10", images: []
+      });
+      setProductResults([]);
+      setActiveSearchIdx(null);
+      toast.success("Product created successfully!");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Failed to create product");
+    } finally {
+      setNewProductSaving(false);
+    }
   };
 
   // Update item field
@@ -159,6 +238,35 @@ export default function CreatePurchasePage() {
     if (items.length <= 1) return;
     setItems(items.filter((_, i) => i !== idx));
   };
+
+  // Auto-calculate salesPrice preview
+  useEffect(() => {
+    const totalQty = items.reduce((s, item) => s + (item.product || item.isNewProduct ? item.quantity : 0), 0);
+    const perItemShipping = totalQty > 0 ? shippingCharges / totalQty : 0;
+
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map(item => {
+        if (!item.product && !item.isNewProduct) return item;
+        
+        const base = item.purchaseRate;
+        const discAmt = (base * item.discount) / 100;
+        const afterDisc = base - discAmt;
+        const taxAmt = (afterDisc * item.taxRate) / 100;
+        
+        // Auto-calculated sales price: Purchase + Tax + Pro-rata Shipping - Discount
+        const newSalesPrice = Number((afterDisc + taxAmt + perItemShipping).toFixed(2));
+        
+        // Only update if it's currently 0 or we want strict tracking (we will overwrite if they change cost)
+        if (item.salesPrice !== newSalesPrice && (item.salesPrice === 0 || item._autoCalculated === item.salesPrice)) {
+          changed = true;
+          return { ...item, salesPrice: newSalesPrice, _autoCalculated: newSalesPrice };
+        }
+        return item;
+      });
+      return changed ? next : prev;
+    });
+  }, [items, shippingCharges]);
 
   // Calculations
   const subtotal = items.reduce((s, item) => {
@@ -202,11 +310,14 @@ export default function CreatePurchasePage() {
         invoiceNumber,
         purchaseDate,
         items: validItems.map((i) => ({
-          product: i.product!._id,
-          name: i.product!.name,
-          sku: i.product!.sku,
+          product: i.isNewProduct ? undefined : i.product!._id,
+          isNewProduct: i.isNewProduct,
+          newProductData: i.newProductData,
+          name: i.isNewProduct ? i.newProductData.name : i.product!.name,
+          sku: i.isNewProduct ? i.newProductData.sku : i.product!.sku,
           quantity: i.quantity,
           purchasePrice: i.purchaseRate,
+          salesPrice: i.salesPrice, // Added
           discount: i.discount,
           discountAmount: (i.quantity * i.purchaseRate * i.discount) / 100,
           taxRate: i.taxRate,
@@ -335,7 +446,8 @@ export default function CreatePurchasePage() {
                   <th className="text-left p-3 text-xs font-medium text-muted-foreground w-40">Barcode / SKU</th>
                   <th className="text-left p-3 text-xs font-medium text-muted-foreground min-w-[200px]">Product Name</th>
                   <th className="text-center p-3 text-xs font-medium text-muted-foreground w-20">Qty</th>
-                  <th className="text-center p-3 text-xs font-medium text-muted-foreground w-28">Rate (₹)</th>
+                  <th className="text-center p-3 text-xs font-medium text-muted-foreground w-28">Purchase (₹)</th>
+                  <th className="text-center p-3 text-xs font-medium text-muted-foreground w-28">Sales (₹)</th>
                   <th className="text-center p-3 text-xs font-medium text-muted-foreground w-20">Disc %</th>
                   <th className="text-center p-3 text-xs font-medium text-muted-foreground w-20">Tax %</th>
                   <th className="text-right p-3 text-xs font-medium text-muted-foreground w-28">Total (₹)</th>
@@ -367,10 +479,26 @@ export default function CreatePurchasePage() {
                         {activeSearchIdx === idx && item.productSearch.length > 0 && (
                           <div className="absolute z-50 left-0 w-[400px] top-full mt-1 bg-card border rounded-xl shadow-xl max-h-48 overflow-y-auto">
                             {productResults.length === 0 ? (
-                              <div className="p-3 text-sm text-center text-muted-foreground">
-                                No products found. <br/>
-                                <span className="text-xs">Add products in Masters first.</span>
-                              </div>
+                                <div className="p-3 text-sm text-center flex flex-col items-center justify-center gap-2">
+                                  <span className="text-muted-foreground">Product not found.</span>
+                                  <Button 
+                                    size="sm" 
+                                    variant="default"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setNewProductIdx(idx);
+                                      setNewProductForm(prev => ({
+                                        ...prev,
+                                        barcode: item.productSearch,
+                                        sku: `SKU-${Date.now().toString().slice(-6)}`
+                                      }));
+                                      setNewProductModalOpen(true);
+                                    }}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" /> Add New Product
+                                  </Button>
+                                </div>
                             ) : (
                               productResults.map((p) => (
                                 <button
@@ -392,7 +520,6 @@ export default function CreatePurchasePage() {
                                     </p>
                                   </div>
                                   <div className="text-right shrink-0">
-                                    <p className="text-xs font-medium">{formatCurrency(p.purchasePrice)}</p>
                                     <Badge variant="secondary" className="text-[10px]">{p.stock} in stock</Badge>
                                   </div>
                                 </button>
@@ -403,7 +530,7 @@ export default function CreatePurchasePage() {
                       </td>
                       <td className="p-2">
                         <Input
-                          value={item.product?.name || ""}
+                          value={item.product?.name || (item.isNewProduct ? item.newProductData?.name : "")}
                           readOnly
                           placeholder="Product Name"
                           className="h-9 text-sm bg-muted/20 border-transparent focus-visible:ring-0"
@@ -427,6 +554,16 @@ export default function CreatePurchasePage() {
                           className="h-9 text-sm text-center"
                         />
                       </td>
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={item.salesPrice}
+                          onChange={(e) => updateItem(idx, "salesPrice", +e.target.value)}
+                          className="h-9 text-sm text-center"
+                        />
+                      </td>
+
                       <td className="p-2">
                         <Input
                           type="number"
@@ -579,6 +716,107 @@ export default function CreatePurchasePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* New Product Modal — matches Products page */}
+      <Dialog open={newProductModalOpen} onOpenChange={setNewProductModalOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Product</DialogTitle>
+            <DialogDescription>Fill in the product details and upload images.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            {/* Images */}
+            <div className="space-y-2">
+              <Label>Product Images</Label>
+              <ImageUploader 
+                multiple
+                value={newProductForm.images} 
+                onChange={(urls) => setNewProductForm({ ...newProductForm, images: urls as string[] })} 
+                folder="products"
+                maxFiles={10}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Name *</Label>
+                <Input value={newProductForm.name} onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="Product name" />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input value={newProductForm.description} onChange={(e) => setNewProductForm({ ...newProductForm, description: e.target.value })} placeholder="Brief description" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+              <div className="space-y-2">
+                <Label>Category *</Label>
+                <Select value={newProductForm.category} onValueChange={(v) => setNewProductForm({ ...newProductForm, category: v, subcategoryId: "" })}>
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (<SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Subcategory</Label>
+                <Select value={newProductForm.subcategoryId} onValueChange={(v) => setNewProductForm({ ...newProductForm, subcategoryId: v })} disabled={!newProductForm.category}>
+                  <SelectTrigger><SelectValue placeholder="Select subcategory" /></SelectTrigger>
+                  <SelectContent>
+                    {subcategories.filter(s => {
+                      const pId = typeof s.parentCategoryId === 'string' ? s.parentCategoryId : (s.parentCategoryId as any)._id;
+                      return pId === newProductForm.category;
+                    }).map((sub) => (
+                      <SelectItem key={sub._id} value={sub._id}>{sub.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>SKU *</Label>
+                <Input value={newProductForm.sku} onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value.toUpperCase() })} placeholder="SKU-001" />
+              </div>
+              <div className="space-y-2">
+                <Label>HSN Code</Label>
+                <Input value={newProductForm.hsnCode} onChange={(e) => setNewProductForm({ ...newProductForm, hsnCode: e.target.value })} placeholder="HSN" />
+              </div>
+              <div className="space-y-2">
+                <Label>Barcode</Label>
+                <Input value={newProductForm.barcode} onChange={(e) => setNewProductForm({ ...newProductForm, barcode: e.target.value })} placeholder="Barcode" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Stock *</Label>
+                <Input type="number" value={newProductForm.stock} onChange={(e) => setNewProductForm({ ...newProductForm, stock: e.target.value })} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Low Stock Alert</Label>
+                <Input type="number" value={newProductForm.lowStockThreshold} onChange={(e) => setNewProductForm({ ...newProductForm, lowStockThreshold: e.target.value })} placeholder="10" />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit</Label>
+                <Select value={newProductForm.unit} onValueChange={(v) => setNewProductForm({ ...newProductForm, unit: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["piece", "kg", "liter", "meter", "box", "dozen"].map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewProductModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddNewProductSubmit} disabled={newProductSaving} className="min-w-24">
+              {newProductSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -51,12 +51,20 @@ export default function CheckoutPage() {
           product: item.product._id,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          purchasePrice: item.purchasePrice, // Added
+          taxRate: item.taxRate || 0,
+          cgst: (item.total * (item.taxRate || 0) / 100) / 2, // Simple split for local
+          sgst: (item.total * (item.taxRate || 0) / 100) / 2,
+          igst: 0,
         })),
         customer: cart.customer?._id,
         customerName: cart.customer?.name || "Walk-in Customer",
         subtotal: cart.subtotal,
         taxRate: cart.taxRate,
         taxAmount: cart.taxAmount,
+        totalCgst: cart.totalCgst,
+        totalSgst: cart.totalSgst,
+        totalIgst: cart.totalIgst,
         discountType: cart.discountType,
         discountValue: cart.discountValue,
         discountAmount: cart.discountAmount,
@@ -240,9 +248,31 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 {cart.taxAmount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground font-medium">Tax ({cart.taxRate}%)</span>
-                    <span className="font-semibold">{formatCurrency(cart.taxAmount)}</span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground font-medium">Tax ({cart.taxRate}%)</span>
+                      <span className="font-semibold">{formatCurrency(cart.taxAmount)}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 pl-2">
+                      {cart.totalCgst > 0 && (
+                        <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                          <span>CGST</span>
+                          <span>{formatCurrency(cart.totalCgst)}</span>
+                        </div>
+                      )}
+                      {cart.totalSgst > 0 && (
+                        <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                          <span>SGST</span>
+                          <span>{formatCurrency(cart.totalSgst)}</span>
+                        </div>
+                      )}
+                      {cart.totalIgst > 0 && (
+                        <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                          <span>IGST</span>
+                          <span>{formatCurrency(cart.totalIgst)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 <div className="flex justify-between items-center font-bold text-xl pt-4 border-t border-border/50 mt-2">
@@ -320,57 +350,96 @@ export default function CheckoutPage() {
             <DialogDescription>Invoice #{lastSale?.invoiceNumber}</DialogDescription>
           </DialogHeader>
           {lastSale && (
-            <div className="space-y-5" id="receipt-content">
-              <div className="text-center border-b pb-5">
-                <h3 className="font-bold text-2xl tracking-tight">POS ERP</h3>
-                <p className="text-sm text-muted-foreground uppercase tracking-widest mt-1">Tax Invoice</p>
-                <p className="text-sm font-mono mt-2 bg-muted inline-block px-3 py-1 rounded-full">{lastSale.invoiceNumber}</p>
+            <div className="space-y-0 p-1 font-mono text-[11px]" id="receipt-content">
+              <div className="text-center border-b border-dashed pb-4 mb-4">
+                <h3 className="font-bold text-lg uppercase tracking-wider">POS ERP ENTERPRISE</h3>
+                <p className="text-[10px]">123 Business Street, Tech City</p>
+                <p className="text-[10px]">GSTIN: 27AAAAA0000A1Z5</p>
+                <p className="text-[10px]">Phone: +91 9876543210</p>
               </div>
-              <div className="text-sm space-y-1.5 px-2">
-                <div className="flex justify-between"><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{lastSale.customerName}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Date:</span> <span className="font-medium">{new Date(lastSale.createdAt).toLocaleString()}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Payment Mode:</span> <span className="font-medium uppercase">{lastSale.paymentMethod}</span></div>
+
+              <div className="flex justify-between mb-4 pb-2 border-b border-dashed">
+                <div>
+                  <p>INV: {lastSale.invoiceNumber}</p>
+                  <p>DATE: {new Date(lastSale.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p>CASHIER: ADMIN</p>
+                  <p>MODE: {lastSale.paymentMethod?.toUpperCase()}</p>
+                </div>
               </div>
-              <div className="border-t border-b py-4 space-y-3 px-2">
+
+              <div className="grid grid-cols-[1fr_40px_60px_70px] font-bold border-b pb-1 mb-1 uppercase text-[9px]">
+                <span>Item</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Price</span>
+                <span className="text-right">Total</span>
+              </div>
+
+              <div className="space-y-1 mb-4 border-b border-dashed pb-2">
                 {lastSale.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="font-medium">{item.name} <span className="text-muted-foreground text-xs ml-1">× {item.quantity}</span></span>
-                    <span className="font-medium">{formatCurrency(item.total)}</span>
+                  <div key={idx} className="grid grid-cols-[1fr_40px_60px_70px]">
+                    <span className="truncate">{item.name}</span>
+                    <span className="text-center">{item.quantity}</span>
+                    <span className="text-right">{formatCurrency(item.unitPrice)}</span>
+                    <span className="text-right">{formatCurrency(item.total)}</span>
                   </div>
                 ))}
               </div>
-              <div className="space-y-2 text-sm px-2">
+
+              <div className="space-y-1 ml-auto w-48 text-right mb-4">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(lastSale.subtotal)}</span>
+                  <span>SUBTOTAL</span>
+                  <span>{formatCurrency(lastSale.subtotal)}</span>
                 </div>
                 {lastSale.discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>Discount</span>
-                    <span className="font-medium">-{formatCurrency(lastSale.discountAmount)}</span>
-                  </div>
-                )}
-                {lastSale.taxAmount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax</span>
-                    <span className="font-medium">{formatCurrency(lastSale.taxAmount)}</span>
+                    <span>DISCOUNT</span>
+                    <span>-{formatCurrency(lastSale.discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-lg pt-3 border-t mt-2">
-                  <span>Grand Total</span>
-                  <span className="text-primary">{formatCurrency(lastSale.totalAmount)}</span>
+                {lastSale.totalCgst > 0 && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                    <span>CGST</span>
+                    <span>{formatCurrency(lastSale.totalCgst)}</span>
+                  </div>
+                )}
+                {lastSale.totalSgst > 0 && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                    <span>SGST</span>
+                    <span>{formatCurrency(lastSale.totalSgst)}</span>
+                  </div>
+                )}
+                {lastSale.totalIgst > 0 && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                    <span>IGST</span>
+                    <span>{formatCurrency(lastSale.totalIgst)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-sm pt-1 border-t border-double mt-1">
+                  <span>TOTAL</span>
+                  <span>{formatCurrency(lastSale.totalAmount)}</span>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" className="flex-1 h-12" onClick={handlePrint}>
-                  <Receipt className="h-4 w-4 mr-2" /> Print Receipt
-                </Button>
-                <Button className="flex-1 h-12" onClick={handleNewSale}>
-                  Start New Sale
-                </Button>
+
+              <div className="text-center space-y-4 pt-4 border-t border-dashed">
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="w-24 h-24 bg-muted flex items-center justify-center border">
+                    <span className="text-[10px] text-muted-foreground font-sans">SCAN TO VERIFY</span>
+                  </div>
+                  <p className="text-[9px] uppercase">Thank you for shopping with us!</p>
+                </div>
               </div>
             </div>
           )}
+          <div className="flex gap-3 pt-4 no-print">
+            <Button variant="outline" className="flex-1 h-12" onClick={handlePrint}>
+              <Receipt className="h-4 w-4 mr-2" /> Print Receipt
+            </Button>
+            <Button className="flex-1 h-12" onClick={handleNewSale}>
+              New Sale
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

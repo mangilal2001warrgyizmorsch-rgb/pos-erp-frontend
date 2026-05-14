@@ -25,8 +25,10 @@ import { productService } from "@/services/productService";
 import { customerService } from "@/services/customerService";
 import { saleService } from "@/services/saleService";
 import { categoryService } from "@/services/categoryService";
+import { shiftService } from "@/services/shiftService";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency } from "@/lib/utils";
+import api from "@/services/api";
 import type { Product, Category, Customer, Sale } from "@/types";
 
 export default function POSPage() {
@@ -47,6 +49,15 @@ export default function POSPage() {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Check for active shift
+      const currentShift = await shiftService.getCurrent();
+      if (!currentShift) {
+        toast.error("Please open a shift first");
+        router.push("/shifts");
+        return;
+      }
+
       const params: Record<string, unknown> = { limit: 100, search };
       if (catFilter !== "all") params.category = catFilter;
       const result = await productService.getAll(
@@ -58,7 +69,7 @@ export default function POSPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, catFilter]);
+  }, [search, catFilter, router]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -77,7 +88,7 @@ export default function POSPage() {
   useEffect(() => { loadProducts(); }, [loadProducts]);
   useEffect(() => { loadCategories(); loadCustomers(); }, [loadCategories, loadCustomers]);
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = useCallback(async (product: Product) => {
     if (product.stock <= 0) {
       toast.error("Out of stock");
       return;
@@ -87,12 +98,26 @@ export default function POSPage() {
       toast.error(`Only ${product.stock} available`);
       return;
     }
-    cart.addItem(product);
-    setCartOpen(true);
-    toast.success(`Added ${product.name}`, { duration: 1000 });
-  };
 
-  const handleCompleteSale = async () => {
+    try {
+      // Fetch dynamic pricing from backend
+      const pricing = await productService.getPricing(product._id);
+
+      cart.addItem(product, {
+        salesPrice: pricing.salesPrice,
+        purchasePrice: pricing.purchasePrice,
+        batchNo: pricing.batchNo,
+        taxRate: pricing.taxPercent || 0
+      });
+
+      setCartOpen(true);
+      toast.success(`Added ${product.name} @ ${formatCurrency(pricing.salesPrice)}`, { duration: 1500 });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to fetch pricing");
+    }
+  }, [cart]);
+
+  const handleCompleteSale = useCallback(async () => {
     if (cart.items.length === 0) {
       toast.error("Cart is empty");
       return;
@@ -104,6 +129,11 @@ export default function POSPage() {
           product: item.product._id,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          purchasePrice: item.purchasePrice, // Added
+          taxRate: item.taxRate || 0,
+          cgst: item.cgst || 0,
+          sgst: item.sgst || 0,
+          igst: item.igst || 0,
         })),
         customer: cart.customer?._id,
         customerName: cart.customer?.name || "Walk-in Customer",
@@ -134,11 +164,91 @@ export default function POSPage() {
     } finally {
       setProcessing(false);
     }
-  };
+  }, [cart, loadProducts]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     window.print();
-  };
+  }, []);
+
+  // Keyboard Shortcuts & Barcode Scanner
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    let barcodeBuffer = "";
+
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Ignore if typing in input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Cashier shortcuts
+      switch (e.key) {
+        case "F1":
+          e.preventDefault();
+          document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus();
+          return;
+        case "F2":
+          e.preventDefault();
+          // Customer selection shortcut logic could go here
+          return;
+        case "F4":
+          e.preventDefault();
+          setCartOpen(true);
+          return;
+        case "F5":
+          e.preventDefault();
+          if (cart.items.length > 0) handleCompleteSale();
+          return;
+        case "Escape":
+          e.preventDefault();
+          if (cartOpen) setCartOpen(false);
+          else if (receiptOpen) setReceiptOpen(false);
+          else cart.clearCart();
+          return;
+      }
+
+      // Check for Ctrl+Enter to Print
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (receiptOpen) handlePrint();
+        return;
+      }
+
+      // Barcode scanner logic
+      if (e.key === "Enter" && barcodeBuffer.length > 3) {
+        const scannedCode = barcodeBuffer;
+        barcodeBuffer = ""; 
+        
+        try {
+          let product = products.find(p => p.barcode === scannedCode || p.sku === scannedCode);
+          if (!product) {
+            product = await productService.getByBarcode(scannedCode);
+          }
+          if (product) {
+            handleAddToCart(product);
+          } else {
+            toast.error("Product not found");
+          }
+        } catch (error) {
+          toast.error("Product not found");
+        }
+        return;
+      }
+
+      // Only buffer printable characters
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        barcodeBuffer += e.key;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => { barcodeBuffer = ""; }, 50); 
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(timeout);
+    };
+  }, [cart, cartOpen, receiptOpen, products, handleAddToCart, handleCompleteSale, handlePrint]);
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-7rem)] no-print">
@@ -258,8 +368,8 @@ export default function POSPage() {
                     </h3>
                   </div>
                   
-                  <div className="text-lg font-bold text-primary mb-2">
-                    {formatCurrency(product.sellingPrice)}
+                  <div className="text-sm font-medium text-muted-foreground mb-2 italic">
+                    Dynamic Pricing
                   </div>
                   
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2 font-mono">
@@ -401,10 +511,44 @@ export default function POSPage() {
           {/* Cart summary */}
           {cart.items.length > 0 && (
             <div className="border-t p-5 bg-card shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] space-y-4">
-              <div className="flex justify-between items-center bg-muted/30 p-4 rounded-xl border border-border/50">
-                <span className="text-muted-foreground font-medium">Subtotal ({cart.items.length} items)</span>
-                <span className="font-bold text-xl">{formatCurrency(cart.subtotal)}</span>
+              <div className="space-y-2 px-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(cart.subtotal)}</span>
+                </div>
+                {cart.discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span>Discount</span>
+                    <span>-{formatCurrency(cart.discountAmount)}</span>
+                  </div>
+                )}
+                
+                {/* Tax Breakdown */}
+                {cart.totalCgst > 0 && (
+                  <div className="flex justify-between text-[11px] text-muted-foreground/70 italic">
+                    <span>CGST (9%)</span>
+                    <span>{formatCurrency(cart.totalCgst)}</span>
+                  </div>
+                )}
+                {cart.totalSgst > 0 && (
+                  <div className="flex justify-between text-[11px] text-muted-foreground/70 italic">
+                    <span>SGST (9%)</span>
+                    <span>{formatCurrency(cart.totalSgst)}</span>
+                  </div>
+                )}
+                {cart.totalIgst > 0 && (
+                  <div className="flex justify-between text-[11px] text-muted-foreground/70 italic">
+                    <span>IGST (18%)</span>
+                    <span>{formatCurrency(cart.totalIgst)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center bg-primary/5 p-3 rounded-xl border border-primary/10 mt-2">
+                  <span className="text-primary font-bold">Total Amount</span>
+                  <span className="font-bold text-xl text-primary">{formatCurrency(cart.totalAmount)}</span>
+                </div>
               </div>
+              
               <div className="flex gap-2">
                 <Button variant="outline" className="h-14 px-4 text-destructive hover:bg-destructive hover:text-white transition-colors" onClick={cart.clearCart}>
                   <Trash2 className="h-4 w-4" />
@@ -432,57 +576,110 @@ export default function POSPage() {
             <DialogDescription>Invoice #{lastSale?.invoiceNumber}</DialogDescription>
           </DialogHeader>
           {lastSale && (
-            <div className="space-y-4" id="receipt-content">
-              <div className="text-center border-b pb-4">
-                <h3 className="font-bold text-lg">POS ERP</h3>
-                <p className="text-xs text-muted-foreground">Tax Invoice</p>
-                <p className="text-sm font-mono mt-1">{lastSale.invoiceNumber}</p>
+            <div className="space-y-0 p-1 font-mono text-[11px]" id="receipt-content">
+              {/* Header */}
+              <div className="text-center border-b border-dashed pb-4 mb-4">
+                <h3 className="font-bold text-lg uppercase tracking-wider">POS ERP ENTERPRISE</h3>
+                <p className="text-[10px]">123 Business Street, Tech City</p>
+                <p className="text-[10px]">GSTIN: 27AAAAA0000A1Z5</p>
+                <p className="text-[10px]">Phone: +91 9876543210</p>
               </div>
-              <div className="text-sm space-y-1">
-                <p>Customer: {lastSale.customerName}</p>
-                <p>Date: {new Date(lastSale.createdAt).toLocaleString()}</p>
-                <p>Payment: {lastSale.paymentMethod.toUpperCase()}</p>
+
+              {/* Info */}
+              <div className="flex justify-between mb-4 pb-2 border-b border-dashed">
+                <div>
+                  <p>INV: {lastSale.invoiceNumber}</p>
+                  <p>DATE: {new Date(lastSale.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p>CASHIER: {
+                    typeof lastSale.cashier === 'object' 
+                      ? lastSale.cashier.name.toUpperCase() 
+                      : "ADMIN"
+                  }</p>
+                  <p>MODE: {lastSale.paymentMethod?.toUpperCase()}</p>
+                </div>
               </div>
-              <div className="border-t border-b py-3 space-y-2">
+
+              {/* Items Table Header */}
+              <div className="grid grid-cols-[1fr_40px_60px_70px] font-bold border-b pb-1 mb-1 uppercase text-[9px]">
+                <span>Item</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Price</span>
+                <span className="text-right">Total</span>
+              </div>
+
+              {/* Items */}
+              <div className="space-y-1 mb-4 border-b border-dashed pb-2">
                 {lastSale.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span>{item.name} × {item.quantity}</span>
-                    <span>{formatCurrency(item.total)}</span>
+                  <div key={idx} className="grid grid-cols-[1fr_40px_60px_70px]">
+                    <span className="truncate">{item.name}</span>
+                    <span className="text-center">{item.quantity}</span>
+                    <span className="text-right">{formatCurrency(item.unitPrice)}</span>
+                    <span className="text-right">{formatCurrency(item.total)}</span>
                   </div>
                 ))}
               </div>
-              <div className="space-y-1 text-sm">
+
+              {/* Summary */}
+              <div className="space-y-1 ml-auto w-48 text-right mb-4">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
+                  <span>SUBTOTAL</span>
                   <span>{formatCurrency(lastSale.subtotal)}</span>
                 </div>
                 {lastSale.discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>Discount</span>
+                  <div className="flex justify-between">
+                    <span>DISCOUNT</span>
                     <span>-{formatCurrency(lastSale.discountAmount)}</span>
                   </div>
                 )}
-                {lastSale.taxAmount > 0 && (
-                  <div className="flex justify-between">
-                    <span>Tax</span>
-                    <span>{formatCurrency(lastSale.taxAmount)}</span>
+                
+                {/* GST Breakdown */}
+                {lastSale.totalCgst > 0 && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                    <span>CGST</span>
+                    <span>{formatCurrency(lastSale.totalCgst)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-base pt-2 border-t">
-                  <span>Total</span>
+                {lastSale.totalSgst > 0 && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                    <span>SGST</span>
+                    <span>{formatCurrency(lastSale.totalSgst)}</span>
+                  </div>
+                )}
+                {lastSale.totalIgst > 0 && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground italic">
+                    <span>IGST</span>
+                    <span>{formatCurrency(lastSale.totalIgst)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between font-bold text-sm pt-1 border-t border-double mt-1">
+                  <span>TOTAL</span>
                   <span>{formatCurrency(lastSale.totalAmount)}</span>
                 </div>
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={handlePrint}>
-                  <Receipt className="h-4 w-4 mr-2" />Print
-                </Button>
-                <Button className="flex-1" onClick={() => setReceiptOpen(false)}>
-                  New Sale
-                </Button>
+
+              {/* Footer */}
+              <div className="text-center space-y-4 pt-4 border-t border-dashed">
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="w-24 h-24 bg-muted flex items-center justify-center border">
+                    <span className="text-[10px] text-muted-foreground">SCAN TO VERIFY</span>
+                  </div>
+                  <p className="text-[9px] uppercase">Thank you for shopping with us!</p>
+                  <p className="text-[8px] italic">Items once sold are subject to return policy</p>
+                </div>
               </div>
             </div>
           )}
+          <div className="flex gap-2 pt-4 no-print">
+            <Button variant="outline" className="flex-1" onClick={handlePrint}>
+              <Receipt className="h-4 w-4 mr-2" />Print Receipt
+            </Button>
+            <Button className="flex-1" onClick={() => setReceiptOpen(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

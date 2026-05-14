@@ -15,11 +15,14 @@ interface CartState {
   subtotal: number;
   discountAmount: number;
   taxAmount: number;
+  totalCgst: number;
+  totalSgst: number;
+  totalIgst: number;
   totalAmount: number;
   changeAmount: number;
 
   // Actions
-  addItem: (product: Product) => void;
+  addItem: (product: Product, pricing: { salesPrice: number, purchasePrice: number, batchNo?: string, taxRate: number }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   setCustomer: (customer: Customer | null) => void;
@@ -37,7 +40,8 @@ const calculateTotals = (
   taxRate: number,
   discountType: "percentage" | "fixed",
   discountValue: number,
-  amountPaid: number
+  amountPaid: number,
+  customer: Customer | null
 ) => {
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
   const discountAmount =
@@ -45,11 +49,38 @@ const calculateTotals = (
       ? (subtotal * discountValue) / 100
       : discountValue;
   const afterDiscount = subtotal - discountAmount;
+  
+  // GST Logic: Split tax if local, full IGST if inter-state
+  const SHOP_STATE_CODE = "27"; 
+  const isLocal = !customer || !customer.stateCode || customer.stateCode === SHOP_STATE_CODE;
+  
+  // Calculate per-item tax and return updated items
+  const updatedItems = items.map(item => {
+    const itemTax = (item.total * (item.taxRate || 0)) / 100;
+    return {
+      ...item,
+      cgst: isLocal ? itemTax / 2 : 0,
+      sgst: isLocal ? itemTax / 2 : 0,
+      igst: isLocal ? 0 : itemTax,
+    };
+  });
+
   const taxAmount = (afterDiscount * taxRate) / 100;
+  let totalCgst = 0;
+  let totalSgst = 0;
+  let totalIgst = 0;
+
+  if (isLocal) {
+    totalCgst = taxAmount / 2;
+    totalSgst = taxAmount / 2;
+  } else {
+    totalIgst = taxAmount;
+  }
+
   const totalAmount = afterDiscount + taxAmount;
   const changeAmount = Math.max(0, amountPaid - totalAmount);
 
-  return { subtotal, discountAmount, taxAmount, totalAmount, changeAmount };
+  return { items: updatedItems, subtotal, discountAmount, taxAmount, totalCgst, totalSgst, totalIgst, totalAmount, changeAmount };
 };
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -64,10 +95,13 @@ export const useCartStore = create<CartState>((set, get) => ({
   subtotal: 0,
   discountAmount: 0,
   taxAmount: 0,
+  totalCgst: 0,
+  totalSgst: 0,
+  totalIgst: 0,
   totalAmount: 0,
   changeAmount: 0,
 
-  addItem: (product) => {
+  addItem: (product, pricing) => {
     const state = get();
     const existingIndex = state.items.findIndex(
       (item) => item.product._id === product._id
@@ -90,8 +124,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         {
           product,
           quantity: 1,
-          unitPrice: product.sellingPrice,
-          total: product.sellingPrice,
+          unitPrice: pricing.salesPrice,
+          purchasePrice: pricing.purchasePrice,
+          taxRate: pricing.taxRate,
+          total: pricing.salesPrice,
+          batchNo: pricing.batchNo,
         },
       ];
     }
@@ -101,9 +138,10 @@ export const useCartStore = create<CartState>((set, get) => ({
       state.taxRate,
       state.discountType,
       state.discountValue,
-      state.amountPaid
+      state.amountPaid,
+      state.customer
     );
-    set({ items: newItems, ...totals });
+    set({ ...totals });
   },
 
   removeItem: (productId) => {
@@ -116,9 +154,10 @@ export const useCartStore = create<CartState>((set, get) => ({
       state.taxRate,
       state.discountType,
       state.discountValue,
-      state.amountPaid
+      state.amountPaid,
+      state.customer
     );
-    set({ items: newItems, ...totals });
+    set({ ...totals });
   },
 
   updateQuantity: (productId, quantity) => {
@@ -132,9 +171,10 @@ export const useCartStore = create<CartState>((set, get) => ({
         state.taxRate,
         state.discountType,
         state.discountValue,
-        state.amountPaid
+        state.amountPaid,
+        state.customer
       );
-      set({ items: newItems, ...totals });
+      set({ ...totals });
       return;
     }
 
@@ -148,12 +188,24 @@ export const useCartStore = create<CartState>((set, get) => ({
       state.taxRate,
       state.discountType,
       state.discountValue,
-      state.amountPaid
+      state.amountPaid,
+      state.customer
     );
-    set({ items: newItems, ...totals });
+    set({ ...totals });
   },
 
-  setCustomer: (customer) => set({ customer }),
+  setCustomer: (customer) => {
+    const state = get();
+    const totals = calculateTotals(
+      state.items,
+      state.taxRate,
+      state.discountType,
+      state.discountValue,
+      state.amountPaid,
+      customer
+    );
+    set({ customer, ...totals });
+  },
 
   setTaxRate: (rate) => {
     const state = get();
@@ -162,7 +214,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       rate,
       state.discountType,
       state.discountValue,
-      state.amountPaid
+      state.amountPaid,
+      state.customer
     );
     set({ taxRate: rate, ...totals });
   },
@@ -174,7 +227,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       state.taxRate,
       type,
       value,
-      state.amountPaid
+      state.amountPaid,
+      state.customer
     );
     set({ discountType: type, discountValue: value, ...totals });
   },
@@ -188,7 +242,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       state.taxRate,
       state.discountType,
       state.discountValue,
-      amount
+      amount,
+      state.customer
     );
     set({ amountPaid: amount, ...totals });
   },
@@ -208,6 +263,9 @@ export const useCartStore = create<CartState>((set, get) => ({
       subtotal: 0,
       discountAmount: 0,
       taxAmount: 0,
+      totalCgst: 0,
+      totalSgst: 0,
+      totalIgst: 0,
       totalAmount: 0,
       changeAmount: 0,
     });
@@ -220,7 +278,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       state.taxRate,
       state.discountType,
       state.discountValue,
-      state.amountPaid
+      state.amountPaid,
+      state.customer
     );
     set(totals);
   },

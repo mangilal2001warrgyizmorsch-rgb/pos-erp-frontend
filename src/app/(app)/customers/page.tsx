@@ -31,7 +31,7 @@ export default function CustomersPage() {
   const [editCust, setEditCust] = useState<Customer | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", address: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", address: "", gstNumber: "", stateCode: "" });
 
   const load = useCallback(async () => {
     try {
@@ -46,13 +46,20 @@ export default function CustomersPage() {
 
   const openCreate = () => {
     setEditCust(null);
-    setForm({ name: "", phone: "", email: "", address: "" });
+    setForm({ name: "", phone: "", email: "", address: "", gstNumber: "", stateCode: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (c: Customer) => {
     setEditCust(c);
-    setForm({ name: c.name, phone: c.phone, email: c.email || "", address: c.address || "" });
+    setForm({ 
+      name: c.name, 
+      phone: c.phone, 
+      email: c.email || "", 
+      address: c.address || "",
+      gstNumber: c.gstNumber || "",
+      stateCode: c.stateCode || ""
+    });
     setDialogOpen(true);
   };
 
@@ -152,6 +159,12 @@ export default function CustomersPage() {
             </div>
             <div className="space-y-2"><Label>Email</Label>
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>GST Number</Label>
+                <Input value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value.toUpperCase() })} placeholder="27AAAAA0000A1Z5" /></div>
+              <div className="space-y-2"><Label>State Code</Label>
+                <Input value={form.stateCode} onChange={(e) => setForm({ ...form, stateCode: e.target.value })} placeholder="27" /></div>
+            </div>
             <div className="space-y-2"><Label>Address</Label>
               <Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
           </div>

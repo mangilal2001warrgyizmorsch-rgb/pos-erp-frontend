@@ -4,45 +4,31 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Receipt, Printer, FileDown, ShieldCheck, Mail, Phone, MapPin,
-  Calendar, User, CreditCard, Package, Loader2, FileText
+  Calendar, User, CreditCard, Package
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { purchaseService } from "@/services/purchaseService";
+import { saleService } from "@/services/saleService";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Purchase, PurchaseStatus, PurchasePaymentStatus } from "@/types";
+import type { Sale } from "@/types";
 import { useReactToPrint } from "react-to-print";
 
-const statusColors: Record<PurchaseStatus, string> = {
-  draft: "bg-slate-500/10 text-slate-500 border-slate-500/20",
-  confirmed: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  received: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-  cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
-  returned: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-};
-
-const paymentColors: Record<PurchasePaymentStatus, string> = {
-  paid: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-  pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  partial: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-};
-
-export default function PurchaseDetailsPage() {
+export default function SaleDetailsPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
-  const [purchase, setPurchase] = useState<Purchase | null>(null);
+  const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const invoiceRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await purchaseService.getById(id);
-      setPurchase(data);
+      const data = await saleService.getById(id);
+      setSale(data);
     } catch {
-      toast.error("Failed to load purchase details");
+      toast.error("Failed to load sale details");
     } finally {
       setLoading(false);
     }
@@ -50,10 +36,9 @@ export default function PurchaseDetailsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // NATIVE PRINT & PDF GENERATION (MOST RELIABLE)
   const handlePrint = useReactToPrint({
     contentRef: invoiceRef,
-    documentTitle: purchase ? `Purchase_Bill_${purchase.purchaseNumber}` : "Purchase_Bill",
+    documentTitle: sale ? `Invoice_${sale.invoiceNumber}` : "Invoice",
   });
 
   if (loading) {
@@ -61,19 +46,19 @@ export default function PurchaseDetailsPage() {
       <div className="flex h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading purchase details...</p>
+          <p className="text-sm text-muted-foreground">Loading invoice details...</p>
         </div>
       </div>
     );
   }
 
-  if (!purchase) {
+  if (!sale) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
         <Receipt className="h-16 w-16 text-muted-foreground/30" />
-        <h2 className="text-xl font-bold">Purchase Not Found</h2>
-        <Button onClick={() => router.push("/purchases")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Purchases
+        <h2 className="text-xl font-bold">Invoice Not Found</h2>
+        <Button onClick={() => router.push("/sales")}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Sales
         </Button>
       </div>
     );
@@ -91,9 +76,9 @@ export default function PurchaseDetailsPage() {
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <Receipt className="h-6 w-6 text-primary" />
-                {purchase.purchaseNumber}
+                Invoice #{sale.invoiceNumber}
               </h1>
-              <p className="text-sm text-muted-foreground">Created on {formatDate(purchase.createdAt)}</p>
+              <p className="text-sm text-muted-foreground">Date: {formatDate(sale.createdAt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -104,33 +89,32 @@ export default function PurchaseDetailsPage() {
         </div>
 
         <div className="flex gap-3">
-          <Badge className={statusColors[purchase.status]} variant="outline">{purchase.status.toUpperCase()}</Badge>
-          <Badge className={paymentColors[purchase.paymentStatus]} variant="outline">{purchase.paymentStatus.toUpperCase()}</Badge>
+          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20" variant="outline">{sale.paymentStatus.toUpperCase()}</Badge>
+          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20" variant="outline">{sale.status.toUpperCase()}</Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
-            <CardHeader className="pb-4"><CardTitle className="text-lg flex items-center gap-2"><FileText className="h-5 w-5 text-muted-foreground" /> Supplier Details</CardTitle></CardHeader>
+            <CardHeader className="pb-4"><CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5 text-muted-foreground" /> Customer Details</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="font-semibold text-lg">
-                {typeof purchase.supplier !== "string" && purchase.supplier ? purchase.supplier.name : purchase.supplierName}
-              </div>
-              {typeof purchase.supplier !== "string" && purchase.supplier && (
+              <div className="font-semibold text-lg">{typeof sale.customer !== "string" && sale.customer ? sale.customer.name : sale.customerName}</div>
+              {typeof sale.customer !== "string" && sale.customer && (
                 <div className="space-y-2 text-muted-foreground">
-                  <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {purchase.supplier.phone}</div>
-                  {purchase.supplier.gstNumber && <div className="flex items-center gap-2 font-bold text-foreground"><ShieldCheck className="h-4 w-4 text-primary" /> GST: {purchase.supplier.gstNumber}</div>}
-                  {purchase.supplier.address && <div className="flex items-start gap-2 text-muted-foreground"><MapPin className="h-4 w-4 mt-0.5" /> {purchase.supplier.address}</div>}
+                  <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {sale.customer.phone}</div>
+                  {sale.customer.email && <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {sale.customer.email}</div>}
+                  {sale.customer.address && <div className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5" /> {sale.customer.address}</div>}
                 </div>
               )}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-4"><CardTitle className="text-lg flex items-center gap-2"><Receipt className="h-5 w-5 text-muted-foreground" /> Purchase Info</CardTitle></CardHeader>
+            <CardHeader className="pb-4"><CardTitle className="text-lg flex items-center gap-2"><Receipt className="h-5 w-5 text-muted-foreground" /> Sale Info</CardTitle></CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-muted-foreground mb-1">Purchase No</p><p className="font-bold">{purchase.purchaseNumber}</p></div>
-                <div><p className="text-muted-foreground mb-1">Purchase Date</p><p className="font-bold">{formatDate(purchase.purchaseDate)}</p></div>
-                {purchase.invoiceNumber && <div className="col-span-2"><p className="text-muted-foreground mb-1">Supplier Ref</p><p className="font-bold">{purchase.invoiceNumber}</p></div>}
+                <div><p className="text-muted-foreground mb-1">Invoice No</p><p className="font-bold">#{sale.invoiceNumber}</p></div>
+                <div><p className="text-muted-foreground mb-1">Sale Date</p><p className="font-bold">{formatDate(sale.createdAt)}</p></div>
+                <div><p className="text-muted-foreground mb-1">Payment Method</p><p className="font-bold uppercase">{sale.paymentMethod}</p></div>
+                <div><p className="text-muted-foreground mb-1">Cashier</p><p className="font-bold">{typeof sale.cashier === "string" ? "System" : sale.cashier.name}</p></div>
               </div>
             </CardContent>
           </Card>
@@ -149,12 +133,12 @@ export default function PurchaseDetailsPage() {
               </tr>
             </thead>
             <tbody>
-              {purchase.items.map((item, index) => (
+              {sale.items.map((item, index) => (
                 <tr key={index} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
                   <td className="p-4 text-muted-foreground">{index + 1}</td>
                   <td className="p-4 font-medium">{item.name}</td>
                   <td className="p-4 text-center">{item.quantity}</td>
-                  <td className="p-4 text-right">{formatCurrency(item.purchasePrice)}</td>
+                  <td className="p-4 text-right">{formatCurrency(item.unitPrice)}</td>
                   <td className="p-4 text-right font-bold">{formatCurrency(item.total)}</td>
                 </tr>
               ))}
@@ -162,7 +146,7 @@ export default function PurchaseDetailsPage() {
           </table>
           <div className="p-6 border-t bg-muted/20">
             <div className="flex flex-col items-end gap-2">
-              <div className="flex justify-between w-full max-w-xs text-sm font-bold text-lg text-primary border-t pt-2"><span>Grand Total</span><span>{formatCurrency(purchase.totalAmount)}</span></div>
+              <div className="flex justify-between w-full max-w-xs text-sm font-bold text-lg text-primary border-t pt-2"><span>Grand Total</span><span>{formatCurrency(sale.totalAmount)}</span></div>
             </div>
           </div>
         </Card>
@@ -189,11 +173,10 @@ export default function PurchaseDetailsPage() {
               </div>
             </div>
             <div className="text-right">
-              <h1 className="text-5xl font-black text-indigo-600 uppercase tracking-tighter mb-2">INVOICE</h1>
+              <h1 className="text-5xl font-black text-indigo-600 uppercase tracking-tighter mb-2">TAX INVOICE</h1>
               <div className="space-y-1 text-sm font-black">
-                <p>BILL NO: <span className="text-indigo-600">#{purchase.purchaseNumber}</span></p>
-                <p>DATE: {formatDate(purchase.purchaseDate)}</p>
-                {purchase.invoiceNumber && <p className="text-slate-400">REF: {purchase.invoiceNumber}</p>}
+                <p>INVOICE NO: <span className="text-indigo-600">#{sale.invoiceNumber}</span></p>
+                <p>DATE: {formatDate(sale.createdAt)}</p>
               </div>
             </div>
           </div>
@@ -201,27 +184,27 @@ export default function PurchaseDetailsPage() {
           {/* Info Sections */}
           <div className="grid grid-cols-2 border-b-2 border-slate-200">
             <div className="p-10 border-r-2 border-slate-100">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b-2 pb-2 inline-block">Supplier Information</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b-2 pb-2 inline-block">Billed To</h3>
               <div className="space-y-4">
                 <div className="text-2xl font-black text-indigo-600">
-                  {typeof purchase.supplier !== "string" && purchase.supplier ? purchase.supplier.name : purchase.supplierName}
+                  {typeof sale.customer !== "string" && sale.customer ? sale.customer.name : sale.customerName}
                 </div>
-                {typeof purchase.supplier !== "string" && purchase.supplier && (
+                {typeof sale.customer !== "string" && sale.customer && (
                   <div className="space-y-2 text-sm font-bold text-slate-600">
-                    <p className="flex items-center gap-2">Ph: {purchase.supplier.phone}</p>
-                    {purchase.supplier.gstNumber && <p className="text-black bg-slate-100 px-2 py-1 rounded inline-block font-black">GST: {purchase.supplier.gstNumber}</p>}
-                    {purchase.supplier.address && <p className="leading-relaxed">{purchase.supplier.address}</p>}
+                    <p className="flex items-center gap-2">Ph: {sale.customer.phone}</p>
+                    {sale.customer.email && <p>{sale.customer.email}</p>}
+                    {sale.customer.address && <p className="leading-relaxed">{sale.customer.address}</p>}
                   </div>
                 )}
               </div>
             </div>
             <div className="p-10 bg-slate-50/50">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b-2 pb-2 inline-block">Order Overview</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b-2 pb-2 inline-block">Order Summary</h3>
               <div className="grid grid-cols-2 gap-y-6 text-sm font-black">
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Status</p><p className="text-indigo-600 uppercase">{purchase.status}</p></div>
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Payment</p><p className="text-emerald-600 uppercase">{purchase.paymentStatus}</p></div>
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Method</p><p className="uppercase">{purchase.paymentMethod}</p></div>
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Authorization</p><p className="uppercase">System Admin</p></div>
+                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Payment Status</p><p className="text-emerald-600 uppercase">{sale.paymentStatus}</p></div>
+                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Method</p><p className="uppercase">{sale.paymentMethod}</p></div>
+                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Cashier</p><p className="uppercase">{typeof sale.cashier === "string" ? "System" : sale.cashier.name}</p></div>
+                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Jurisdiction</p><p className="uppercase text-[10px]">Local Authority</p></div>
               </div>
             </div>
           </div>
@@ -239,12 +222,12 @@ export default function PurchaseDetailsPage() {
                 </tr>
               </thead>
               <tbody>
-                {purchase.items.map((item, idx) => (
+                {sale.items.map((item, idx) => (
                   <tr key={idx} className="border-b-2 border-slate-100">
                     <td className="p-5 text-slate-400 font-bold">{idx + 1}</td>
                     <td className="p-5 font-black text-lg">{item.name}<div className="text-[10px] text-slate-400 font-bold mt-1 tracking-widest">SKU: {item.sku}</div></td>
                     <td className="p-5 text-center font-black text-lg">{item.quantity}</td>
-                    <td className="p-5 text-right font-bold text-slate-600">{formatCurrency(item.purchasePrice)}</td>
+                    <td className="p-5 text-right font-bold text-slate-600">{formatCurrency(item.unitPrice)}</td>
                     <td className="p-5 text-right font-black text-xl text-indigo-600">{formatCurrency(item.total)}</td>
                   </tr>
                 ))}
@@ -256,32 +239,34 @@ export default function PurchaseDetailsPage() {
           <div className="p-10 flex justify-between gap-20">
             <div className="flex-1">
               <div className="border-4 border-double border-slate-200 p-6 rounded-3xl bg-slate-50">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-4">Certification</h4>
-                <p className="text-[10px] text-slate-500 leading-relaxed font-bold italic">
-                  "Certified that the particulars given above are true and correct and that the amount indicated represents the price actually charged."
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-4">Terms & Conditions</h4>
+                <p className="text-[10px] text-slate-500 leading-relaxed font-bold">
+                  1. Goods once sold will not be taken back.<br/>
+                  2. All disputes are subject to local jurisdiction.<br/>
+                  3. This is a computer generated invoice.
                 </p>
               </div>
             </div>
             <div className="w-80 space-y-4">
-              <div className="flex justify-between text-xs font-black uppercase border-b-2 border-slate-100 pb-2"><span>Subtotal</span><span>{formatCurrency(purchase.subtotal)}</span></div>
-              {purchase.taxAmount > 0 && <div className="flex justify-between text-xs font-black uppercase border-b-2 border-slate-100 pb-2"><span>Applied Taxes</span><span>{formatCurrency(purchase.taxAmount)}</span></div>}
-              {purchase.discountAmount > 0 && <div className="flex justify-between text-xs font-black uppercase text-emerald-600 bg-emerald-50 p-2 rounded-lg border-2 border-emerald-100"><span>Total Savings</span><span>-{formatCurrency(purchase.discountAmount)}</span></div>}
+              <div className="flex justify-between text-xs font-black uppercase border-b-2 border-slate-100 pb-2"><span>Subtotal</span><span>{formatCurrency(sale.subtotal)}</span></div>
+              {sale.taxAmount > 0 && <div className="flex justify-between text-xs font-black uppercase border-b-2 border-slate-100 pb-2"><span>Total Tax</span><span>{formatCurrency(sale.taxAmount)}</span></div>}
+              {sale.discountAmount > 0 && <div className="flex justify-between text-xs font-black uppercase text-emerald-600 bg-emerald-50 p-2 rounded-lg border-2 border-emerald-100"><span>Discount</span><span>-{formatCurrency(sale.discountAmount)}</span></div>}
               
               <div className="pt-2">
                 <div className="flex justify-between items-center p-6 bg-indigo-600 text-white rounded-[2rem] shadow-2xl shadow-indigo-200">
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Final Total</span>
-                  <span className="text-3xl font-black">{formatCurrency(purchase.totalAmount)}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Payable Amount</span>
+                  <span className="text-3xl font-black">{formatCurrency(sale.totalAmount)}</span>
                 </div>
               </div>
 
               <div className="pt-16 flex justify-between gap-10">
-                <div className="flex-1 text-center"><div className="border-b-2 border-slate-200 mb-2 h-8"></div><p className="text-[10px] font-black uppercase text-slate-400">Receiver</p></div>
+                <div className="flex-1 text-center"><div className="border-b-2 border-slate-200 mb-2 h-8"></div><p className="text-[10px] font-black uppercase text-slate-400">Customer</p></div>
                 <div className="flex-1 text-center"><div className="border-b-2 border-slate-200 mb-2 h-8"></div><p className="text-[10px] font-black uppercase text-slate-400">Authorized</p></div>
               </div>
             </div>
           </div>
           <div className="p-10 text-center border-t-2 border-slate-100 text-[10px] font-black uppercase tracking-[0.5em] text-slate-300">
-            SECURE ERP SYSTEM GENERATED DOCUMENT
+            THANK YOU FOR SHOPPING WITH US
           </div>
         </div>
       </div>

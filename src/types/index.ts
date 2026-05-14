@@ -39,8 +39,6 @@ export interface Product {
   description?: string;
   category: Category | string;
   subcategoryId?: Subcategory | string;
-  purchasePrice: number;
-  sellingPrice: number;
   stock: number;
   lowStockThreshold: number;
   image?: string;
@@ -48,8 +46,29 @@ export interface Product {
   hsnCode?: string;
   unit: "piece" | "kg" | "liter" | "meter" | "box" | "dozen";
   isActive: boolean;
-  profitMargin?: number;
   isLowStock?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalesPrice {
+  _id: string;
+  productId: string | Product;
+  purchaseId?: string;
+  purchaseItemId?: string;
+  batchId?: string;
+  barcode: string;
+  purchasePrice: number;
+  taxPercent: number;
+  taxAmount: number;
+  discountPercent: number;
+  discountAmount: number;
+  extraCharges: number;
+  extraChargePerProduct: number;
+  calculatedSalePrice: number;
+  availableQty: number;
+  pricingStatus: "active" | "inactive";
+  effectiveFrom: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +79,8 @@ export interface Customer {
   email?: string;
   phone: string;
   address?: string;
+  gstNumber?: string;
+  stateCode?: string;
   totalPurchases: number;
   totalSpent: number;
   isActive: boolean;
@@ -71,7 +92,13 @@ export interface SaleItem {
   name: string;
   sku: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: number; // Sales Price
+  purchasePrice: number; // Avg purchase price for this transaction
+  profitAmount: number;
+  taxRate?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   total: number;
 }
 
@@ -84,6 +111,9 @@ export interface Sale {
   subtotal: number;
   taxRate: number;
   taxAmount: number;
+  totalCgst: number;
+  totalSgst: number;
+  totalIgst: number;
   discountType: "percentage" | "fixed";
   discountValue: number;
   discountAmount: number;
@@ -102,7 +132,13 @@ export interface CartItem {
   product: Product;
   quantity: number;
   unitPrice: number;
+  purchasePrice: number;
+  taxRate: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   total: number;
+  batchNo?: string;
 }
 
 export interface Pagination {
@@ -193,11 +229,10 @@ export interface PurchaseItem {
   name: string;
   sku: string;
   quantity: number;
-  purchaseRate: number;
-  discount: number;
-  discountAmount: number;
+  purchasePrice: number;
   taxRate: number;
   taxAmount: number;
+  salesPrice: number; // Added
   total: number;
 }
 
