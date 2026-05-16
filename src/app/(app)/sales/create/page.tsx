@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Receipt, ArrowLeft, Plus, Trash2, Loader2, Save, Search, Package,
+  Receipt, ArrowLeft, Plus, Trash2, Loader2, Save, Search, Package, Calendar
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { customerService } from "@/services/customerService";
 import { productService } from "@/services/productService";
 import { saleService } from "@/services/saleService";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import axios from "axios";
-import type { Customer, Product } from "@/types";
+import type { Customer, Product, Sale } from "@/types";
+import { PrintSaleDialog } from "@/components/sales/PrintSaleDialog";
 
 // ---------- Item Row Type ----------
 interface ItemRow {
@@ -67,7 +70,7 @@ export default function CreateSalePage() {
   const [activeSearchIdx, setActiveSearchIdx] = useState<number | null>(null);
 
   // Form state
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState("walk-in");
   const [customerPhone, setCustomerPhone] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [saleDate, setSaleDate] = useState(
@@ -77,11 +80,33 @@ export default function CreateSalePage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
+  const [roundOff, setRoundOff] = useState(false);
+  const [amountReceived, setAmountReceived] = useState(0);
+  const [isFullyReceived, setIsFullyReceived] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // Printing state
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [lastSale, setLastSale] = useState<Sale | null>(null);
 
   // Load master data
   useEffect(() => {
-    customerService.getAll({ limit: 200 }).then((r) => setCustomers(r.data)).catch(() => {});
+    customerService.getAll({ limit: 200 }).then((r) => {
+      setCustomers(r.data);
+      // Auto-select walk-in customer if found
+      const walkIn = r.data.find((c: Customer) => 
+        c.name.toLowerCase().includes("walk-in") || 
+        c.name.toLowerCase().includes("cash") ||
+        c.name.toLowerCase().includes("guest") ||
+        c.name.toLowerCase().includes("retail") ||
+        c.name.toLowerCase().includes("pos") ||
+        c.name.toLowerCase().includes("counter")
+      );
+      if (walkIn) {
+        setCustomerId(walkIn._id);
+        setCustomerPhone(walkIn.phone || "");
+      }
+    }).catch(() => {});
     productService.getAll({ limit: 500 }).then((r) => setProducts(r.data)).catch(() => {});
   }, []);
 
@@ -129,14 +154,24 @@ export default function CreateSalePage() {
   const selectProduct = async (idx: number, product: Product) => {
     // Optimistically populate from product master data immediately
     const updated = [...items];
+    const p = product as any;
+    
+    // Determine base unit price based on tax type (inclusive vs exclusive)
+    let basePrice = p.salesPrice || 0;
+    const taxRate = p.taxRate || 0;
+    
+    if (p.salesTaxType === "with" && taxRate > 0) {
+      // Back-calculate base price: Price / (1 + Rate/100)
+      basePrice = basePrice / (1 + taxRate / 100);
+    }
+
     updated[idx] = {
       ...updated[idx],
       product,
       productSearch: product.name,
-      unitPrice: (product as any).salesPrice || 0,
-      purchasePrice: (product as any).purchasePrice || 0,
-      taxRate: 0,
-      total: ((product as any).salesPrice || 0) * updated[idx].quantity,
+      unitPrice: basePrice,
+      purchasePrice: p.purchasePrice || 0,
+      taxRate: taxRate,
     };
     updated[idx].total = calcItemTotal(updated[idx]);
     setItems(updated);
@@ -150,11 +185,20 @@ export default function CreateSalePage() {
         const next = [...prev];
         // Only update if this row still holds the same product
         if (next[idx]?.product?._id !== product._id) return prev;
+        
+        let batchUnitPrice = pricing.salesPrice ?? next[idx].unitPrice;
+        const batchTaxRate = pricing.taxPercent ?? next[idx].taxRate;
+        
+        // If batch pricing is inclusive, handle it
+        if (pricing.salesTaxType === "with" && batchTaxRate > 0) {
+          batchUnitPrice = batchUnitPrice / (1 + batchTaxRate / 100);
+        }
+
         next[idx] = {
           ...next[idx],
-          unitPrice: pricing.salesPrice ?? next[idx].unitPrice,
+          unitPrice: batchUnitPrice,
           purchasePrice: pricing.purchasePrice ?? next[idx].purchasePrice,
-          taxRate: pricing.taxPercent ?? next[idx].taxRate,
+          taxRate: batchTaxRate,
         };
         next[idx].total = calcItemTotal(next[idx]);
         return next;
@@ -203,10 +247,48 @@ export default function CreateSalePage() {
   }, 0);
 
   const grandTotal = subtotal + totalTax;
+  const finalTotal = roundOff ? Math.round(grandTotal) : grandTotal;
+  const roundOffValue = finalTotal - grandTotal;
+  const balance = finalTotal - (isFullyReceived ? finalTotal : amountReceived);
 
   // Submit
   const handleSubmit = async (status: "completed") => {
-    if (!customerId) { toast.error("Select a customer"); return; }
+    let finalCustomerId = customerId;
+    const currentCustomer = customers.find(c => c._id === customerId);
+    let finalCustomerName = currentCustomer?.name || "Walk-in Customer";
+
+    // If it's still the default string, try to resolve to a real ID
+    if (finalCustomerId === "walk-in") {
+      const walkIn = customers.find((c) => 
+        c.name.toLowerCase().includes("walk-in") || 
+        c.name.toLowerCase().includes("cash") ||
+        c.name.toLowerCase().includes("guest") ||
+        c.name.toLowerCase().includes("retail") ||
+        c.name.toLowerCase().includes("pos") ||
+        c.name.toLowerCase().includes("counter")
+      );
+      
+      if (walkIn) {
+        finalCustomerId = walkIn._id;
+        finalCustomerName = walkIn.name;
+      } else {
+        // Auto-create walk-in customer if totally missing
+        try {
+          const newWalkIn = await customerService.create({
+            name: "Walk-in Customer",
+            phone: "0000000000",
+            isActive: true
+          });
+          finalCustomerId = newWalkIn._id;
+          finalCustomerName = newWalkIn.name;
+          // Update local state to avoid repeat creation
+          setCustomers(prev => [...prev, newWalkIn]);
+        } catch {
+          toast.error("Please create a 'Walk-in Customer' manually in the Parties section first.");
+          return;
+        }
+      }
+    }
     
     const validItems = items.filter(i => i.product || i.productSearch.trim() !== "");
     if (validItems.length === 0) { toast.error("Please add at least one product"); return; }
@@ -218,8 +300,8 @@ export default function CreateSalePage() {
     try {
       setSaving(true);
       const payload = {
-        customer: customerId,
-        customerName: customer?.name || "",
+        customer: finalCustomerId,
+        customerName: finalCustomerName,
         invoiceNumber,
         saleDate,
         items: validItems.map((i) => ({
@@ -228,7 +310,7 @@ export default function CreateSalePage() {
           sku: i.product!.sku,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
-          purchasePrice: i.purchasePrice, // Added
+          purchasePrice: i.purchasePrice,
           total: i.total,
         })),
         subtotal,
@@ -236,8 +318,8 @@ export default function CreateSalePage() {
         discountType: "percentage",
         discountValue: 0,
         discountAmount: totalDiscount,
-        totalAmount: grandTotal,
-        amountPaid: status === "completed" ? grandTotal : 0,
+        totalAmount: finalTotal,
+        amountPaid: status === "completed" ? (isFullyReceived ? finalTotal : amountReceived) : 0,
         changeAmount: 0,
         status,
         paymentStatus: status === "completed" ? "paid" : "pending",
@@ -246,14 +328,20 @@ export default function CreateSalePage() {
       };
 
       const response = await saleService.create(payload);
-      toast.success("Sale created! Stock updated automatically.");
+      toast.success("Sale created successfully!");
       
-      // Redirect to the newly created sale invoice
-      if (response.data && response.data._id) {
-        router.push(`/sales/${response.data._id}`);
-      } else {
-        router.push("/sales");
-      }
+      // Open Print Dialog
+      setLastSale(response as unknown as Sale);
+      setPrintDialogOpen(true);
+      
+      // Reset form instead of redirecting immediately
+      setItems([newItem()]);
+      setCustomerId("walk-in");
+      setPaymentMethod("cash");
+      setNotes("");
+      setAmountReceived(0);
+      setIsFullyReceived(true);
+      setInvoiceNumber(""); // Clear for auto-gen
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || "Failed to create sale");
@@ -292,7 +380,8 @@ export default function CreateSalePage() {
                   <SelectValue placeholder="Select Customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((s) => (
+                  <SelectItem value="walk-in">Walk-in Customer</SelectItem>
+                  {customers.filter(s => s.name.toLowerCase() !== "walk-in").map((s) => (
                     <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -308,7 +397,15 @@ export default function CreateSalePage() {
             </div>
             <div className="space-y-2">
               <Label>Sale Date</Label>
-              <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+              <div className="relative group">
+                <Input 
+                  type="date" 
+                  value={saleDate} 
+                  onChange={(e) => setSaleDate(e.target.value)} 
+                  className="h-10 rounded-xl bg-muted/30 border-border pr-10 appearance-none custom-date-input"
+                />
+                <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground pointer-events-none group-hover:text-primary transition-colors" />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -510,45 +607,106 @@ export default function CreateSalePage() {
         </Card>
 
         {/* Bill Summary */}
-        <Card className="bg-muted/20">
+        <Card className="bg-card border-border shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Bill Summary</CardTitle>
+            <CardTitle className="text-base font-bold">Bill Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Items</span>
-              <span>{items.filter((i) => i.product).length}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-emerald-500">
-              <span>Discount</span>
-              <span>- {formatCurrency(totalDiscount)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax</span>
-              <span>{formatCurrency(totalTax)}</span>
-            </div>
-            <div className="border-t pt-3 flex justify-between text-lg font-bold">
-              <span>Grand Total</span>
-              <span className="text-primary">{formatCurrency(grandTotal)}</span>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6 items-center">
+              {/* Round Off */}
+              <div className="flex items-center gap-3">
+                <Checkbox 
+                  id="round-off" 
+                  checked={roundOff} 
+                  onCheckedChange={(v) => setRoundOff(!!v)}
+                  className="h-5 w-5 rounded border-border data-[state=checked]:bg-primary"
+                />
+                <Label htmlFor="round-off" className="text-sm font-medium text-muted-foreground">Round Off</Label>
+              </div>
+              <Input 
+                readOnly 
+                value={roundOffValue.toFixed(2)} 
+                className="h-10 text-right bg-muted/20 border-border font-medium rounded-lg" 
+              />
+
+              {/* Total */}
+              <Label className="text-sm font-bold text-muted-foreground">Total Amount</Label>
+              <Input 
+                readOnly 
+                value={finalTotal.toFixed(2)} 
+                className="h-11 text-right bg-muted/30 border-border font-bold text-lg text-primary rounded-lg" 
+              />
+
+              {/* Received */}
+              <div className="flex items-center gap-3">
+                <Checkbox 
+                  id="received" 
+                  checked={isFullyReceived} 
+                  onCheckedChange={(checked) => {
+                    const isChecked = !!checked;
+                    setIsFullyReceived(isChecked);
+                    if (isChecked) {
+                      setAmountReceived(finalTotal);
+                    }
+                  }}
+                  className="h-5 w-5 rounded border-border data-[state=checked]:bg-primary"
+                />
+                <Label htmlFor="received" className="text-sm font-medium text-muted-foreground cursor-pointer">Received</Label>
+              </div>
+              <Input 
+                type="number"
+                value={isFullyReceived ? finalTotal.toFixed(2) : amountReceived}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0;
+                  setAmountReceived(val);
+                  if (val !== parseFloat(finalTotal.toFixed(2))) {
+                    setIsFullyReceived(false);
+                  }
+                }}
+                className="h-10 text-right bg-muted/20 border-border font-medium rounded-lg" 
+              />
             </div>
 
-            <div className="pt-4 space-y-2">
+            <Separator className="bg-border/50" />
+
+            <div className="flex justify-between items-center px-2">
+              <span className="text-base font-bold text-foreground">Balance</span>
+              <span className={cn("text-xl font-bold", balance > 0 ? "text-destructive" : "text-emerald-500")}>
+                {formatCurrency(balance)}
+              </span>
+            </div>
+
+            <div className="pt-4">
               <Button
-                className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20"
+                className="w-full h-12 text-sm font-bold uppercase tracking-wider bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg rounded-xl active:scale-95 transition-all"
                 onClick={() => handleSubmit("completed")}
                 disabled={saving}
               >
-                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Submit Sale
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save & Print (F5)"}
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+      <style jsx global>{`
+        .custom-date-input::-webkit-calendar-picker-indicator {
+          background: transparent;
+          bottom: 0;
+          color: transparent;
+          cursor: pointer;
+          height: auto;
+          left: 0;
+          position: absolute;
+          right: 0;
+          top: 0;
+          width: auto;
+        }
+      `}</style>
+      <PrintSaleDialog 
+        open={printDialogOpen} 
+        onOpenChange={setPrintDialogOpen} 
+        sale={lastSale} 
+      />
     </div>
   );
 }

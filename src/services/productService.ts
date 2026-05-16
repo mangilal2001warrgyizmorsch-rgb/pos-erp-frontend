@@ -51,6 +51,7 @@ export const productService = {
     salesPrice: number;
     availableQty: number;
     taxPercent: number;
+    salesTaxType?: string;
   }> => {
     const { data } = await api.get<ApiResponse<any>>(`/products/${id}/pricing`, { params: { strategy } });
     return data.data;

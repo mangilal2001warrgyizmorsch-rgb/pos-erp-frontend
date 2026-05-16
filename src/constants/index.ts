@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5500/api";
 
 export const SIDEBAR_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },

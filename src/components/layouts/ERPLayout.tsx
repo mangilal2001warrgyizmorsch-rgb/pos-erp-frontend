@@ -50,7 +50,7 @@ export function ERPLayout({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "transition-all duration-300 min-h-screen",
-          sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[256px]"
+          sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[256px]",
         )}
       >
         <Navbar onMenuClick={() => setMobileOpen(true)} />

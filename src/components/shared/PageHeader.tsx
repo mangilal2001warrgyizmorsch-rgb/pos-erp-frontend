@@ -17,7 +17,13 @@ interface PageHeaderProps {
   children?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, icon: Icon, action, children }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  icon: Icon,
+  action,
+  children,
+}: PageHeaderProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -42,7 +48,11 @@ export function PageHeader({ title, description, icon: Icon, action, children }:
         {children}
         {action && (
           <Button onClick={action.onClick} className="gap-2">
-            {action.icon ? <action.icon className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {action.icon ? (
+              <action.icon className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
             {action.label}
           </Button>
         )}

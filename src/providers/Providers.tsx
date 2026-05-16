@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useThemeStore } from "@/store/themeStore";
 import { useAuthStore } from "@/store/authStore";
 import { Toaster } from "sonner";
+import { KeyboardShortcutProvider } from "@/providers/KeyboardShortcutProvider";
+import { ShortcutHelpModal } from "@/components/shortcuts/ShortcutHelpModal";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeStore();
@@ -19,7 +21,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {children}
+      <KeyboardShortcutProvider>
+        {children}
+        <ShortcutHelpModal />
+      </KeyboardShortcutProvider>
       <Toaster
         position="top-right"
         richColors

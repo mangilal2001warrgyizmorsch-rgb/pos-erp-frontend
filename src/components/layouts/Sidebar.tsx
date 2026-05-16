@@ -34,7 +34,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/themeStore";
+import { useBusinessStore } from "@/store/businessStore";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useEffect } from "react";
 
 // ---------- Types ----------
 interface NavLink {
@@ -97,9 +100,7 @@ const navEntries: NavEntry[] = [
   {
     label: "Inventory",
     icon: Warehouse,
-    children: [
-      { label: "Current Stock", href: "/inventory", icon: Warehouse },
-    ],
+    children: [{ label: "Current Stock", href: "/inventory", icon: Warehouse }],
   },
   {
     label: "Cash & Bank",
@@ -114,9 +115,7 @@ const navEntries: NavEntry[] = [
   {
     label: "Reports",
     icon: BarChart3,
-    children: [
-      { label: "All Reports", href: "/reports", icon: BarChart3 },
-    ],
+    children: [{ label: "All Reports", href: "/reports", icon: BarChart3 }],
   },
   {
     label: "Sync & Backup",
@@ -129,17 +128,19 @@ const navEntries: NavEntry[] = [
     label: "Utilities",
     icon: Wrench,
     children: [
-      { label: "Barcode Generator", href: "/utilities/barcode", icon: ScanBarcode },
-      { label: "Import/Export", href: "/utilities/import-export", icon: ArrowDownUp },
+      {
+        label: "Barcode Generator",
+        href: "/utilities/barcode",
+        icon: ScanBarcode,
+      },
+      {
+        label: "Import/Export",
+        href: "/utilities/import-export",
+        icon: ArrowDownUp,
+      },
     ],
   },
-  {
-    label: "Settings",
-    icon: Settings,
-    children: [
-      { label: "General Settings", href: "/settings", icon: Settings },
-    ],
-  },
+  { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 // ---------- Component ----------
@@ -151,13 +152,22 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useThemeStore();
-  
+  const { profile, fetchProfile } = useBusinessStore();
+
+  useEffect(() => {
+    if (!profile) {
+      fetchProfile();
+    }
+  }, []);
+
   // Track open state for multiple groups
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initialState: Record<string, boolean> = {};
     navEntries.forEach((entry) => {
       if (isGroup(entry)) {
-        initialState[entry.label] = entry.children.some((child) => pathname.startsWith(child.href) && child.href !== "/");
+        initialState[entry.label] = entry.children.some(
+          (child) => pathname.startsWith(child.href) && child.href !== "/",
+        );
       }
     });
     return initialState;
@@ -187,7 +197,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           nested && !sidebarCollapsed && "pl-10",
           isActive
             ? "bg-primary/10 text-primary shadow-sm"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
         {isActive && (
@@ -200,7 +210,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         <item.icon
           className={cn(
             "h-5 w-5 shrink-0 transition-colors",
-            isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+            isActive
+              ? "text-primary"
+              : "text-muted-foreground group-hover:text-foreground",
           )}
         />
         <AnimatePresence>
@@ -232,13 +244,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full group relative",
             isAnyChildActive
               ? "bg-primary/5 text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <group.icon
             className={cn(
               "h-5 w-5 shrink-0 transition-colors",
-              isAnyChildActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+              isAnyChildActive
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground",
             )}
           />
           <AnimatePresence>
@@ -257,7 +271,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             <ChevronDown
               className={cn(
                 "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                isOpen && "rotate-180"
+                isOpen && "rotate-180",
               )}
             />
           )}
@@ -273,7 +287,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className={cn("space-y-0.5", !sidebarCollapsed && "mt-1 ml-2 border-l border-border/40 pl-1")}>
+              <div
+                className={cn(
+                  "space-y-0.5",
+                  !sidebarCollapsed &&
+                    "mt-1 ml-2 border-l border-border/40 pl-1",
+                )}
+              >
                 {group.children.map((child) => renderLink(child, true))}
               </div>
             </motion.div>
@@ -309,26 +329,49 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       {/* Nav items */}
       <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
         {navEntries.map((entry) =>
-          isGroup(entry) ? renderGroup(entry) : renderLink(entry)
+          isGroup(entry) ? renderGroup(entry) : renderLink(entry),
         )}
       </nav>
 
-      {/* Collapse toggle - desktop only */}
-      <div className="hidden lg:block p-3 border-t border-border/50">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-center"
-          onClick={toggleSidebar}
-        >
-          <ChevronLeft
-            className={cn(
-              "h-4 w-4 transition-transform duration-300",
-              sidebarCollapsed && "rotate-180"
+
+
+      {/* Business Profile Footer */}
+      <Link 
+        href="/settings/profile"
+        className="p-3 border-t border-border/50 bg-muted/20 block hover:bg-muted/40 transition-colors duration-200"
+      >
+        <div className={cn(
+          "flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-200",
+          !sidebarCollapsed && "hover:bg-background/50"
+        )}>
+          <Avatar className="h-9 w-9 rounded-full border border-primary/20 shadow-sm ring-2 ring-primary/5 shrink-0">
+            {profile?.logo ? (
+              <AvatarImage src={profile.logo} />
+            ) : null}
+            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-xs">
+              {profile?.businessName?.charAt(0) || "P"}
+            </AvatarFallback>
+          </Avatar>
+          
+          <AnimatePresence>
+            {!sidebarCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="flex flex-col min-w-0"
+              >
+                <span className="text-xs font-bold truncate">
+                  {profile?.businessName || "My Business"}
+                </span>
+                <span className="text-[10px] text-muted-foreground truncate opacity-70">
+                  Business Admin
+                </span>
+              </motion.div>
             )}
-          />
-        </Button>
-      </div>
+          </AnimatePresence>
+        </div>
+      </Link>
     </div>
   );
 
@@ -339,9 +382,22 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         initial={false}
         animate={{ width: sidebarCollapsed ? 72 : 256 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="hidden lg:flex flex-col fixed left-0 top-0 h-screen border-r border-border/50 bg-card/80 backdrop-blur-xl z-30"
+        className="hidden lg:flex flex-col fixed left-0 top-0 h-screen border-r border-border/50 bg-card/80 backdrop-blur-xl z-30 group/sidebar"
       >
         {sidebarContent}
+        
+        {/* Floating Collapse Toggle */}
+        <button
+          onClick={toggleSidebar}
+          className="absolute -right-5 bottom-2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-[20%] border border-border bg-background shadow-sm opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-50 hover:bg-muted"
+        >
+          <ChevronLeft
+            className={cn(
+              "h-3.5 w-3.5 text-muted-foreground transition-transform duration-300",
+              sidebarCollapsed && "rotate-180",
+            )}
+          />
+        </button>
       </motion.aside>
 
       {/* Mobile overlay */}

@@ -1,4 +1,5 @@
 import api from "./api";
+import { API_BASE_URL } from "@/constants";
 import type { ApiResponse } from "@/types";
 
 export type UploadFolder = 
@@ -29,8 +30,7 @@ export const uploadService = {
     );
     
     // Construct the full URL
-    // We expect backend to return relative path like "/uploads/products/image.jpg"
-    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api").replace("/api", "");
+    const baseUrl = API_BASE_URL.replace("/api", "");
     return `${baseUrl}${data.data.imageUrl}`;
   },
 
@@ -51,7 +51,7 @@ export const uploadService = {
       }
     );
     
-    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api").replace("/api", "");
+    const baseUrl = API_BASE_URL.replace("/api", "");
     return data.data.map((item) => `${baseUrl}${item.imageUrl}`);
   },
 

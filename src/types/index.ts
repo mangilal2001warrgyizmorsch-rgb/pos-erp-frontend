@@ -45,6 +45,13 @@ export interface Product {
   images?: string[];
   hsnCode?: string;
   unit: "piece" | "kg" | "liter" | "meter" | "box" | "dozen";
+  salesPrice: number;
+  purchasePrice: number;
+  taxRate: number;
+  salesTaxType?: "inclusive" | "exclusive" | "without";
+  purchaseTaxType?: "inclusive" | "exclusive" | "without";
+  openingStockPrice: number;
+  openingStockDate: string;
   isActive: boolean;
   isLowStock?: boolean;
   createdAt: string;
@@ -85,6 +92,8 @@ export interface Customer {
   stateCode?: string;
   openingBalance?: number;
   openingBalanceType?: "Payable" | "Receivable";
+  openingBalanceDate?: string;
+  creditLimit?: number;
   totalPurchases: number;
   totalSpent: number;
   isActive: boolean;
@@ -211,7 +220,9 @@ export interface Supplier {
   ifscCode?: string;
   openingBalance?: number;
   openingBalanceType?: "Payable" | "Receivable";
+  openingBalanceDate?: string;
   creditLimit?: number;
+  stateCode?: string;
   totalPurchases: number;
   totalAmount: number;
   outstandingAmount: number;
@@ -443,4 +454,25 @@ export interface Transaction {
   createdAt: string;
   updatedAt: string;
 }
+
+// --- Business Profile ---
+export interface BusinessProfile {
+  _id?: string;
+  businessName: string;
+  tagline?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  address?: string;
+  businessType?: string;
+  category?: string;
+  state?: string;
+  pincode?: string;
+  logo?: string;
+  signature?: string;
+  beginningDate?: string;
+  logoText?: string;
+}
+
+export * from './shortcuts';
 

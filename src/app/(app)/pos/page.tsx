@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,6 +29,9 @@ import { shiftService } from "@/services/shiftService";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency } from "@/lib/utils";
 import api from "@/services/api";
+import { usePOSShortcuts } from "@/hooks/usePOSShortcuts";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
+import { ShortcutButton, ShortcutBadge } from "@/components/shortcuts";
 import type { Product, Category, Customer, Sale } from "@/types";
 
 export default function POSPage() {
@@ -45,6 +48,14 @@ export default function POSPage() {
   const router = useRouter();
 
   const cart = useCartStore();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Set up POS keyboard shortcuts
+  usePOSShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onOpenCart: () => setCartOpen(true),
+    onCompleteSale: () => handleCompleteSale(),
+  });
 
   const loadProducts = useCallback(async () => {
     try {
@@ -170,85 +181,28 @@ export default function POSPage() {
     window.print();
   }, []);
 
-  // Keyboard Shortcuts & Barcode Scanner
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    let barcodeBuffer = "";
-
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      // Ignore if typing in input/textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Cashier shortcuts
-      switch (e.key) {
-        case "F1":
-          e.preventDefault();
-          document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus();
-          return;
-        case "F2":
-          e.preventDefault();
-          // Customer selection shortcut logic could go here
-          return;
-        case "F4":
-          e.preventDefault();
-          setCartOpen(true);
-          return;
-        case "F5":
-          e.preventDefault();
-          if (cart.items.length > 0) handleCompleteSale();
-          return;
-        case "Escape":
-          e.preventDefault();
-          if (cartOpen) setCartOpen(false);
-          else if (receiptOpen) setReceiptOpen(false);
-          else cart.clearCart();
-          return;
-      }
-
-      // Check for Ctrl+Enter to Print
-      if (e.ctrlKey && e.key === 'Enter') {
-        e.preventDefault();
-        if (receiptOpen) handlePrint();
-        return;
-      }
-
-      // Barcode scanner logic
-      if (e.key === "Enter" && barcodeBuffer.length > 3) {
-        const scannedCode = barcodeBuffer;
-        barcodeBuffer = ""; 
-        
-        try {
-          let product = products.find(p => p.barcode === scannedCode || p.sku === scannedCode);
-          if (!product) {
-            product = await productService.getByBarcode(scannedCode);
-          }
-          if (product) {
-            handleAddToCart(product);
-          } else {
-            toast.error("Product not found");
-          }
-        } catch (error) {
+  // Set up barcode scanner
+  useBarcodeScanner({
+    onScan: async (barcode) => {
+      try {
+        let product = products.find(p => p.barcode === barcode || p.sku === barcode);
+        if (!product) {
+          product = await productService.getByBarcode(barcode);
+        }
+        if (product) {
+          handleAddToCart(product);
+        } else {
           toast.error("Product not found");
         }
-        return;
+      } catch (error) {
+        toast.error("Product not found");
       }
-
-      // Only buffer printable characters
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        barcodeBuffer += e.key;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => { barcodeBuffer = ""; }, 50); 
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      clearTimeout(timeout);
-    };
-  }, [cart, cartOpen, receiptOpen, products, handleAddToCart, handleCompleteSale, handlePrint]);
+    },
+    onError: (error) => {
+      const message = typeof error === 'string' ? error : (error as any).message || 'Barcode scan error';
+      toast.error(message);
+    },
+  });
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-7rem)] no-print">
@@ -257,6 +211,7 @@ export default function POSPage() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={searchInputRef}
             placeholder="Search products by name, barcode or SKU..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}

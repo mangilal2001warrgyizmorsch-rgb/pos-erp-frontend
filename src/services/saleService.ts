@@ -15,7 +15,7 @@ export const saleService = {
 
   create: async (payload: any) => {
     const { data } = await api.post("/sales", payload);
-    return data;
+    return data.data;
   },
 
   getDashboardStats: async (): Promise<DashboardStats> => {

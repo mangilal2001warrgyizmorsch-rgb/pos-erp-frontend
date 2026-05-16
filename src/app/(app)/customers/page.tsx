@@ -1,31 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
-import { Users, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TableSkeleton } from "@/components/shared/LoadingSkeleton";
+import { CustomerModal } from "@/components/shared/CustomerModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { customerService } from "@/services/customerService";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import type { Customer } from "@/types";
+import { useRouter } from "next/navigation";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -35,15 +27,6 @@ export default function CustomersPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editCust, setEditCust] = useState<Customer | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    gstNumber: "",
-    stateCode: "",
-  });
 
   const load = useCallback(async () => {
     try {
@@ -63,52 +46,19 @@ export default function CustomersPage() {
 
   const openCreate = () => {
     setEditCust(null);
-    setForm({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      gstNumber: "",
-      stateCode: "",
-    });
     setDialogOpen(true);
   };
 
-  const openEdit = (c: Customer) => {
+  const openEdit = (e: React.MouseEvent, c: Customer) => {
+    e.stopPropagation();
     setEditCust(c);
-    setForm({
-      name: c.name,
-      phone: c.phone,
-      email: c.email || "",
-      address: c.address || "",
-      gstNumber: c.gstNumber || "",
-      stateCode: c.stateCode || "",
-    });
     setDialogOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!form.name || !form.phone) {
-      toast.error("Name and phone required");
-      return;
-    }
-    try {
-      setSaving(true);
-      if (editCust) {
-        await customerService.update(editCust._id, form);
-        toast.success("Updated");
-      } else {
-        await customerService.create(form);
-        toast.success("Created");
-      }
-      setDialogOpen(false);
-      load();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || "Failed");
-    } finally {
-      setSaving(false);
-    }
+  const openDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setDeleteId(id);
+    setDeleteOpen(true);
   };
 
   const handleDelete = async () => {
@@ -183,17 +133,20 @@ export default function CustomersPage() {
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
                     <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                      <Link 
+                        href={`/customers/${c._id}`}
+                        className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity"
+                      >
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
                           {c.name.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-sm">{c.name}</p>
+                          <p className="font-semibold text-sm group-hover/link:text-primary transition-colors">{c.name}</p>
                           <p className="text-xs text-muted-foreground md:hidden">
                             {c.phone}
                           </p>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="p-4 text-sm hidden md:table-cell">
                       {c.phone}
@@ -212,17 +165,14 @@ export default function CustomersPage() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => openEdit(c)}
+                          onClick={(e) => openEdit(e, c)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => {
-                            setDeleteId(c._id);
-                            setDeleteOpen(true);
-                          }}
+                          onClick={(e) => openDelete(e, c._id)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -236,81 +186,12 @@ export default function CustomersPage() {
         </Card>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editCust ? "Edit" : "Add"} Customer</DialogTitle>
-            <DialogDescription>Customer details</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Name *</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone *</Label>
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>GST Number</Label>
-                <Input
-                  value={form.gstNumber}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      gstNumber: e.target.value.toUpperCase(),
-                    })
-                  }
-                  placeholder="27AAAAA0000A1Z5"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>State Code</Label>
-                <Input
-                  value={form.stateCode}
-                  onChange={(e) =>
-                    setForm({ ...form, stateCode: e.target.value })
-                  }
-                  placeholder="27"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Address</Label>
-              <Textarea
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {editCust ? "Update" : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CustomerModal 
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        customer={editCust}
+        onSuccess={load}
+      />
 
       <ConfirmDialog
         open={deleteOpen}

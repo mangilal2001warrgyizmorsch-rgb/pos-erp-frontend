@@ -31,7 +31,20 @@ import { saleService } from "@/services/saleService";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { DashboardStats } from "@/types";
 
-const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const monthNames = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -52,24 +65,34 @@ export default function DashboardPage() {
     }
   };
 
-  const salesChartData = stats?.salesByMonth.map((item) => ({
-    name: monthNames[item._id.month - 1],
-    revenue: item.totalRevenue,
-    sales: item.totalSales,
-  })) || [];
+  const salesChartData =
+    stats?.salesByMonth.map((item) => ({
+      name: monthNames[item._id.month - 1],
+      revenue: item.totalRevenue,
+      sales: item.totalSales,
+    })) || [];
 
-  const dailyChartData = stats?.salesByDay.map((item) => ({
-    name: new Date(item._id).toLocaleDateString("en-IN", { weekday: "short" }),
-    revenue: item.totalRevenue,
-    sales: item.totalSales,
-  })) || [];
+  const dailyChartData =
+    stats?.salesByDay.map((item) => ({
+      name: new Date(item._id).toLocaleDateString("en-IN", {
+        weekday: "short",
+      }),
+      revenue: item.totalRevenue,
+      sales: item.totalSales,
+    })) || [];
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Dashboard" description="Overview of your business" icon={TrendingUp} />
+        <PageHeader
+          title="Dashboard"
+          description="Overview of your business"
+          icon={TrendingUp}
+        />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (<CardSkeleton key={i} />))}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
       </div>
     );
@@ -77,7 +100,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" description="Overview of your business performance" icon={TrendingUp} />
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your business performance"
+        icon={TrendingUp}
+      />
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -118,7 +145,11 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -129,16 +160,46 @@ export default function DashboardPage() {
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={salesChartData.length > 0 ? salesChartData : [{ name: "No data", revenue: 0, sales: 0 }]}>
+                  <AreaChart
+                    data={
+                      salesChartData.length > 0
+                        ? salesChartData
+                        : [{ name: "No data", revenue: 0, sales: 0 }]
+                    }
+                  >
                     <defs>
-                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <linearGradient
+                        id="revenueGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#6366f1"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" className="text-xs" tick={{ fill: "var(--muted-foreground)" }} />
-                    <YAxis className="text-xs" tick={{ fill: "var(--muted-foreground)" }} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-border"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      className="text-xs"
+                      tick={{ fill: "var(--muted-foreground)" }}
+                    />
+                    <YAxis
+                      className="text-xs"
+                      tick={{ fill: "var(--muted-foreground)" }}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "var(--card)",
@@ -147,7 +208,13 @@ export default function DashboardPage() {
                         color: "var(--foreground)",
                       }}
                     />
-                    <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fill="url(#revenueGradient)" />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#6366f1"
+                      strokeWidth={2}
+                      fill="url(#revenueGradient)"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -155,7 +222,11 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -166,10 +237,26 @@ export default function DashboardPage() {
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyChartData.length > 0 ? dailyChartData : [{ name: "No data", revenue: 0, sales: 0 }]}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" className="text-xs" tick={{ fill: "var(--muted-foreground)" }} />
-                    <YAxis className="text-xs" tick={{ fill: "var(--muted-foreground)" }} />
+                  <BarChart
+                    data={
+                      dailyChartData.length > 0
+                        ? dailyChartData
+                        : [{ name: "No data", revenue: 0, sales: 0 }]
+                    }
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-border"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      className="text-xs"
+                      tick={{ fill: "var(--muted-foreground)" }}
+                    />
+                    <YAxis
+                      className="text-xs"
+                      tick={{ fill: "var(--muted-foreground)" }}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "var(--card)",
@@ -178,7 +265,11 @@ export default function DashboardPage() {
                         color: "var(--foreground)",
                       }}
                     />
-                    <Bar dataKey="revenue" fill="#22c55e" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="#22c55e"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -190,7 +281,11 @@ export default function DashboardPage() {
       {/* Bottom widgets */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Sales */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
           <Card>
             <CardHeader>
               <CardTitle>Recent Sales</CardTitle>
@@ -198,22 +293,35 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {stats?.recentSales.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-8">No sales yet</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No sales yet
+                  </p>
                 )}
                 {stats?.recentSales.slice(0, 6).map((sale) => (
-                  <div key={sale._id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                  <div
+                    key={sale._id}
+                    className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
                         <ArrowUpRight className="h-4 w-4 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{sale.customerName}</p>
-                        <p className="text-xs text-muted-foreground">{sale.invoiceNumber}</p>
+                        <p className="text-sm font-medium">
+                          {sale.customerName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {sale.invoiceNumber}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(sale.totalAmount)}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(sale.createdAt)}</p>
+                      <p className="text-sm font-semibold">
+                        {formatCurrency(sale.totalAmount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(sale.createdAt)}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -223,7 +331,11 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* Low Stock Alerts */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -234,16 +346,27 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-3">
                 {stats?.lowStockProducts.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-8">All products are well stocked</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    All products are well stocked
+                  </p>
                 )}
                 {stats?.lowStockProducts.map((product) => (
-                  <div key={product._id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                  <div
+                    key={product._id}
+                    className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
+                  >
                     <div>
                       <p className="text-sm font-medium">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">{product.sku}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {product.sku}
+                      </p>
                     </div>
-                    <Badge variant={product.stock === 0 ? "destructive" : "warning"}>
-                      {product.stock === 0 ? "Out of stock" : `${product.stock} left`}
+                    <Badge
+                      variant={product.stock === 0 ? "destructive" : "warning"}
+                    >
+                      {product.stock === 0
+                        ? "Out of stock"
+                        : `${product.stock} left`}
                     </Badge>
                   </div>
                 ))}

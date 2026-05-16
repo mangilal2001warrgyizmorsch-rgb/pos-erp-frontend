@@ -15,9 +15,12 @@ interface StatCardProps {
 }
 
 const colorMap = {
-  indigo: "from-indigo-500/10 to-indigo-500/5 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
-  emerald: "from-emerald-500/10 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  amber: "from-amber-500/10 to-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  indigo:
+    "from-indigo-500/10 to-indigo-500/5 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+  emerald:
+    "from-emerald-500/10 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  amber:
+    "from-amber-500/10 to-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20",
   rose: "from-rose-500/10 to-rose-500/5 text-rose-600 dark:text-rose-400 border-rose-500/20",
   blue: "from-blue-500/10 to-blue-500/5 text-blue-600 dark:text-blue-400 border-blue-500/20",
 };
@@ -48,13 +51,15 @@ export function StatCard({
       className={cn(
         "relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 transition-shadow duration-300 hover:shadow-lg",
         colorMap[color],
-        className
+        className,
       )}
     >
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className="text-sm font-small text-muted-foreground">{title}</p>
-          <p className="text-xl font-bold tracking-tight text-foreground">{value}</p>
+          <p className="text-xl font-bold tracking-tight text-foreground">
+            {value}
+          </p>
           {subtitle && (
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           )}
@@ -65,17 +70,24 @@ export function StatCard({
                   "text-xs font-small",
                   trend.value >= 0
                     ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
+                    : "text-rose-600 dark:text-rose-400",
                 )}
               >
                 {trend.value >= 0 ? "+" : ""}
                 {trend.value}%
               </span>
-              <span className="text-xs text-muted-foreground">{trend.label}</span>
+              <span className="text-xs text-muted-foreground">
+                {trend.label}
+              </span>
             </div>
           )}
         </div>
-        <div className={cn("rounded-xl p-3 absolute top-2 right-2", iconBgMap[color])}>
+        <div
+          className={cn(
+            "rounded-xl p-3 absolute top-2 right-2",
+            iconBgMap[color],
+          )}
+        >
           <Icon className="h-6 w-6" />
         </div>
       </div>

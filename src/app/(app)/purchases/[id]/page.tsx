@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { purchaseService } from "@/services/purchaseService";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Purchase, PurchaseStatus, PurchasePaymentStatus } from "@/types";
-import { useReactToPrint } from "react-to-print";
+import { PrintPurchaseDialog } from "@/components/purchases/PrintPurchaseDialog";
 
 const statusColors: Record<PurchaseStatus, string> = {
   draft: "bg-slate-500/10 text-slate-500 border-slate-500/20",
@@ -34,7 +34,7 @@ export default function PurchaseDetailsPage() {
   const router = useRouter();
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
-  const invoiceRef = useRef<HTMLDivElement>(null);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -49,12 +49,6 @@ export default function PurchaseDetailsPage() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
-
-  // NATIVE PRINT & PDF GENERATION (MOST RELIABLE)
-  const handlePrint = useReactToPrint({
-    contentRef: invoiceRef,
-    documentTitle: purchase ? `Purchase_Bill_${purchase.purchaseNumber}` : "Purchase_Bill",
-  });
 
   if (loading) {
     return (
@@ -97,7 +91,7 @@ export default function PurchaseDetailsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="default" onClick={() => handlePrint()} className="gap-2 shadow-lg shadow-primary/20 px-6">
+            <Button variant="default" onClick={() => setPrintOpen(true)} className="gap-2 shadow-lg shadow-primary/20 px-6">
               <Printer className="h-4 w-4" /> Generate Invoice / PDF
             </Button>
           </div>
@@ -168,123 +162,11 @@ export default function PurchaseDetailsPage() {
         </Card>
       </div>
 
-      {/* 2. THE SYSTEMATIC INVOICE (Hidden from screen, used for PDF/Print) */}
-      <div style={{ display: "none" }}>
-        <div ref={invoiceRef} className="bg-white text-black p-0 w-full font-sans">
-          {/* Header */}
-          <div className="p-10 border-b-2 border-slate-200 flex justify-between items-start">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <ShieldCheck className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-4xl font-black tracking-tighter text-indigo-600">POS ERP</h2>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Premium Business Solutions</p>
-                </div>
-              </div>
-              <div className="text-xs text-slate-500 font-bold space-y-1">
-                <p>Akola, Maharashtra, India</p>
-                <p>+91 98765 43210</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <h1 className="text-5xl font-black text-indigo-600 uppercase tracking-tighter mb-2">INVOICE</h1>
-              <div className="space-y-1 text-sm font-black">
-                <p>BILL NO: <span className="text-indigo-600">#{purchase.purchaseNumber}</span></p>
-                <p>DATE: {formatDate(purchase.purchaseDate)}</p>
-                {purchase.invoiceNumber && <p className="text-slate-400">REF: {purchase.invoiceNumber}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Info Sections */}
-          <div className="grid grid-cols-2 border-b-2 border-slate-200">
-            <div className="p-10 border-r-2 border-slate-100">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b-2 pb-2 inline-block">Supplier Information</h3>
-              <div className="space-y-4">
-                <div className="text-2xl font-black text-indigo-600">
-                  {typeof purchase.supplier !== "string" && purchase.supplier ? purchase.supplier.name : purchase.supplierName}
-                </div>
-                {typeof purchase.supplier !== "string" && purchase.supplier && (
-                  <div className="space-y-2 text-sm font-bold text-slate-600">
-                    <p className="flex items-center gap-2">Ph: {purchase.supplier.phone}</p>
-                    {purchase.supplier.gstNumber && <p className="text-black bg-slate-100 px-2 py-1 rounded inline-block font-black">GST: {purchase.supplier.gstNumber}</p>}
-                    {purchase.supplier.address && <p className="leading-relaxed">{purchase.supplier.address}</p>}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="p-10 bg-slate-50/50">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b-2 pb-2 inline-block">Order Overview</h3>
-              <div className="grid grid-cols-2 gap-y-6 text-sm font-black">
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Status</p><p className="text-indigo-600 uppercase">{purchase.status}</p></div>
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Payment</p><p className="text-emerald-600 uppercase">{purchase.paymentStatus}</p></div>
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Method</p><p className="uppercase">{purchase.paymentMethod}</p></div>
-                <div><p className="text-[9px] uppercase text-slate-400 mb-1">Authorization</p><p className="uppercase">System Admin</p></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="p-0">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="text-left p-5 uppercase font-black tracking-widest text-[10px] w-16">#</th>
-                  <th className="text-left p-5 uppercase font-black tracking-widest text-[10px]">Item Description</th>
-                  <th className="text-center p-5 uppercase font-black tracking-widest text-[10px]">Qty</th>
-                  <th className="text-right p-5 uppercase font-black tracking-widest text-[10px]">Rate</th>
-                  <th className="text-right p-5 uppercase font-black tracking-widest text-[10px]">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchase.items.map((item, idx) => (
-                  <tr key={idx} className="border-b-2 border-slate-100">
-                    <td className="p-5 text-slate-400 font-bold">{idx + 1}</td>
-                    <td className="p-5 font-black text-lg">{item.name}<div className="text-[10px] text-slate-400 font-bold mt-1 tracking-widest">SKU: {item.sku}</div></td>
-                    <td className="p-5 text-center font-black text-lg">{item.quantity}</td>
-                    <td className="p-5 text-right font-bold text-slate-600">{formatCurrency(item.purchasePrice)}</td>
-                    <td className="p-5 text-right font-black text-xl text-indigo-600">{formatCurrency(item.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals */}
-          <div className="p-10 flex justify-between gap-20">
-            <div className="flex-1">
-              <div className="border-4 border-double border-slate-200 p-6 rounded-3xl bg-slate-50">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-4">Certification</h4>
-                <p className="text-[10px] text-slate-500 leading-relaxed font-bold italic">
-                  "Certified that the particulars given above are true and correct and that the amount indicated represents the price actually charged."
-                </p>
-              </div>
-            </div>
-            <div className="w-80 space-y-4">
-              <div className="flex justify-between text-xs font-black uppercase border-b-2 border-slate-100 pb-2"><span>Subtotal</span><span>{formatCurrency(purchase.subtotal)}</span></div>
-              {purchase.taxAmount > 0 && <div className="flex justify-between text-xs font-black uppercase border-b-2 border-slate-100 pb-2"><span>Applied Taxes</span><span>{formatCurrency(purchase.taxAmount)}</span></div>}
-              {purchase.discountAmount > 0 && <div className="flex justify-between text-xs font-black uppercase text-emerald-600 bg-emerald-50 p-2 rounded-lg border-2 border-emerald-100"><span>Total Savings</span><span>-{formatCurrency(purchase.discountAmount)}</span></div>}
-              
-              <div className="pt-2">
-                <div className="flex justify-between items-center p-6 bg-indigo-600 text-white rounded-[2rem] shadow-2xl shadow-indigo-200">
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Final Total</span>
-                  <span className="text-3xl font-black">{formatCurrency(purchase.totalAmount)}</span>
-                </div>
-              </div>
-
-              <div className="pt-16 flex justify-between gap-10">
-                <div className="flex-1 text-center"><div className="border-b-2 border-slate-200 mb-2 h-8"></div><p className="text-[10px] font-black uppercase text-slate-400">Receiver</p></div>
-                <div className="flex-1 text-center"><div className="border-b-2 border-slate-200 mb-2 h-8"></div><p className="text-[10px] font-black uppercase text-slate-400">Authorized</p></div>
-              </div>
-            </div>
-          </div>
-          <div className="p-10 text-center border-t-2 border-slate-100 text-[10px] font-black uppercase tracking-[0.5em] text-slate-300">
-            SECURE ERP SYSTEM GENERATED DOCUMENT
-          </div>
-        </div>
-      </div>
+      <PrintPurchaseDialog 
+        open={printOpen} 
+        onOpenChange={setPrintOpen} 
+        purchase={purchase} 
+      />
     </div>
   );
 }

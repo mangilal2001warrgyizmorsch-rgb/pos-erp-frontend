@@ -94,7 +94,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       {/* Right side actions */}
       <div className="flex items-center gap-1">
         {/* Theme toggle */}
-        <Button variant="ghost" size="icon" onClick={toggleTheme} className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="relative"
+        >
           <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
@@ -116,8 +121,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 {user?.name?.charAt(0).toUpperCase() || "U"}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium leading-tight">{user?.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                <p className="text-sm font-medium leading-tight">
+                  {user?.name}
+                </p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {user?.role}
+                </p>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -138,7 +147,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
