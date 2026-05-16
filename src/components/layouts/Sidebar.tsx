@@ -85,6 +85,7 @@ const navEntries: NavEntry[] = [
     children: [
       { label: "Sale Invoices", href: "/sales", icon: FileText },
       { label: "POS Billing", href: "/pos", icon: Zap },
+      { label: "Payment-In", href: "/sales/payment-in", icon: Wallet },
       { label: "Sale Return", href: "/sales/return", icon: ArrowLeftRight },
     ],
   },
@@ -93,8 +94,9 @@ const navEntries: NavEntry[] = [
     icon: Receipt,
     children: [
       { label: "Purchase Bills", href: "/purchases", icon: FileText },
-      { label: "Purchase Return", href: "/purchases/return", icon: Receipt },
+      { label: "Payment-Out", href: "/purchases/payment-out", icon: Wallet },
       { label: "Expenses", href: "/expenses", icon: IndianRupee },
+      { label: "Purchase Return", href: "/purchases/return", icon: Receipt },
     ],
   },
   {

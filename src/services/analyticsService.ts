@@ -101,4 +101,10 @@ export const analyticsService = {
     >("/reports/purchases", { params });
     return data.data;
   },
+
+  // Cashflow Analytics
+  getCashFlow: async (params?: ReportFilters) => {
+    const { data } = await api.get("/analytics/cashflow", { params });
+    return data.data;
+  },
 };

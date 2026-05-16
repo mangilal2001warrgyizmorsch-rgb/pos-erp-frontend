@@ -96,8 +96,10 @@ export interface Customer {
   creditLimit?: number;
   totalPurchases: number;
   totalSpent: number;
+  walletBalance: number;
   isActive: boolean;
   createdAt: string;
+
 }
 
 export interface SaleItem {
@@ -225,10 +227,11 @@ export interface Supplier {
   stateCode?: string;
   totalPurchases: number;
   totalAmount: number;
-  outstandingAmount: number;
+  outstandingBalance: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+
 }
 
 // --- Transporter ---

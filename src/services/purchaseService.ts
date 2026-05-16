@@ -73,4 +73,9 @@ export const purchaseService = {
     const { data } = await api.get("/purchases/stats/overview");
     return data.data;
   },
+
+  getUnpaid: async (supplierId: string) => {
+    const { data } = await api.get(`/purchases/unpaid/${supplierId}`);
+    return data;
+  },
 };

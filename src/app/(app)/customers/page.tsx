@@ -119,6 +119,9 @@ export default function CustomersPage() {
                     Total Spent
                   </th>
                   <th className="text-right p-4 text-sm font-medium text-muted-foreground">
+                    Balance
+                  </th>
+                  <th className="text-right p-4 text-sm font-medium text-muted-foreground">
                     Actions
                   </th>
                 </tr>
@@ -160,6 +163,14 @@ export default function CustomersPage() {
                     <td className="p-4 text-sm text-right font-medium">
                       {formatCurrency(c.totalSpent)}
                     </td>
+                    <td className="p-4 text-sm text-right font-bold">
+                      <span className={cn(
+                        (c.walletBalance || 0) > 0 ? "text-emerald-500" : (c.walletBalance || 0) < 0 ? "text-red-500" : ""
+                      )}>
+                        {formatCurrency(c.walletBalance || 0)}
+                      </span>
+                    </td>
+
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button

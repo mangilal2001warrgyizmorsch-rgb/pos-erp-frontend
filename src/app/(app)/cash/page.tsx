@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,25 +9,46 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, formatDate } from "@/lib/utils";
+import { cashBankService } from "@/services/cashBankService";
+import { toast } from "sonner";
 
-const mockTransactions = [
-  { id: "1", type: "Lite Sale", name: "Dinesh", date: "14/05/2026", amount: 1318.4, isPositive: true },
-];
 
 export default function CashInHandPage() {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState(0);
   const [search, setSearch] = useState("");
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [form, setForm] = useState({
     amount: "", type: "add", date: new Date().toISOString().split('T')[0], remarks: ""
   });
   
-  const balance = 1318.4; // Derived from sum of transactions
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [summaryRes, transRes] = await Promise.all([
+        cashBankService.getSummary(),
+        cashBankService.getTransactions({ accountType: 'cash' })
+      ]);
+      setBalance(summaryRes.data.cashBalance);
+      setTransactions(transRes.data);
+    } catch (error) {
+      toast.error("Failed to load cash data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = () => {
-    console.log("Adjusting Cash:", form);
+    // Implement adjustment logic if needed
     setIsAdjustModalOpen(false);
   };
+
 
   return (
     <div className="space-y-6">
@@ -93,30 +114,36 @@ export default function CashInHandPage() {
               </tr>
             </thead>
             <tbody>
-              {mockTransactions.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                  </td>
+                </tr>
+              ) : transactions.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center p-8 text-muted-foreground">
                     No transactions found.
                   </td>
                 </tr>
               ) : (
-                mockTransactions.map((tx, i) => (
+                transactions.map((tx, i) => (
                   <motion.tr 
-                    key={tx.id} 
+                    key={tx._id} 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
                     transition={{ delay: i * 0.05 }}
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors group"
                   >
-                    <td className="p-4 font-medium">{tx.type}</td>
-                    <td className="p-4">{tx.name}</td>
-                    <td className="p-4">{tx.date}</td>
+                    <td className="p-4 font-medium capitalize">{tx.type.replace('_', ' ')}</td>
+                    <td className="p-4">{tx.receiptNo || "—"}</td>
+                    <td className="p-4">{formatDate(tx.date)}</td>
                     <td className="p-4 text-right">
                       <span className={cn(
                         "font-medium",
-                        tx.isPositive ? "text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md" : "text-foreground"
+                        tx.direction === 'in' ? "text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md" : "text-rose-500 bg-rose-500/10 px-2 py-1 rounded-md"
                       )}>
-                        {tx.isPositive ? "+" : ""}{formatCurrency(tx.amount)}
+                        {tx.direction === 'in' ? "+" : "-"}{formatCurrency(tx.amount)}
                       </span>
                     </td>
                     <td className="p-4 text-center">
@@ -127,6 +154,7 @@ export default function CashInHandPage() {
                   </motion.tr>
                 ))
               )}
+
             </tbody>
           </table>
         </div>

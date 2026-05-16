@@ -22,18 +22,19 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { customerService } from "@/services/customerService";
-import { saleService } from "@/services/saleService";
 import { formatCurrency, cn } from "@/lib/utils";
-import type { Customer, Sale } from "@/types";
+import type { Customer } from "@/types";
 import { format } from "date-fns";
 import { CustomerModal } from "@/components/shared/CustomerModal";
+import { partyLedgerService, LedgerEntry } from "@/services/partyLedgerService";
+
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
   
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -41,45 +42,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [custData, salesData] = await Promise.all([
+      const [custData, ledgerRes] = await Promise.all([
         customerService.getById(id),
-        saleService.getAll({ customer: id, limit: 100 })
+        partyLedgerService.getLedger(id)
       ]);
       
       setCustomer(custData);
-      
-      // Combine opening balance with sales for a ledger view
-      const ledger: any[] = [];
-      
-      // 1. Add Opening Balance if exists
-      if (custData.openingBalance && custData.openingBalance > 0) {
-        ledger.push({
-          _id: "opening-bal",
-          type: custData.openingBalanceType === "Receivable" ? "Receivable Opening Bal" : "Payable Opening Bal",
-          date: custData.openingBalanceDate || new Date().toISOString(),
-          total: custData.openingBalance,
-          balance: custData.openingBalance,
-          status: "Unpaid", // Opening balance is usually considered unpaid until settled
-          isOpening: true,
-        });
-      }
-      
-      // 2. Add Sales
-      const salesLedger = salesData.data.map((s: Sale) => ({
-        _id: s._id,
-        type: "Sale",
-        number: s.invoiceNumber,
-        date: s.createdAt,
-        total: s.totalAmount,
-        balance: s.totalAmount - (s.amountPaid || 0),
-        status: s.paymentStatus === "paid" ? "Paid" : "Unpaid",
-      }));
-      
-      ledger.push(...salesLedger);
-      
-      // Sort by date (Opening balance usually comes first if we assume it's older)
-      setTransactions(ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      
+      setLedger(ledgerRes.data);
     } catch (error) {
       toast.error("Failed to load customer details");
       console.error(error);
@@ -87,6 +56,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       setLoading(false);
     }
   }, [id]);
+
 
   useEffect(() => {
     loadData();
@@ -160,11 +130,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Balance</p>
                 <p className={cn(
                   "text-sm font-bold",
-                  (customer.totalSpent > 0) ? "text-primary" : "text-emerald-600"
+                  (customer.walletBalance || 0) >= 0 ? "text-emerald-600" : "text-rose-600"
                 )}>
-                  {formatCurrency(customer.totalSpent || 0)}
+                  {formatCurrency(customer.walletBalance || 0)}
                 </p>
               </div>
+
             </div>
           </div>
 
@@ -217,14 +188,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </tr>
               </thead>
               <tbody>
-                {transactions.length === 0 ? (
+                {ledger.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-10 text-center text-muted-foreground text-sm italic">
                       No transactions found for this customer.
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((t, i) => (
+                  ledger.map((t, i) => (
                     <motion.tr 
                       key={t._id}
                       initial={{ opacity: 0, y: 10 }}
@@ -232,31 +203,22 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                       transition={{ delay: i * 0.05 }}
                       className={cn(
                         "border-b border-border/50 hover:bg-muted/10 transition-colors group",
-                        t.isOpening && "bg-muted/5 font-medium"
+                        t.type === 'opening_balance' && "bg-muted/5 font-medium"
                       )}
                     >
-                      <td className="p-4 text-sm font-medium">{t.type}</td>
-                      <td className="p-4 text-sm text-muted-foreground">{t.number || "—"}</td>
+                      <td className="p-4 text-sm font-medium capitalize">{t.type.replace('_', ' ')}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{t.receiptNo || "—"}</td>
                       <td className="p-4 text-sm text-muted-foreground">
                         {t.date ? format(new Date(t.date), "dd/MM/yyyy") : "—"}
                       </td>
-                      <td className="p-4 text-sm text-right font-semibold">
-                        {formatCurrency(t.total)}
+                      <td className="p-4 text-sm text-right font-semibold text-rose-500">
+                        {t.debitAmount > 0 ? formatCurrency(t.debitAmount) : "—"}
                       </td>
-                      <td className="p-4 text-sm text-right font-medium">
-                        {formatCurrency(t.balance)}
+                      <td className="p-4 text-sm text-right font-semibold text-emerald-500">
+                        {t.creditAmount > 0 ? formatCurrency(t.creditAmount) : "—"}
                       </td>
-                      <td className="p-4 text-center">
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                            t.status === "Paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : 
-                            "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                          )}
-                        >
-                          {t.status}
-                        </Badge>
+                      <td className="p-4 text-sm text-right font-bold">
+                        {formatCurrency(t.balanceAfter)}
                       </td>
                       <td className="p-4 text-right">
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -266,6 +228,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     </motion.tr>
                   ))
                 )}
+
               </tbody>
             </table>
           </div>
@@ -276,15 +239,19 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
         <div className="flex items-center gap-8">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Total Sales</p>
-            <p className="text-lg font-bold text-primary">{transactions.filter(t => t.type === 'Sale').length}</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Total Transactions</p>
+            <p className="text-lg font-bold text-primary">{ledger.length}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Net Balance</p>
-            <p className="text-lg font-bold text-rose-600">
-              {formatCurrency(transactions.reduce((acc, t) => acc + t.balance, 0))}
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Current Balance</p>
+            <p className={cn(
+              "text-lg font-bold",
+              (customer.walletBalance || 0) >= 0 ? "text-emerald-600" : "text-rose-600"
+            )}>
+              {formatCurrency(customer.walletBalance || 0)}
             </p>
           </div>
+
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
           Record Payment

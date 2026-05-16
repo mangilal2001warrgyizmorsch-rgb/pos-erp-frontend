@@ -22,4 +22,8 @@ export const saleService = {
     const { data } = await api.get("/sales/stats/dashboard");
     return data.data;
   },
+  getUnpaid: async (customerId: string) => {
+    const { data } = await api.get(`/sales/unpaid/${customerId}`);
+    return data;
+  },
 };
