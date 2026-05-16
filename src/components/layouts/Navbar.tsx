@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import {
   Menu,
   Search,
-  Bell,
   Sun,
   Moon,
   LogOut,
@@ -105,13 +104,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           <span className="sr-only">Toggle theme</span>
         </Button>
 
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-white flex items-center justify-center">
-            3
-          </span>
-        </Button>
+
 
         {/* User menu */}
         <DropdownMenu>

@@ -22,7 +22,7 @@ interface CustomerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customer?: Customer | null;
-  onSuccess: () => void;
+  onSuccess: (customer?: Customer) => void;
 }
 
 export function CustomerModal({ open, onOpenChange, customer, onSuccess }: CustomerModalProps) {
@@ -87,15 +87,16 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
         creditLimit: hasCustomLimit ? form.creditLimit : 0,
       };
 
+      let savedCustomer;
       if (customer) {
-        await customerService.update(customer._id, payload);
+        savedCustomer = await customerService.update(customer._id, payload);
         toast.success("Customer updated successfully");
       } else {
-        await customerService.create(payload);
+        savedCustomer = await customerService.create(payload);
         toast.success("Customer created successfully");
       }
 
-      onSuccess();
+      onSuccess(savedCustomer);
       if (!stayOpen) {
         onOpenChange(false);
       } else {

@@ -84,7 +84,7 @@ const navEntries: NavEntry[] = [
     icon: ShoppingCart,
     children: [
       { label: "Sale Invoices", href: "/sales", icon: FileText },
-      { label: "POS Billing", href: "/sales/create", icon: Zap },
+      { label: "POS Billing", href: "/pos", icon: Zap },
       { label: "Sale Return", href: "/sales/return", icon: ArrowLeftRight },
     ],
   },
