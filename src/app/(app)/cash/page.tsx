@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee, Loader2, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 
 
 export default function CashInHandPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
@@ -53,19 +55,28 @@ export default function CashInHandPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-5">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold tracking-tight">Cash In Hand</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+            Cash In Hand
+          </h1>
           <span className={cn(
-            "text-xl font-semibold",
+            "text-xl sm:text-2xl font-black font-mono tracking-tight",
             balance >= 0 ? "text-emerald-500" : "text-red-500"
           )}>
             {formatCurrency(balance)}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => setIsAdjustModalOpen(true)}>
-            <SlidersHorizontal className="mr-2 h-4 w-4" /> Adjust Cash
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            className="flex-1 sm:flex-none rounded-full h-10 px-4 flex items-center gap-2 border-border/50 bg-card hover:bg-muted text-xs sm:text-sm shadow-sm"
+            onClick={() => router.push("/cash-bank/transaction-history?accountId=cash")}
+          >
+            <History className="h-4 w-4 text-primary shrink-0" /> View History
+          </Button>
+          <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-primary-foreground rounded-full shadow-md text-xs sm:text-sm font-semibold h-10 px-5" onClick={() => setIsAdjustModalOpen(true)}>
+            <SlidersHorizontal className="mr-1.5 h-4 w-4 shrink-0" /> Adjust Cash
           </Button>
         </div>
       </div>
@@ -147,8 +158,14 @@ export default function CashInHandPage() {
                       </span>
                     </td>
                     <td className="p-4 text-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => router.push(`/cash-bank/transaction-history?search=${tx.transactionNo || tx.receiptNo || ''}`)}
+                        title="View details in history"
+                      >
+                        <Eye className="h-4 w-4" />
                       </Button>
                     </td>
                   </motion.tr>

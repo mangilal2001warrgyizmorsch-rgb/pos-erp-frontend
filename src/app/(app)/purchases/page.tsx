@@ -21,6 +21,7 @@ import {
 import { purchaseService } from "@/services/purchaseService";
 import { formatCurrency } from "@/lib/utils";
 import type { Purchase, PurchaseStatus, PurchasePaymentStatus } from "@/types";
+import { getSocket } from "@/lib/socket";
 
 const statusColors: Record<PurchaseStatus, string> = {
   draft: "bg-slate-500/10 text-slate-500",
@@ -62,6 +63,22 @@ export default function PurchasesPage() {
   }, [search, statusFilter, paymentFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    
+    const handleLiveUpdate = () => {
+      load();
+    };
+
+    socket.on("purchase:created", handleLiveUpdate);
+    socket.on("purchaseReturn:created", handleLiveUpdate);
+    
+    return () => {
+      socket.off("purchase:created", handleLiveUpdate);
+      socket.off("purchaseReturn:created", handleLiveUpdate);
+    };
+  }, [load]);
 
   const handleDelete = async () => {
     if (!deleteId) return;

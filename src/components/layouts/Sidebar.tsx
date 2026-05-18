@@ -31,6 +31,8 @@ import {
   Wrench,
   ScanBarcode,
   ArrowDownUp,
+  History,
+  ListCollapse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/themeStore";
@@ -86,7 +88,7 @@ const navEntries: NavEntry[] = [
       { label: "Sale Invoices", href: "/sales", icon: FileText },
       { label: "POS Billing", href: "/pos", icon: Zap },
       { label: "Payment-In", href: "/sales/payment-in", icon: Wallet },
-      { label: "Sale Return", href: "/sales/return", icon: ArrowLeftRight },
+      { label: "Sale Return / Credit Note", href: "/sales/return", icon: ArrowLeftRight },
     ],
   },
   {
@@ -96,18 +98,19 @@ const navEntries: NavEntry[] = [
       { label: "Purchase Bills", href: "/purchases", icon: FileText },
       { label: "Payment-Out", href: "/purchases/payment-out", icon: Wallet },
       { label: "Expenses", href: "/expenses", icon: IndianRupee },
-      { label: "Purchase Return", href: "/purchases/return", icon: Receipt },
+      { label: "Purchase Return / Debit Note", href: "/purchases/return", icon: Receipt },
     ],
   },
   {
     label: "Inventory",
     icon: Warehouse,
-    children: [{ label: "Current Stock", href: "/inventory", icon: Warehouse }],
+    href: "/inventory"
   },
   {
     label: "Cash & Bank",
     icon: Wallet,
     children: [
+      { label: "Transaction History", href: "/cash-bank/transaction-history", icon: History },
       { label: "Bank Accounts", href: "/bank", icon: Building },
       { label: "Cash In Hand", href: "/cash", icon: IndianRupee },
       { label: "Cheques", href: "/cheques", icon: Receipt },
@@ -117,7 +120,7 @@ const navEntries: NavEntry[] = [
   {
     label: "Reports",
     icon: BarChart3,
-    children: [{ label: "All Reports", href: "/reports", icon: BarChart3 }],
+    href: "/reports", 
   },
   {
     label: "Sync & Backup",
@@ -308,24 +311,39 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 px-4 border-b border-border/50">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
-          <Zap className="h-5 w-5 text-white" />
+      <div className="flex h-16 items-center justify-between px-4 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25 shrink-0">
+            <Zap className="h-5 w-5 text-white" />
+          </div>
+          <AnimatePresence>
+            {!sidebarCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                className="overflow-hidden"
+              >
+                <h1 className="text-lg font-bold whitespace-nowrap gradient-text">
+                  POS ERP
+                </h1>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <AnimatePresence>
-          {!sidebarCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              className="overflow-hidden"
-            >
-              <h1 className="text-lg font-bold whitespace-nowrap gradient-text">
-                POS ERP
-              </h1>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+        {/* Collapse All Options Button */}
+        {!sidebarCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpenGroups({})}
+            title="Collapse all submenus"
+            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+          >
+            <ListCollapse className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Nav items */}

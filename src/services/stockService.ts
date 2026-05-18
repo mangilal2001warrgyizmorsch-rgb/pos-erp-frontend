@@ -20,12 +20,13 @@ export const stockService = {
   getMovements: async (params?: {
     page?: number;
     limit?: number;
-    product?: string;
+    productId?: string;
     type?: string;
+    search?: string;
     startDate?: string;
     endDate?: string;
-  }): Promise<{ data: StockMovement[]; pagination: Pagination }> => {
-    const { data } = await api.get<ApiResponse<StockMovement[]>>("/stock/movements", { params });
+  }): Promise<{ data: any[]; pagination: Pagination }> => {
+    const { data } = await api.get<ApiResponse<any[]>>("/inventory/history", { params });
     return { data: data.data, pagination: data.pagination! };
   },
 

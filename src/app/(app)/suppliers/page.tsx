@@ -130,7 +130,7 @@ export default function SuppliersPage() {
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border border-primary/20">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border border-primary/20 shrink-0 aspect-square">
                           {s.name.charAt(0).toUpperCase()}
                         </div>
                         <div>

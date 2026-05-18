@@ -61,6 +61,7 @@ import { categoryService } from "@/services/categoryService";
 import { subcategoryService } from "@/services/subcategoryService";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Product, Category, Subcategory } from "@/types";
+import { getSocket } from "@/lib/socket";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -145,6 +146,24 @@ export default function ProductsPage() {
   useEffect(() => {
     loadDependencies();
   }, [loadDependencies]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    
+    const handleInventoryUpdated = (data: { productId: string; stock: number }) => {
+      setProducts((prevProducts) => 
+        prevProducts.map((p) => 
+          p._id === data.productId ? { ...p, stock: data.stock } : p
+        )
+      );
+    };
+
+    socket.on("inventory:updated", handleInventoryUpdated);
+    
+    return () => {
+      socket.off("inventory:updated", handleInventoryUpdated);
+    };
+  }, []);
 
   const openCreate = () => {
     setEditProduct(null);

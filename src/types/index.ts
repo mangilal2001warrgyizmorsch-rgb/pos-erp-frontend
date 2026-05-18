@@ -477,5 +477,115 @@ export interface BusinessProfile {
   logoText?: string;
 }
 
+// --- Sale Return / Credit Note ---
+export interface SaleReturnItem {
+  product: string | Product;
+  barcode?: string;
+  itemName: string;
+  soldQty: number;
+  alreadyReturnedQty: number;
+  returnQty: number;
+  unit: string;
+  pricePerUnit: number;
+  discountAmount: number;
+  taxPercent: number;
+  taxAmount: number;
+  returnAmount: number;
+  reason: "Damaged" | "Wrong item" | "Expired" | "Customer cancelled" | "Exchange" | "Other";
+  stockAction: "restore_stock" | "damaged_stock" | "no_stock";
+}
+
+export type SaleReturnRefundType = "refund_now" | "keep_as_credit" | "adjust_future_invoice";
+export type SaleReturnStatus = "draft" | "issued" | "partially_refunded" | "refunded" | "adjusted" | "cancelled";
+
+export interface SaleReturn {
+  _id: string;
+  creditNoteNo: string;
+  returnNumber: string;
+  sale: Sale | string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  customer: Customer | string;
+  customerName: string;
+  customerPhone?: string;
+  customerGstNo?: string;
+  billingAddress?: string;
+  returnDate: string;
+  stateOfSupply?: string;
+  items: SaleReturnItem[];
+  subtotal: number;
+  totalDiscount: number;
+  totalTax: number;
+  roundOff?: number;
+  grandTotal: number;
+  refundMethod: string;
+  refundType: SaleReturnRefundType;
+  paymentMode?: "Cash" | "UPI" | "Bank" | "Card" | "Wallet" | "Credit";
+  cashBankAccountId?: string;
+  refundedAmount: number;
+  creditBalance: number;
+  referenceNo?: string;
+  status: SaleReturnStatus;
+  notes?: string;
+  attachments?: string[];
+  cashier: User | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Purchase Return / Debit Note ---
+export interface PurchaseReturnItem {
+  product: string | Product;
+  barcode?: string;
+  itemName: string;
+  purchasedQty: number;
+  alreadyReturnedQty: number;
+  returnQty: number;
+  unit: string;
+  purchasePrice: number;
+  discountAmount: number;
+  taxPercent: number;
+  taxAmount: number;
+  returnAmount: number;
+  reason: "Damaged from supplier" | "Wrong item received" | "Extra quantity" | "Expired" | "Quality issue" | "Other";
+}
+
+export type PurchaseReturnRefundType = "refund_received" | "keep_as_debit" | "adjust_future_purchase";
+export type PurchaseReturnStatus = "draft" | "issued" | "partially_refunded" | "refunded" | "adjusted" | "cancelled";
+
+export interface PurchaseReturnModel {
+  _id: string;
+  debitNoteNo: string;
+  returnNumber: string;
+  purchase: Purchase | string;
+  purchaseNumber: string;
+  billDate: string;
+  supplier: Supplier | string;
+  supplierName: string;
+  supplierPhone?: string;
+  supplierGstNo?: string;
+  address?: string;
+  returnDate: string;
+  stateOfSupply?: string;
+  items: PurchaseReturnItem[];
+  subtotal: number;
+  totalDiscount: number;
+  totalTax: number;
+  roundOff?: number;
+  grandTotal: number;
+  refundMethod: string;
+  refundType: PurchaseReturnRefundType;
+  paymentMode?: "Cash" | "UPI" | "Bank" | "Card" | "Wallet" | "Credit";
+  cashBankAccountId?: string;
+  refundReceivedAmount: number;
+  debitBalance: number;
+  referenceNo?: string;
+  status: PurchaseReturnStatus;
+  notes?: string;
+  attachments?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export * from './shortcuts';
 

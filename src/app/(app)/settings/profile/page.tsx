@@ -347,7 +347,7 @@ export default function BusinessProfilePage() {
               <ShieldCheck className="h-24 w-24" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center gap-4">
-              <div className="h-24 w-40 rounded-xl bg-white border-2 border-indigo-100 flex items-center justify-center shadow-sm overflow-hidden p-2 relative group/sign">
+              <div className="h-24 w-40 rounded-xl bg-card border border-indigo-500/20 flex items-center justify-center shadow-sm overflow-hidden p-2 relative group/sign">
                 {signUploading ? (
                   <UploadCloud className="h-6 w-6 animate-bounce text-primary" />
                 ) : localProfile.signature ? (
@@ -375,7 +375,7 @@ export default function BusinessProfilePage() {
                   </div>
                 ) : (
                   <div 
-                    className="flex flex-col items-center gap-1 opacity-40 cursor-pointer w-full h-full justify-center hover:bg-indigo-50/50 transition-colors"
+                    className="flex flex-col items-center gap-1 opacity-40 cursor-pointer w-full h-full justify-center hover:bg-indigo-500/10 transition-colors"
                     onClick={() => signInputRef.current?.click()}
                   >
                     <Fingerprint className="h-6 w-6" />
@@ -402,7 +402,7 @@ export default function BusinessProfilePage() {
                   size="sm" 
                   disabled={signUploading}
                   onClick={() => signInputRef.current?.click()}
-                  className="bg-white hover:bg-indigo-50 border-indigo-200 text-indigo-600 font-semibold h-8 rounded-lg shadow-sm"
+                  className="bg-card hover:bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 hover:text-indigo-600 font-semibold h-8 rounded-lg shadow-sm"
                 >
                   {signUploading ? "Uploading..." : "Upload Signature"}
                 </Button>

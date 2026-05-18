@@ -79,7 +79,7 @@ export function PrintSaleDialog({ open, onOpenChange, sale }: PrintSaleDialogPro
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 overflow-hidden bg-background border-border">
-        <DialogHeader className="p-6 border-b flex flex-row items-center justify-between">
+        <DialogHeader className="p-6 border-b flex flex-row items-center justify-between pr-12">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Printer className="h-5 w-5 text-primary" />
@@ -89,9 +89,6 @@ export function PrintSaleDialog({ open, onOpenChange, sale }: PrintSaleDialogPro
               <p className="text-xs text-muted-foreground">Invoice #{sale.invoiceNumber}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full">
-            <X className="h-4 w-4" />
-          </Button>
         </DialogHeader>
 
         <div className="flex-1 flex overflow-hidden">

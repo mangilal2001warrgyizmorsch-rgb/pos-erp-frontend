@@ -234,9 +234,10 @@ export function POSRightPanel() {
           setShowMultiPay(false);
           handleSave();
         }}
-        onSaveNew={() => {
+        onSaveNew={async () => {
           setShowMultiPay(false);
-          handleSave().then(() => store.createNewBill());
+          await handleSave();
+          store.createNewBill();
         }}
       />
       <PrintSaleDialog 

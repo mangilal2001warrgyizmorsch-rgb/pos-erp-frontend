@@ -12,6 +12,21 @@ export const bankService = {
     return data;
   },
 
+  getById: async (id: string): Promise<ApiResponse<BankAccount>> => {
+    const { data } = await api.get(`/bank/${id}`);
+    return data;
+  },
+
+  update: async (id: string, payload: any): Promise<ApiResponse<BankAccount>> => {
+    const { data } = await api.put(`/bank/${id}`, payload);
+    return data;
+  },
+
+  delete: async (id: string): Promise<ApiResponse<any>> => {
+    const { data } = await api.delete(`/bank/${id}`);
+    return data;
+  },
+
   getTransactions: async (): Promise<ApiResponse<Transaction[]>> => {
     const { data } = await api.get("/bank/transaction");
     return data;

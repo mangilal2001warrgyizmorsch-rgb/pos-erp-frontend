@@ -54,7 +54,7 @@ export default function PaymentOutPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Payment-Out" description="Money paid to suppliers" icon={Wallet}>
-        <Button onClick={() => setAddModalOpen(true)} className="gap-2 rounded-xl h-11 px-6 shadow-lg shadow-red-500/20 bg-red-600 hover:bg-red-700">
+        <Button onClick={() => setAddModalOpen(true)} className="gap-2 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/95 text-primary-foreground border-0">
           <Plus className="h-4 w-4" /> Add Payment-Out
         </Button>
       </PageHeader>
@@ -98,14 +98,14 @@ export default function PaymentOutPage() {
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
                     <td className="p-4">
-                      <p className="text-sm font-mono font-bold text-red-500">{p.receiptNo}</p>
+                      <p className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200 tracking-tight">{p.receiptNo}</p>
                     </td>
                     <td className="p-4 text-sm font-medium">{p.partyName}</td>
                     <td className="p-4 text-sm text-muted-foreground text-center">{formatDate(p.date)}</td>
                     <td className="p-4 text-center">
                       <Badge variant="outline" className="rounded-full px-3">{p.paymentMode}</Badge>
                     </td>
-                    <td className="p-4 text-sm text-right font-black text-red-500 tabular-nums">
+                    <td className="p-4 text-sm text-right font-bold text-rose-500 dark:text-rose-400 tabular-nums">
                       {formatCurrency(p.amountPaid)}
                     </td>
                     <td className="p-4 text-right">

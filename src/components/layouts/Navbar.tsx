@@ -110,7 +110,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-bold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-bold shrink-0 aspect-square">
                 {user?.name?.charAt(0).toUpperCase() || "U"}
               </div>
               <div className="hidden sm:block text-left">

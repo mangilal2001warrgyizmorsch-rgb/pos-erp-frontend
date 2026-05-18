@@ -305,8 +305,8 @@ export default function CreatePurchasePage() {
       const payload = {
         supplier: supplierId,
         supplierName: supplier?.name || "",
-        transporter: transporterId || undefined,
-        transporterName: transporters.find((t) => t._id === transporterId)?.name || undefined,
+        transporter: transporterId && transporterId !== "none" ? transporterId : undefined,
+        transporterName: transporterId && transporterId !== "none" ? transporters.find((t) => t._id === transporterId)?.name : undefined,
         invoiceNumber,
         purchaseDate,
         items: validItems.map((i) => ({

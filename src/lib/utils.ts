@@ -13,6 +13,14 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function formatCurrencyCompact(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export function formatDate(date: string | Date): string {
   if (!date) return "N/A";
   const d = new Date(date);

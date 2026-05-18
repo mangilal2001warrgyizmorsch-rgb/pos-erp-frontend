@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { saleService } from "@/services/saleService";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Sale } from "@/types";
+import { getSocket } from "@/lib/socket";
 
 export default function SalesPage() {
   const router = useRouter();
@@ -58,6 +59,22 @@ export default function SalesPage() {
   }, [page, search, paymentFilter, startDate, endDate]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    
+    const handleLiveUpdate = () => {
+      load();
+    };
+
+    socket.on("sale:created", handleLiveUpdate);
+    socket.on("salesReturn:created", handleLiveUpdate);
+    
+    return () => {
+      socket.off("sale:created", handleLiveUpdate);
+      socket.off("salesReturn:created", handleLiveUpdate);
+    };
+  }, [load]);
 
   const viewSale = async (id: string) => {
     try {

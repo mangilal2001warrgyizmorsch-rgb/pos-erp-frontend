@@ -140,13 +140,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="flex items-start gap-3">
-            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-muted-foreground/20 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all">
+            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-muted-foreground/20 hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/30 transition-all">
               <MessageSquare className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-muted-foreground/20 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all">
+            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-muted-foreground/20 hover:bg-blue-500/10 hover:text-blue-500 hover:border-blue-500/30 transition-all">
               <Phone className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-muted-foreground/20 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all">
+            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-muted-foreground/20 hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/30 transition-all">
               <Clock className="h-5 w-5" />
             </Button>
           </div>
@@ -177,14 +177,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="text-left p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest w-[250px]">Type</th>
-                  <th className="text-left p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Number</th>
-                  <th className="text-left p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Date</th>
-                  <th className="text-right p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Total</th>
-                  <th className="text-right p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Balance/Unused</th>
-                  <th className="text-center p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Status</th>
-                  <th className="p-4 w-[50px]"></th>
+                <tr className="border-b bg-muted/30 text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  <th className="text-left p-4 w-[200px] whitespace-nowrap">Type</th>
+                  <th className="text-left p-4 whitespace-nowrap">Number</th>
+                  <th className="text-left p-4 whitespace-nowrap">Date</th>
+                  <th className="text-right p-4 whitespace-nowrap">Debit (Sale)</th>
+                  <th className="text-right p-4 whitespace-nowrap">Credit (Payment)</th>
+                  <th className="text-right p-4 whitespace-nowrap">Outstanding Balance</th>
+                  <th className="p-4 w-[50px] whitespace-nowrap"></th>
                 </tr>
               </thead>
               <tbody>
@@ -202,25 +202,25 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                       className={cn(
-                        "border-b border-border/50 hover:bg-muted/10 transition-colors group",
+                        "border-b border-border/50 hover:bg-muted/10 transition-colors group whitespace-nowrap",
                         t.type === 'opening_balance' && "bg-muted/5 font-medium"
                       )}
                     >
-                      <td className="p-4 text-sm font-medium capitalize">{t.type.replace('_', ' ')}</td>
-                      <td className="p-4 text-sm text-muted-foreground">{t.receiptNo || "—"}</td>
-                      <td className="p-4 text-sm text-muted-foreground">
+                      <td className="p-4 text-sm font-medium capitalize whitespace-nowrap">{t.type.replace('_', ' ')}</td>
+                      <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{t.receiptNo || "—"}</td>
+                      <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
                         {t.date ? format(new Date(t.date), "dd/MM/yyyy") : "—"}
                       </td>
-                      <td className="p-4 text-sm text-right font-semibold text-rose-500">
-                        {t.debitAmount > 0 ? formatCurrency(t.debitAmount) : "—"}
+                      <td className="p-4 text-sm text-right font-semibold text-rose-500 whitespace-nowrap">
+                        {t.debitAmount > 0 ? `+${formatCurrency(t.debitAmount)}` : "—"}
                       </td>
-                      <td className="p-4 text-sm text-right font-semibold text-emerald-500">
-                        {t.creditAmount > 0 ? formatCurrency(t.creditAmount) : "—"}
+                      <td className="p-4 text-sm text-right font-semibold text-emerald-500 whitespace-nowrap">
+                        {t.creditAmount > 0 ? `-${formatCurrency(t.creditAmount)}` : "—"}
                       </td>
-                      <td className="p-4 text-sm text-right font-bold">
+                      <td className="p-4 text-sm text-right font-bold whitespace-nowrap">
                         {formatCurrency(t.balanceAfter)}
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right whitespace-nowrap">
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <MoreVertical className="h-4 w-4 text-muted-foreground" />
                         </Button>

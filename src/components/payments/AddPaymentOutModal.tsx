@@ -131,7 +131,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-            <Wallet className="h-5 w-5 text-red-500" />
+            <Wallet className="h-5 w-5 text-primary" />
             Add Payment-Out
           </DialogTitle>
         </DialogHeader>
@@ -272,7 +272,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
                             {...field} 
                             type="number" 
                             step="0.01"
-                            className="h-14 pl-8 text-xl font-bold rounded-2xl bg-red-500/5 border-red-500/20 focus:border-red-500" 
+                            className="h-14 pl-8 text-xl font-bold rounded-2xl bg-muted/40 border-border/40 focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary" 
                           />
                         </div>
                       </FormControl>
@@ -353,7 +353,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl h-11 px-6">
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading} className="rounded-xl h-11 px-8 min-w-[140px] bg-red-600 hover:bg-red-700 text-white">
+              <Button type="submit" disabled={loading} className="rounded-xl h-11 px-8 min-w-[140px] bg-primary hover:bg-primary/95 text-primary-foreground border-0">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Payment"}
               </Button>
             </DialogFooter>

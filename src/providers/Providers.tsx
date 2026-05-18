@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { Toaster } from "sonner";
 import { KeyboardShortcutProvider } from "@/providers/KeyboardShortcutProvider";
 import { ShortcutHelpModal } from "@/components/shortcuts/ShortcutHelpModal";
+import { SyncProvider } from "@/providers/SyncProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeStore();
@@ -22,7 +23,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
       <KeyboardShortcutProvider>
-        {children}
+        <SyncProvider>
+          {children}
+        </SyncProvider>
         <ShortcutHelpModal />
       </KeyboardShortcutProvider>
       <Toaster

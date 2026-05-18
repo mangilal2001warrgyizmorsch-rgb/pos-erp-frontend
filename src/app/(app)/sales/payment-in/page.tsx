@@ -98,14 +98,14 @@ export default function PaymentInPage() {
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
                     <td className="p-4">
-                      <p className="text-sm font-mono font-bold text-primary">{p.receiptNo}</p>
+                      <p className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200 tracking-tight">{p.receiptNo}</p>
                     </td>
                     <td className="p-4 text-sm font-medium">{p.partyName}</td>
                     <td className="p-4 text-sm text-muted-foreground text-center">{formatDate(p.date)}</td>
                     <td className="p-4 text-center">
                       <Badge variant="outline" className="rounded-full px-3">{p.paymentMode}</Badge>
                     </td>
-                    <td className="p-4 text-sm text-right font-black text-emerald-500 tabular-nums">
+                    <td className="p-4 text-sm text-right font-bold text-emerald-500 dark:text-emerald-400 tabular-nums">
                       {formatCurrency(p.amountReceived)}
                     </td>
                     <td className="p-4 text-right">

@@ -140,7 +140,7 @@ export default function CustomersPage() {
                         href={`/customers/${c._id}`}
                         className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity"
                       >
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0 aspect-square">
                           {c.name.charAt(0)}
                         </div>
                         <div>
