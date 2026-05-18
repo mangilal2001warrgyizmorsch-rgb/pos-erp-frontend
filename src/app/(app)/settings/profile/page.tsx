@@ -93,8 +93,9 @@ export default function BusinessProfilePage() {
       const imageUrl = await uploadService.uploadSingle(file, 'profiles');
       setLocalProfile(prev => ({ ...prev, [field]: imageUrl }));
       toast.success(`${field === 'logo' ? 'Logo' : 'Signature'} uploaded successfully`);
-    } catch (error) {
-      toast.error(`Failed to upload ${field}`);
+    } catch (error: any) {
+      console.error(`Failed to upload ${field}:`, error);
+      toast.error(`Failed to upload ${field}: ${error?.response?.data?.message || error.message}`);
     } finally {
       if (field === 'logo') setLogoUploading(false);
       else setSignUploading(false);
@@ -273,6 +274,15 @@ export default function BusinessProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Hidden file inputs */}
+        <input 
+          type="file" 
+          ref={logoInputRef} 
+          className="hidden" 
+          accept="image/png, image/jpeg, image/jpg, image/webp"
+          onChange={(e) => handleFileUpload(e, 'logo')}
+        />
 
         {/* Sidebar Cards */}
         <div className="space-y-6">

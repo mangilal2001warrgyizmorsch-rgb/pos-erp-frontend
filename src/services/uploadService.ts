@@ -19,19 +19,29 @@ export const uploadService = {
     const formData = new FormData();
     formData.append("image", file);
     
-    const { data } = await api.post<ApiResponse<{ imageUrl: string }>>(
-      `/upload/single/${folder}`, 
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
+    try {
+      const { data } = await api.post<ApiResponse<{ imageUrl: string }>>(
+        `/upload/single/${folder}`, 
+        formData
+      );
+      
+      // Construct the full URL
+      const baseUrl = API_BASE_URL.replace("/api", "");
+      return `${baseUrl}${data.data.imageUrl}`;
+    } catch (error: any) {
+      console.error("Upload error details:", {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        file: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
         },
-      }
-    );
-    
-    // Construct the full URL
-    const baseUrl = API_BASE_URL.replace("/api", "");
-    return `${baseUrl}${data.data.imageUrl}`;
+        folder: folder,
+      });
+      throw error;
+    }
   },
 
   /**
@@ -43,12 +53,7 @@ export const uploadService = {
     
     const { data } = await api.post<ApiResponse<{ imageUrl: string }[]>>(
       `/upload/multiple/${folder}`, 
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      formData
     );
     
     const baseUrl = API_BASE_URL.replace("/api", "");
