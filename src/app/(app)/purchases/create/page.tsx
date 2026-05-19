@@ -1361,16 +1361,6 @@ export default function CreatePurchasePage() {
                   </Select>
                 </div>
               )}
-              <div className="space-y-1">
-                <Label className="text-xs">Notes</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any notes for this purchase..."
-                  rows={2}
-                  className="text-sm"
-                />
-              </div>
             </CardContent>
           </Card>
 

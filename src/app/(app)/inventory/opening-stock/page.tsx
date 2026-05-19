@@ -774,37 +774,9 @@ export default function OpeningStockPage() {
           </Card>
         </div>
 
-        {/* Right Side: Aggregate Summary and Date inputs */}
+        {/* Right Side: Aggregate Summary */}
         <div className="flex flex-col space-y-4 lg:h-full lg:overflow-y-auto h-auto overflow-visible">
-          <Card className="border border-border/60">
-            <CardHeader className="py-3 px-4 border-b bg-muted/10">
-              <CardTitle className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                Batch Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Opening Stock Date *</Label>
-                <Input
-                  type="date"
-                  value={openingStockDate}
-                  onChange={(e) => setOpeningStockDate(e.target.value)}
-                  className="h-9 text-xs rounded-lg"
-                />
-              </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Remarks / Notes</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Record note for opening stock entries..."
-                  rows={3}
-                  className="text-xs rounded-lg"
-                />
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Aggregates valuations */}
           <Card className="bg-primary/5 border border-primary/20">
