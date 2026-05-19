@@ -13,7 +13,8 @@ import {
   MoreVertical,
   SlidersHorizontal,
   Building,
-  Loader2
+  Loader2,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export default function BankAccountsPage() {
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editBank, setEditBank] = useState<BankAccount | null>(null);
   const [form, setForm] = useState({
     accountName: "",
     accountNumber: "",
@@ -70,16 +72,34 @@ export default function BankAccountsPage() {
     fetchBanks();
   }, [fetchBanks]);
 
+  const handleEditClick = (bank: BankAccount) => {
+    setEditBank(bank);
+    setForm({
+      accountName: bank.accountName,
+      accountNumber: bank.accountNumber,
+      ifscCode: bank.ifscCode,
+      openingBalance: bank.openingBalance?.toString() || "0",
+    });
+  };
+
   const handleSave = async () => {
     try {
       if (!form.accountName || !form.accountNumber || !form.ifscCode) {
         toast.error("Please fill all required fields");
         return;
       }
-      const response = await bankService.create(form);
+      
+      let response;
+      if (editBank) {
+        response = await bankService.update(editBank._id, form);
+      } else {
+        response = await bankService.create(form);
+      }
+
       if (response.success) {
-        toast.success("Bank account added successfully");
+        toast.success(editBank ? "Bank account updated successfully" : "Bank account added successfully");
         setIsAddModalOpen(false);
+        setEditBank(null);
         setForm({
           accountName: "",
           accountNumber: "",
@@ -90,7 +110,7 @@ export default function BankAccountsPage() {
       }
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message || "Failed to add bank account",
+        error.response?.data?.message || `Failed to ${editBank ? "update" : "add"} bank account`,
       );
     }
   };
@@ -124,7 +144,7 @@ export default function BankAccountsPage() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             className="w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground rounded-full shadow-md text-xs sm:text-sm font-semibold h-10 px-5"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => { setEditBank(null); setForm({ accountName: "", accountNumber: "", ifscCode: "", openingBalance: "" }); setIsAddModalOpen(true); }}
           >
             <Plus className="mr-1.5 h-4 w-4 shrink-0" /> Add Bank Account
           </Button>
@@ -219,7 +239,7 @@ export default function BankAccountsPage() {
 
             <Button
               className="bg-primary hover:bg-primary/95 text-primary-foreground rounded-full px-8 py-5.5 shadow-md font-semibold text-sm"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => { setEditBank(null); setForm({ accountName: "", accountNumber: "", ifscCode: "", openingBalance: "" }); setIsAddModalOpen(true); }}
             >
               <Plus className="mr-2 h-4 w-4" /> Add Bank Account
             </Button>
@@ -228,7 +248,7 @@ export default function BankAccountsPage() {
       ) : (
         <Card className="border border-border/40 shadow-sm bg-card overflow-hidden rounded-2xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left border-collapse">
+            <table className="w-full text-sm text-left border-collapse min-w-[650px]">
               <thead>
                 <tr className="border-b bg-muted/30 text-muted-foreground font-bold uppercase tracking-wider text-[10px] sm:text-xs">
                   <th className="p-4">Bank Name</th>
@@ -292,6 +312,12 @@ export default function BankAccountsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="rounded-xl">
                             <DropdownMenuItem
+                              className="font-semibold cursor-pointer rounded-lg text-foreground focus:bg-muted"
+                              onClick={() => { handleEditClick(bank); setIsAddModalOpen(true); }}
+                            >
+                              <Pencil className="mr-2 h-4 w-4 shrink-0" /> Edit Account
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               className="text-red-500 font-semibold cursor-pointer rounded-lg focus:text-red-500 focus:bg-red-500/5"
                               onClick={() => handleDelete(bank._id)}
                             >
@@ -314,7 +340,7 @@ export default function BankAccountsPage() {
         <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-2xl border-0 shadow-lg p-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Building2 className="h-5 w-5 text-primary animate-pulse" /> Add Bank Account
+              <Building2 className="h-5 w-5 text-primary animate-pulse" /> {editBank ? "Edit Bank Account" : "Add Bank Account"}
             </DialogTitle>
             <DialogDescription className="text-xs">
               Enter bank details to track transactions and print automatically on invoice receipts.
@@ -374,7 +400,7 @@ export default function BankAccountsPage() {
               Cancel
             </Button>
             <Button className="rounded-xl h-10 px-5 font-semibold" onClick={handleSave}>
-              Save Bank Account
+              {editBank ? "Update Bank Account" : "Save Bank Account"}
             </Button>
           </DialogFooter>
         </DialogContent>

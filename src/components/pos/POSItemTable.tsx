@@ -20,7 +20,79 @@ export function POSItemTable() {
 
   return (
     <>
-      <div className="flex-1 overflow-auto">
+      {/* Mobile Card-based Cart List */}
+      <div className="md:hidden flex-1 overflow-y-auto p-3 space-y-3">
+        {bill.items.map((item, idx) => {
+          const sel = bill.selectedRowIndex === idx;
+          return (
+            <div
+              key={item.id}
+              onClick={() => handleRowClick(item, idx)}
+              className={cn(
+                "p-4 rounded-xl border transition-all cursor-pointer space-y-3 relative",
+                sel 
+                  ? "bg-primary/[0.06] border-primary/40 shadow-sm" 
+                  : "bg-card border-border/50 hover:bg-muted/10"
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-[10px] font-black px-2 py-0.5 rounded transition-colors",
+                      sel ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}>
+                      #{idx + 1}
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-muted-foreground">
+                      {item.barcode || item.itemCode || "—"}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-foreground mt-1.5">{item.itemName || "—"}</h4>
+                </div>
+                
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                  className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/10 text-xs">
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider mb-0.5">Qty</span>
+                  <span className="font-bold text-sm text-foreground">{item.quantity} {item.unit}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider mb-0.5">Price/Unit</span>
+                  <span className="font-semibold text-sm text-foreground">{formatCurrency(item.pricePerUnit)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider mb-0.5">Total</span>
+                  <span className="font-black text-sm text-primary">{formatCurrency(item.total)}</span>
+                </div>
+              </div>
+              
+              {item.taxPercent > 0 && (
+                <div className="text-[10px] text-muted-foreground flex items-center justify-between pt-1 opacity-70">
+                  <span>Tax ({item.taxPercent}% GST):</span>
+                  <span className="font-medium">{formatCurrency(item.taxAmount)}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {bill.items.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/60 space-y-2">
+            <p className="text-sm font-medium">Cart is empty</p>
+            <p className="text-xs text-center px-4 text-muted-foreground/45">Scan products or use search bar above to add items</p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:flex flex-col flex-1 overflow-auto">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-muted/50 backdrop-blur-md border-b-2 border-border/60">

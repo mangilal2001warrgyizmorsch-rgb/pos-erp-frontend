@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Plus, Search, Loader2, CornerDownLeft, PackagePlus, ScanBarcode } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, X, Plus, Search, Loader2, CornerDownLeft, PackagePlus, ScanBarcode } from "lucide-react";
 import { usePOSStore } from "@/store/posStore";
 import { productService } from "@/services/productService";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -119,11 +120,19 @@ export function POSTopBar() {
   };
 
   return (
-    <div className="shrink-0 bg-card border-b border-border flex flex-col" ref={ddRef}>
+    <div className="shrink-0 bg-card border-b border-border flex flex-col relative" ref={ddRef}>
       {/* Row 1: Tabs + Search + Icons */}
-      <div className="flex items-center h-14 px-3 gap-2">
+      <div className="flex flex-col lg:flex-row lg:items-center py-2 lg:py-0 px-3 gap-2 lg:h-14">
         {/* Bill Tabs */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 lg:pb-0 scrollbar-none w-full lg:w-auto">
+          {/* Exit POS / Go to Dashboard */}
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-black border border-border bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shrink-0 mr-1.5"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Exit POS</span>
+          </Link>
           {bills.map((bill) => {
             const active = bill.id === activeBillId;
             return (
@@ -131,14 +140,14 @@ export function POSTopBar() {
                 key={bill.id}
                 onClick={() => setActiveBill(bill.id)}
                 className={cn(
-                  "group flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-bold transition-all",
+                  "group flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-bold transition-all shrink-0",
                   active
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
                     : "text-muted-foreground hover:bg-muted"
                 )}
               >
                 <span>#{bill.billNo}</span>
-                {active && <span className="text-[9px] opacity-70 font-mono">CTRL+W</span>}
+                {active && <span className="text-[9px] opacity-70 font-mono hidden sm:inline">CTRL+W</span>}
                 {bills.length > 1 && (
                   <span
                     onClick={(e) => { e.stopPropagation(); closeBill(bill.id); }}
@@ -155,16 +164,16 @@ export function POSTopBar() {
           })}
           <button
             onClick={createNewBill}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             New Bill
-            <span className="text-[9px] opacity-70 font-mono ml-0.5">Ctrl+T</span>
+            <span className="text-[9px] opacity-70 font-mono ml-0.5 hidden sm:inline">Ctrl+T</span>
           </button>
         </div>
 
         {/* Search */}
-        <div className="flex-1 relative ml-2">
+        <div className="flex-1 w-full relative lg:ml-2">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground pointer-events-none" />
           <input
             ref={inputRef}
@@ -181,7 +190,7 @@ export function POSTopBar() {
             ) : (
               <ScanBarcode className="h-4 w-4 text-muted-foreground opacity-60" />
             )}
-            <kbd className="h-5 px-1.5 rounded border border-border/60 bg-muted/60 font-mono text-[10px] font-bold text-muted-foreground inline-flex items-center">F1</kbd>
+            <kbd className="h-5 px-1.5 rounded border border-border/60 bg-muted/60 font-mono text-[10px] font-bold text-muted-foreground hidden sm:inline-flex items-center">F1</kbd>
           </div>
         </div>
 
@@ -190,7 +199,7 @@ export function POSTopBar() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-14 left-0 right-0 mx-3 z-50 bg-card border border-border rounded-xl shadow-2xl shadow-black/20 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 mx-3 z-50 bg-card border border-border rounded-xl shadow-2xl shadow-black/20 overflow-hidden">
           <div className="grid grid-cols-12 px-4 py-2.5 border-b border-border/50 bg-muted/40 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
             <div className="col-span-3">Item Code</div>
             <div className="col-span-4">Item Name</div>

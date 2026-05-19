@@ -137,14 +137,14 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-card border-border/50 shadow-2xl">
-        <DialogHeader className="px-6 py-4 border-b bg-muted/20 flex flex-row items-center justify-between">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border-border/50 shadow-2xl">
+        <DialogHeader className="px-4 py-4 sm:px-6 border-b bg-muted/20 flex-shrink-0 flex flex-row items-center justify-between">
           <DialogTitle className="text-xl font-bold text-primary">
             {supplier ? "Edit Supplier" : "Add Supplier"}
           </DialogTitle>
         </DialogHeader>
         
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-6 overflow-y-auto flex-1">
           {/* Top Essential Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1 relative">
@@ -175,7 +175,7 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
           </div>
 
           <Tabs defaultValue="gst" className="w-full">
-            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-8">
+            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-4 sm:gap-8 flex-wrap">
               <TabsTrigger 
                 value="gst" 
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary px-0 pb-3 font-bold text-xs uppercase tracking-widest transition-all"
@@ -196,9 +196,9 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
               </TabsTrigger>
             </TabsList>
             
-            <div className="min-h-[250px]">
+            <div className="min-h-[240px] md:min-h-[280px]">
               <TabsContent value="gst" className="mt-0 pt-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                   <div className="space-y-4">
                     <div className="space-y-1.5 relative mt-2">
                       <Label className="text-[10px] font-bold uppercase text-muted-foreground absolute -top-2 left-2 bg-card px-1 z-10">GST Type</Label>
@@ -296,19 +296,19 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
               
               <TabsContent value="credit" className="mt-0 pt-6">
                 <div className="max-w-md space-y-6">
-                  <div className="flex items-end gap-4">
-                    <div className="flex-1 space-y-1.5 relative mt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                    <div className="flex-1 w-full space-y-1.5 relative mt-2">
                       <Label className="text-[10px] font-bold uppercase text-muted-foreground absolute -top-2 left-2 bg-card px-1 z-10">Opening Balance</Label>
                       <Input 
                         type="number" 
                         value={form.openingBalance || ""} 
                         onChange={(e) => setForm({...form, openingBalance: Number(e.target.value)})} 
-                        className="h-11 font-bold"
+                        className="h-11 font-bold w-full"
                       />
                     </div>
-                    <div className="flex-1 space-y-1.5">
+                    <div className="flex-1 w-full space-y-1.5">
                       <Select value={form.openingBalanceType} onValueChange={(v: any) => setForm({...form, openingBalanceType: v})}>
-                        <SelectTrigger className="h-11 font-medium">
+                        <SelectTrigger className="h-11 font-medium w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -325,14 +325,14 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
                       value={form.creditLimit || ""} 
                       onChange={(e) => setForm({...form, creditLimit: Number(e.target.value)})} 
                       placeholder="₹ 0.00" 
-                      className="h-11 font-bold"
+                      className="h-11 font-bold w-full"
                     />
                   </div>
                 </div>
               </TabsContent>
-
+              
               <TabsContent value="additional" className="mt-0 pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                   <div className="space-y-4">
                     <h3 className="font-bold text-[11px] uppercase tracking-widest text-muted-foreground border-b pb-2">Bank Details</h3>
                     <div className="space-y-3">
@@ -354,15 +354,19 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
           </Tabs>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-muted/10 flex flex-row items-center justify-between sm:justify-between">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground font-bold text-xs uppercase tracking-widest">
+        <DialogFooter className="px-4 py-4 sm:px-6 border-t bg-muted/10 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between flex-shrink-0">
+          <Button 
+            variant="ghost" 
+            onClick={() => onOpenChange(false)} 
+            className="text-muted-foreground font-bold text-xs uppercase tracking-widest w-full sm:w-auto order-3 sm:order-1"
+          >
             Cancel
           </Button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto order-1 sm:order-2">
             {!supplier && (
               <Button 
                 variant="outline" 
-                className="border-primary/30 text-primary hover:bg-primary/5 font-bold text-xs uppercase tracking-widest px-6"
+                className="border-primary/30 text-primary hover:bg-primary/5 font-bold text-xs uppercase tracking-widest px-6 w-full sm:w-auto"
                 onClick={() => handleSave(true)}
                 disabled={saving}
               >
@@ -370,7 +374,7 @@ export function SupplierModal({ open, onOpenChange, supplier, onSuccess }: Suppl
               </Button>
             )}
             <Button 
-              className="bg-primary hover:bg-primary/90 min-w-[140px] shadow-lg shadow-primary/20 font-bold text-xs uppercase tracking-widest"
+              className="bg-primary hover:bg-primary/90 min-w-[140px] shadow-lg shadow-primary/20 font-bold text-xs uppercase tracking-widest w-full sm:w-auto"
               onClick={() => handleSave(false)} 
               disabled={saving}
             >

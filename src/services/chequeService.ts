@@ -11,4 +11,14 @@ export const chequeService = {
     const { data } = await api.post("/cheques", payload);
     return data;
   },
+
+  update: async (id: string, payload: any): Promise<ApiResponse<Cheque>> => {
+    const { data } = await api.put(`/cheques/${id}`, payload);
+    return data;
+  },
+
+  delete: async (id: string): Promise<ApiResponse<any>> => {
+    const { data } = await api.delete(`/cheques/${id}`);
+    return data;
+  },
 };

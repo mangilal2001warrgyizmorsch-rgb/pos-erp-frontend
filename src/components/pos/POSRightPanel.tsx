@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Calendar, Search, ChevronDown, Receipt, Printer, Plus } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Calendar, Search, ChevronDown, Receipt, Printer, Plus, X } from "lucide-react";
 import { usePOSStore } from "@/store/posStore";
 import { customerService } from "@/services/customerService";
 import { saleService } from "@/services/saleService";
@@ -19,6 +19,20 @@ export function POSRightPanel() {
   const [showDD, setShowDD] = useState(false);
   const [saving, setSaving] = useState(false);
   
+  // Ref for click outside
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close customer dropdown
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowDD(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
   // Modal states
   const [showFullBreakup, setShowFullBreakup] = useState(false);
   const [showMultiPay, setShowMultiPay] = useState(false);
@@ -111,7 +125,7 @@ export function POSRightPanel() {
       </div>
 
       {/* Customer */}
-      <div className="px-3 py-2.5 border-b border-border/40 relative">
+      <div className="px-3 py-2.5 border-b border-border/40 relative" ref={wrapperRef}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -119,8 +133,16 @@ export function POSRightPanel() {
             onChange={(e) => { setCustSearch(e.target.value); setShowDD(true); store.setCustomer(null); }}
             onFocus={() => setShowDD(true)}
             placeholder="Search customer [F11]"
-            className="w-full h-10 pl-10 pr-8 text-sm bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/50" />
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            className="w-full h-10 pl-10 pr-12 text-sm bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/50" />
+          {bill.customer ? (
+            <button 
+              onClick={(e) => { e.stopPropagation(); store.setCustomer(null); setCustSearch(""); setShowDD(true); }}
+              className="absolute right-8 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         </div>
         {showDD && (
           <div className="absolute left-3 right-3 top-full mt-1 bg-card border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto z-50 flex flex-col">
@@ -130,14 +152,14 @@ export function POSRightPanel() {
             >
               <Plus className="h-4 w-4" /> Add New Customer
             </button>
-            {!bill.customer && filtered.slice(0, 6).map(c => (
+            {filtered.slice(0, 6).map(c => (
               <button key={c._id} onClick={() => { store.setCustomer(c); setShowDD(false); setCustSearch(""); }}
                 className="w-full px-3 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex justify-between">
                 <span className="font-medium">{c.name}</span>
                 {c.phone && <span className="text-xs text-muted-foreground">{c.phone}</span>}
               </button>
             ))}
-            {!bill.customer && filtered.length === 0 && <div className="p-3 text-center text-sm text-muted-foreground">No customer found</div>}
+            {filtered.length === 0 && <div className="p-3 text-center text-sm text-muted-foreground">No customer found</div>}
           </div>
         )}
       </div>

@@ -124,14 +124,14 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden bg-card border-border/50 shadow-2xl">
-        <DialogHeader className="px-6 py-4 border-b bg-muted/20">
+      <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border-border/50 shadow-2xl">
+        <DialogHeader className="px-4 py-4 sm:px-6 border-b bg-muted/20 flex-shrink-0">
           <DialogTitle className="text-xl font-bold text-primary">
             {customer ? "Edit Customer" : "Add Customer"}
           </DialogTitle>
         </DialogHeader>
         
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-6 overflow-y-auto flex-1">
           {/* Essential Header Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1 relative">
@@ -162,7 +162,7 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
           </div>
 
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-8">
+            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-4 sm:gap-8 flex-wrap">
               <TabsTrigger 
                 value="general" 
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary px-0 pb-3 font-bold text-xs uppercase tracking-widest transition-all"
@@ -177,9 +177,9 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
               </TabsTrigger>
             </TabsList>
             
-            <div className="min-h-[280px]">
+            <div className="min-h-[240px] md:min-h-[280px]">
               <TabsContent value="general" className="mt-0 pt-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                   <div className="space-y-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email Address</Label>
@@ -252,20 +252,20 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
                 </div>
                 
                 <div className="pt-6 border-t border-border/50">
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-dashed border-muted-foreground/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-xl border border-dashed border-muted-foreground/30">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center">
                         <Info className="h-5 w-5 text-primary" />
                       </div>
                       <div className="space-y-0.5">
                         <Label className="text-sm font-bold uppercase tracking-tight">Credit Limit</Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[11px] text-muted-foreground leading-normal">
                           Set maximum allowed credit for this customer
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-border/50">
                       <span className={cn("text-[10px] font-bold uppercase", !hasCustomLimit ? "text-primary" : "text-muted-foreground")}>No Limit</span>
                       <Switch checked={hasCustomLimit} onCheckedChange={setHasCustomLimit} />
                       <span className={cn("text-[10px] font-bold uppercase", hasCustomLimit ? "text-primary" : "text-muted-foreground")}>Custom</span>
@@ -299,15 +299,19 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
           </Tabs>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-muted/10 flex flex-row items-center justify-between sm:justify-between">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground font-bold text-xs uppercase tracking-widest">
+        <DialogFooter className="px-4 py-4 sm:px-6 border-t bg-muted/10 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between flex-shrink-0">
+          <Button 
+            variant="ghost" 
+            onClick={() => onOpenChange(false)} 
+            className="text-muted-foreground font-bold text-xs uppercase tracking-widest w-full sm:w-auto order-3 sm:order-1"
+          >
             Cancel
           </Button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto order-1 sm:order-2">
             {!customer && (
               <Button 
                 variant="outline" 
-                className="border-primary/30 text-primary hover:bg-primary/5 font-bold text-xs uppercase tracking-widest px-6"
+                className="border-primary/30 text-primary hover:bg-primary/5 font-bold text-xs uppercase tracking-widest px-6 w-full sm:w-auto"
                 onClick={() => handleSave(true)}
                 disabled={saving}
               >
@@ -315,7 +319,7 @@ export function CustomerModal({ open, onOpenChange, customer, onSuccess }: Custo
               </Button>
             )}
             <Button 
-              className="bg-primary hover:bg-primary/90 min-w-[140px] shadow-lg shadow-primary/20 font-bold text-xs uppercase tracking-widest"
+              className="bg-primary hover:bg-primary/90 min-w-[140px] shadow-lg shadow-primary/20 font-bold text-xs uppercase tracking-widest w-full sm:w-auto"
               onClick={() => handleSave(false)} 
               disabled={saving}
             >

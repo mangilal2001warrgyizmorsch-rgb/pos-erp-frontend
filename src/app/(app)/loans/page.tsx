@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Building2, Calculator, LayoutDashboard, SlidersHorizontal, MoreVertical } from "lucide-react";
+import { Plus, Building2, Calculator, LayoutDashboard, SlidersHorizontal, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { loanService } from "@/services/loanService";
 import { Loan } from "@/types";
@@ -17,6 +18,7 @@ export default function LoanAccountsPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editLoan, setEditLoan] = useState<Loan | null>(null);
   const [form, setForm] = useState({
     loanName: "", lenderName: "", totalAmount: "", interestRate: ""
   });
@@ -38,21 +40,54 @@ export default function LoanAccountsPage() {
     fetchLoans();
   }, []);
 
+  const handleEditClick = (loan: Loan) => {
+    setEditLoan(loan);
+    setForm({
+      loanName: loan.loanName,
+      lenderName: loan.lenderName,
+      totalAmount: loan.totalAmount.toString(),
+      interestRate: loan.interestRate.toString()
+    });
+  };
+
   const handleSave = async () => {
     try {
       if (!form.loanName || !form.lenderName || !form.totalAmount) {
         toast.error("Please fill all required fields");
         return;
       }
-      const response = await loanService.create(form);
+      
+      let response;
+      if (editLoan) {
+        response = await loanService.update(editLoan._id, {
+          ...form,
+          currentBalance: editLoan.currentBalance - (editLoan.totalAmount - Number(form.totalAmount))
+        });
+      } else {
+        response = await loanService.create(form);
+      }
+
       if (response.success) {
-        toast.success("Loan account added successfully");
+        toast.success(editLoan ? "Loan account updated successfully" : "Loan account added successfully");
         setIsAddModalOpen(false);
+        setEditLoan(null);
         setForm({ loanName: "", lenderName: "", totalAmount: "", interestRate: "" });
         fetchLoans();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to add loan account");
+      toast.error(error.response?.data?.message || `Failed to ${editLoan ? "update" : "add"} loan account`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await loanService.delete(id);
+      if (response.success) {
+        toast.success("Loan account deleted successfully");
+        fetchLoans();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to delete loan account");
     }
   };
 
@@ -63,10 +98,7 @@ export default function LoanAccountsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Loan Accounts</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <MoreVertical className="h-5 w-5" />
-          </Button>
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => setIsAddModalOpen(true)}>
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => { setEditLoan(null); setForm({ loanName: "", lenderName: "", totalAmount: "", interestRate: "" }); setIsAddModalOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Loan Account
           </Button>
         </div>
@@ -130,7 +162,7 @@ export default function LoanAccountsPage() {
               </Card>
             </div>
             
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 shadow-md font-semibold text-base" onClick={() => setIsAddModalOpen(true)}>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 shadow-md font-semibold text-base" onClick={() => { setEditLoan(null); setForm({ loanName: "", lenderName: "", totalAmount: "", interestRate: "" }); setIsAddModalOpen(true); }}>
               <Plus className="mr-2 h-5 w-5" /> Add Loan Account
             </Button>
           </motion.div>
@@ -138,7 +170,7 @@ export default function LoanAccountsPage() {
       ) : (
         <Card className="border-0 shadow-sm bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[650px]">
               <thead>
                 <tr className="border-b bg-muted/30 text-muted-foreground font-medium">
                   <th className="p-4 text-left">Loan Account Name</th>
@@ -158,9 +190,27 @@ export default function LoanAccountsPage() {
                       {formatCurrency(loan.currentBalance)}
                     </td>
                     <td className="p-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          <DropdownMenuItem
+                            className="font-semibold cursor-pointer rounded-lg text-foreground focus:bg-muted"
+                            onClick={() => { handleEditClick(loan); setIsAddModalOpen(true); }}
+                          >
+                            <Pencil className="mr-2 h-4 w-4 shrink-0" /> Edit Loan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-500 font-semibold cursor-pointer rounded-lg focus:text-red-500 focus:bg-red-500/5"
+                            onClick={() => handleDelete(loan._id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Delete Loan
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
@@ -175,7 +225,7 @@ export default function LoanAccountsPage() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" /> Add Loan Account
+              <Building2 className="h-5 w-5 text-primary" /> {editLoan ? "Edit Loan Account" : "Add Loan Account"}
             </DialogTitle>
             <DialogDescription>
               Enter the details of your business loan to track EMIs and balances.
@@ -203,7 +253,9 @@ export default function LoanAccountsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save Loan Account</Button>
+            <Button onClick={handleSave}>
+              {editLoan ? "Update Loan Account" : "Save Loan Account"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

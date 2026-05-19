@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Receipt, Search, Filter, MoreVertical, BadgeCheck, Clock, XCircle } from "lucide-react";
+import { Plus, Receipt, Search, Filter, MoreVertical, BadgeCheck, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { chequeService } from "@/services/chequeService";
 import { Cheque } from "@/types";
@@ -20,8 +21,9 @@ export default function ChequesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editCheque, setEditCheque] = useState<Cheque | null>(null);
   const [form, setForm] = useState({
-    type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: ""
+    type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending"
   });
 
   const fetchCheques = async () => {
@@ -41,21 +43,54 @@ export default function ChequesPage() {
     fetchCheques();
   }, []);
 
+  const handleEditClick = (cheque: Cheque) => {
+    setEditCheque(cheque);
+    setForm({
+      type: cheque.type,
+      chequeNumber: cheque.chequeNumber,
+      amount: cheque.amount.toString(),
+      date: cheque.date ? cheque.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      partyName: cheque.partyName,
+      bankName: cheque.bankName || "",
+      status: cheque.status || "Pending"
+    });
+  };
+
   const handleSave = async () => {
     try {
       if (!form.chequeNumber || !form.amount || !form.partyName) {
         toast.error("Please fill all required fields");
         return;
       }
-      const response = await chequeService.create(form);
+      
+      let response;
+      if (editCheque) {
+        response = await chequeService.update(editCheque._id, form);
+      } else {
+        response = await chequeService.create(form);
+      }
+
       if (response.success) {
-        toast.success("Cheque entry added successfully");
+        toast.success(editCheque ? "Cheque entry updated successfully" : "Cheque entry added successfully");
         setIsAddModalOpen(false);
-        setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "" });
+        setEditCheque(null);
+        setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending" });
         fetchCheques();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to add cheque entry");
+      toast.error(error.response?.data?.message || `Failed to ${editCheque ? "update" : "add"} cheque entry`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await chequeService.delete(id);
+      if (response.success) {
+        toast.success("Cheque entry deleted successfully");
+        fetchCheques();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to delete cheque entry");
     }
   };
 
@@ -67,7 +102,7 @@ export default function ChequesPage() {
           <p className="text-muted-foreground mt-1">Manage your incoming and outgoing cheques</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => setIsAddModalOpen(true)}>
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => { setEditCheque(null); setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending" }); setIsAddModalOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Cheque
           </Button>
         </div>
@@ -98,7 +133,7 @@ export default function ChequesPage() {
               </div>
             </div>
 
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 shadow-md font-semibold text-base" onClick={() => setIsAddModalOpen(true)}>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 shadow-md font-semibold text-base" onClick={() => { setEditCheque(null); setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending" }); setIsAddModalOpen(true); }}>
               <Plus className="mr-2 h-5 w-5" /> Add Cheque
             </Button>
           </motion.div>
@@ -106,7 +141,7 @@ export default function ChequesPage() {
       ) : (
         <Card className="border-0 shadow-sm bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="border-b bg-muted/30 text-muted-foreground font-medium">
                   <th className="p-4 text-left">Date</th>
@@ -154,9 +189,27 @@ export default function ChequesPage() {
                       {formatCurrency(cheque.amount)}
                     </td>
                     <td className="p-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          <DropdownMenuItem
+                            className="font-semibold cursor-pointer rounded-lg text-foreground focus:bg-muted"
+                            onClick={() => { handleEditClick(cheque); setIsAddModalOpen(true); }}
+                          >
+                            <Pencil className="mr-2 h-4 w-4 shrink-0" /> Edit Cheque
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-500 font-semibold cursor-pointer rounded-lg focus:text-red-500 focus:bg-red-500/5"
+                            onClick={() => handleDelete(cheque._id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Delete Cheque
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
@@ -171,7 +224,7 @@ export default function ChequesPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-primary" /> Add Cheque Entry
+              <Receipt className="h-5 w-5 text-primary" /> {editCheque ? "Edit Cheque Entry" : "Add Cheque Entry"}
             </DialogTitle>
             <DialogDescription>
               Record an incoming or outgoing cheque for future reference.
@@ -214,10 +267,27 @@ export default function ChequesPage() {
               <Label htmlFor="bank">Bank Name</Label>
               <Input id="bank" placeholder="Bank of the Cheque" value={form.bankName} onChange={(e) => setForm({...form, bankName: e.target.value})} />
             </div>
+            {editCheque && (
+              <div className="grid gap-2">
+                <Label htmlFor="status">Cheque Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({...form, status: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Cleared">Cleared</SelectItem>
+                    <SelectItem value="Bounced">Bounced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save Cheque</Button>
+            <Button onClick={handleSave}>
+              {editCheque ? "Update Cheque" : "Save Cheque"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
