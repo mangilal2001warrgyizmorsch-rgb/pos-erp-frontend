@@ -31,6 +31,7 @@ export interface POSBill {
   discount: number;
   additionalCharges: number;
   remarks: string;
+  cashBankAccountId?: string;
 }
 
 export type POSModalType = "qty" | "itemDisc" | "unit" | "addCharges" | "billDisc" | "loyalty" | "remarks" | null;
@@ -70,6 +71,7 @@ const createEmptyBill = (id: string, billNo: number): POSBill => ({
   discount: 0,
   additionalCharges: 0,
   remarks: '',
+  cashBankAccountId: '',
 });
 
 export const usePOSStore = create<POSStore>((set, get) => ({

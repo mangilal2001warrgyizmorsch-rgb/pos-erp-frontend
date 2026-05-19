@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { customerService } from "@/services/customerService";
 import { productService } from "@/services/productService";
 import { saleService } from "@/services/saleService";
+import { cashBankService } from "@/services/cashBankService";
 import { formatCurrency, cn } from "@/lib/utils";
 import axios from "axios";
 import type { Customer, Product, Sale } from "@/types";
@@ -78,6 +79,8 @@ export default function CreateSalePage() {
   );
   const [shippingCharges, setShippingCharges] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [cashBankAccountId, setCashBankAccountId] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
   const [roundOff, setRoundOff] = useState(false);
@@ -108,7 +111,26 @@ export default function CreateSalePage() {
       }
     }).catch(() => {});
     productService.getAll({ limit: 500 }).then((r) => setProducts(r.data)).catch(() => {});
+    cashBankService.getAccounts()
+      .then(res => {
+        if (res.success && res.data) {
+          setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
+        }
+      })
+      .catch(err => console.error("Failed to load bank accounts:", err));
   }, []);
+
+  const handlePaymentMethodChange = (val: string) => {
+    setPaymentMethod(val);
+    if (val !== "cash") {
+      const defaultBank = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
+      if (defaultBank && !cashBankAccountId) {
+        setCashBankAccountId(defaultBank._id);
+      }
+    } else {
+      setCashBankAccountId("");
+    }
+  };
 
   // On customer select
   const handleCustomerChange = (id: string) => {
@@ -324,6 +346,7 @@ export default function CreateSalePage() {
         status,
         paymentStatus: status === "completed" ? "paid" : "pending",
         paymentMethod: status === "completed" ? paymentMethod : undefined,
+        cashBankAccountId: (status === "completed" && paymentMethod !== "cash") ? cashBankAccountId : undefined,
         notes,
       };
 
@@ -580,7 +603,7 @@ export default function CreateSalePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -594,6 +617,22 @@ export default function CreateSalePage() {
                 </Select>
               </div>
             </div>
+
+            {paymentMethod !== "cash" && bankAccounts.length > 0 && (
+              <div className="space-y-2">
+                <Label>Collect in Bank Account *</Label>
+                <Select value={cashBankAccountId} onValueChange={setCashBankAccountId}>
+                  <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((account) => (
+                      <SelectItem key={account._id} value={account._id}>
+                        {account.accountName} {account.bankName ? `(${account.bankName})` : ""} - ₹{account.currentBalance.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea

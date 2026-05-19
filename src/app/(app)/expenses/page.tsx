@@ -20,17 +20,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { expenseService } from "@/services/expenseService";
+import { cashBankService } from "@/services/cashBankService";
 import { formatCurrency } from "@/lib/utils";
 import type { Expense } from "@/types";
 
 const emptyForm = {
   title: "",
   amount: "",
-  category: "Office",
+  category: "Office Supplies",
   date: new Date().toISOString().split("T")[0],
   description: "",
   paymentMethod: "cash",
   reference: "",
+  cashBankAccountId: "",
 };
 
 const EXPENSE_CATEGORIES = [
@@ -47,6 +49,7 @@ export default function ExpensesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -58,6 +61,16 @@ export default function ExpensesPage() {
   }, [search]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    cashBankService.getAccounts()
+      .then(res => {
+        if (res.success && res.data) {
+          setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
+        }
+      })
+      .catch(err => console.error("Failed to load bank accounts:", err));
+  }, []);
 
   const openCreate = () => {
     setEditItem(null);
@@ -75,8 +88,22 @@ export default function ExpensesPage() {
       description: e.description || "",
       paymentMethod: e.paymentMethod || "cash",
       reference: e.reference || "",
+      cashBankAccountId: e.cashBankAccountId || "",
     });
     setDialogOpen(true);
+  };
+
+  const handlePaymentMethodChange = (val: string) => {
+    let nextAccountId = form.cashBankAccountId;
+    if (val !== "cash") {
+      const defaultBank = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
+      if (defaultBank && !nextAccountId) {
+        nextAccountId = defaultBank._id;
+      }
+    } else {
+      nextAccountId = "";
+    }
+    setForm({ ...form, paymentMethod: val, cashBankAccountId: nextAccountId });
   };
 
   const handleSave = async () => {
@@ -225,7 +252,7 @@ export default function ExpensesPage() {
               </div>
               <div className="space-y-2">
                 <Label>Payment Mode</Label>
-                <Select value={form.paymentMethod} onValueChange={(val) => setForm({ ...form, paymentMethod: val })}>
+                <Select value={form.paymentMethod} onValueChange={handlePaymentMethodChange}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cash">Cash</SelectItem>
@@ -236,6 +263,22 @@ export default function ExpensesPage() {
                 </Select>
               </div>
             </div>
+
+            {form.paymentMethod !== "cash" && bankAccounts.length > 0 && (
+              <div className="space-y-2">
+                <Label>Pay From Bank Account *</Label>
+                <Select value={form.cashBankAccountId} onValueChange={(val) => setForm({ ...form, cashBankAccountId: val })}>
+                  <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((account) => (
+                      <SelectItem key={account._id} value={account._id}>
+                        {account.accountName} {account.bankName ? `(${account.bankName})` : ""} - ₹{account.currentBalance.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Description</Label>

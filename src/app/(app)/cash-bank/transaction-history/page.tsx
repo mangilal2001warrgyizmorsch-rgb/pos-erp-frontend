@@ -287,7 +287,7 @@ function TransactionHistoryContent() {
       tx.referenceModule || "N/A",
       tx.referenceNo || "N/A",
       tx.paymentMode,
-      tx.accountId?.accountName || (tx.accountType === "cash" ? "Cash In Hand" : "N/A"),
+      tx.accountId?.accountName || (tx.accountType === "cash" ? "Cash" : "N/A"),
       tx.direction === "in" ? tx.amount : "",
       tx.direction === "out" ? tx.amount : "",
       tx.balanceAfter !== undefined ? tx.balanceAfter : "",
@@ -380,7 +380,7 @@ function TransactionHistoryContent() {
           <div className="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl font-black mt-3 sm:mt-4 text-emerald-500 font-mono tracking-tight whitespace-nowrap">
             {formatCurrencyCompact(summary.cashBalance)}
           </div>
-          <div className="text-[9px] sm:text-[10px] text-muted-foreground/80 mt-1 truncate">Cash In Hand ledger balance</div>
+          <div className="text-[9px] sm:text-[10px] text-muted-foreground/80 mt-1 truncate">Cash ledger balance</div>
         </Card>
 
         {/* Card 2: Bank Balance */}
@@ -517,6 +517,7 @@ function TransactionHistoryContent() {
                         <SelectItem value="cash_entry_in">Cash Adjust (In)</SelectItem>
                         <SelectItem value="cash_entry_out">Cash Adjust (Out)</SelectItem>
                         <SelectItem value="transfer_out">Fund Transfer</SelectItem>
+                        <SelectItem value="cheque_clearance">Cheque Clearance</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -545,7 +546,7 @@ function TransactionHistoryContent() {
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
                         <SelectItem value="all">All Registers & Banks</SelectItem>
-                        <SelectItem value="cash">Cash In Hand</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
                         {accounts
                           .filter((acc) => acc.accountType === "bank")
                           .map((acc) => (
@@ -683,7 +684,7 @@ function TransactionHistoryContent() {
 
                       {/* Account (Small screens & up) */}
                       <td className="p-4 text-xs font-semibold text-slate-700 dark:text-slate-300 hidden sm:table-cell whitespace-nowrap">
-                        {tx.accountId?.accountName || (tx.accountType === "cash" ? "Cash In Hand" : "—")}
+                        {tx.accountId?.accountName || (tx.accountType === "cash" ? "Cash" : "—")}
                       </td>
 
                       {/* Unified Directional Amount Column */}
@@ -761,7 +762,7 @@ function TransactionHistoryContent() {
               <IndianRupee className="h-5 w-5 text-primary" /> Cash Balance Adjustment
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Manually adjust Cash In Hand balances to sync capital deposits, petty cash adjustments, or virtual withdrawals.
+              Manually adjust Cash balances to sync capital deposits, petty cash adjustments, or virtual withdrawals.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4.5 text-slate-700 dark:text-slate-300">
@@ -775,8 +776,8 @@ function TransactionHistoryContent() {
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="cash_entry_in">Deposit Cash (+ Cash In Hand)</SelectItem>
-                  <SelectItem value="cash_entry_out">Withdraw Cash (- Cash In Hand)</SelectItem>
+                  <SelectItem value="cash_entry_in">Deposit Cash (+ Cash)</SelectItem>
+                  <SelectItem value="cash_entry_out">Withdraw Cash (- Cash)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -801,7 +802,7 @@ function TransactionHistoryContent() {
                   <SelectValue placeholder="Select Payment Mode" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="Cash">Cash In Hand</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="UPI">UPI Transfer</SelectItem>
                   <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                 </SelectContent>
@@ -849,7 +850,7 @@ function TransactionHistoryContent() {
                   <SelectValue placeholder="Select Source" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="cash">Cash In Hand</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
                   {accounts
                     .filter((acc) => acc.accountType === "bank")
                     .map((acc) => (
@@ -870,7 +871,7 @@ function TransactionHistoryContent() {
                   <SelectValue placeholder="Select Destination" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="cash">Cash In Hand</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
                   {accounts
                     .filter((acc) => acc.accountType === "bank")
                     .map((acc) => (

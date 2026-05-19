@@ -11,19 +11,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { chequeService } from "@/services/chequeService";
-import { Cheque } from "@/types";
+import { cashBankService } from "@/services/cashBankService";
+import { Cheque, BankAccount } from "@/types";
 import { toast } from "sonner";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 export default function ChequesPage() {
   const [cheques, setCheques] = useState<Cheque[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editCheque, setEditCheque] = useState<Cheque | null>(null);
   const [form, setForm] = useState({
-    type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending"
+    type: "received",
+    chequeNumber: "",
+    amount: "",
+    date: new Date().toISOString().split('T')[0],
+    partyName: "",
+    bankName: "",
+    status: "Pending",
+    clearanceAccountType: "bank",
+    clearanceAccountId: ""
   });
 
   const fetchCheques = async () => {
@@ -39,8 +49,25 @@ export default function ChequesPage() {
     }
   };
 
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await cashBankService.getAccounts();
+      if (response.success) {
+        const banks = response.data.filter((a: any) => a.accountType === "bank");
+        setBankAccounts(banks);
+        const defaultBank = banks[0];
+        if (defaultBank && !form.clearanceAccountId) {
+          setForm(prev => ({ ...prev, clearanceAccountId: defaultBank._id }));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch bank accounts", error);
+    }
+  };
+
   useEffect(() => {
     fetchCheques();
+    fetchBankAccounts();
   }, []);
 
   const handleEditClick = (cheque: Cheque) => {
@@ -52,7 +79,9 @@ export default function ChequesPage() {
       date: cheque.date ? cheque.date.split('T')[0] : new Date().toISOString().split('T')[0],
       partyName: cheque.partyName,
       bankName: cheque.bankName || "",
-      status: cheque.status || "Pending"
+      status: cheque.status || "Pending",
+      clearanceAccountType: cheque.clearanceAccountType || "bank",
+      clearanceAccountId: cheque.clearanceAccountId || ""
     });
   };
 
@@ -60,6 +89,10 @@ export default function ChequesPage() {
     try {
       if (!form.chequeNumber || !form.amount || !form.partyName) {
         toast.error("Please fill all required fields");
+        return;
+      }
+      if (form.status === "Cleared" && form.clearanceAccountType === "bank" && !form.clearanceAccountId) {
+        toast.error("Please select a target bank account for clearance");
         return;
       }
       
@@ -74,7 +107,18 @@ export default function ChequesPage() {
         toast.success(editCheque ? "Cheque entry updated successfully" : "Cheque entry added successfully");
         setIsAddModalOpen(false);
         setEditCheque(null);
-        setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending" });
+        const defaultBank = bankAccounts[0];
+        setForm({
+          type: "received",
+          chequeNumber: "",
+          amount: "",
+          date: new Date().toISOString().split('T')[0],
+          partyName: "",
+          bankName: "",
+          status: "Pending",
+          clearanceAccountType: "bank",
+          clearanceAccountId: defaultBank ? defaultBank._id : ""
+        });
         fetchCheques();
       }
     } catch (error: any) {
@@ -102,7 +146,22 @@ export default function ChequesPage() {
           <p className="text-muted-foreground mt-1">Manage your incoming and outgoing cheques</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => { setEditCheque(null); setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending" }); setIsAddModalOpen(true); }}>
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => {
+            setEditCheque(null);
+            const defaultBank = bankAccounts[0];
+            setForm({
+              type: "received",
+              chequeNumber: "",
+              amount: "",
+              date: new Date().toISOString().split('T')[0],
+              partyName: "",
+              bankName: "",
+              status: "Pending",
+              clearanceAccountType: "bank",
+              clearanceAccountId: defaultBank ? defaultBank._id : ""
+            });
+            setIsAddModalOpen(true);
+          }}>
             <Plus className="mr-2 h-4 w-4" /> Add Cheque
           </Button>
         </div>
@@ -133,7 +192,22 @@ export default function ChequesPage() {
               </div>
             </div>
 
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 shadow-md font-semibold text-base" onClick={() => { setEditCheque(null); setForm({ type: "received", chequeNumber: "", amount: "", date: new Date().toISOString().split('T')[0], partyName: "", bankName: "", status: "Pending" }); setIsAddModalOpen(true); }}>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 shadow-md font-semibold text-base" onClick={() => {
+              setEditCheque(null);
+              const defaultBank = bankAccounts[0];
+              setForm({
+                type: "received",
+                chequeNumber: "",
+                amount: "",
+                date: new Date().toISOString().split('T')[0],
+                partyName: "",
+                bankName: "",
+                status: "Pending",
+                clearanceAccountType: "bank",
+                clearanceAccountId: defaultBank ? defaultBank._id : ""
+              });
+              setIsAddModalOpen(true);
+            }}>
               <Plus className="mr-2 h-5 w-5" /> Add Cheque
             </Button>
           </motion.div>
@@ -267,19 +341,71 @@ export default function ChequesPage() {
               <Label htmlFor="bank">Bank Name</Label>
               <Input id="bank" placeholder="Bank of the Cheque" value={form.bankName} onChange={(e) => setForm({...form, bankName: e.target.value})} />
             </div>
-            {editCheque && (
-              <div className="grid gap-2">
-                <Label htmlFor="status">Cheque Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({...form, status: v})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Cleared">Cleared</SelectItem>
-                    <SelectItem value="Bounced">Bounced</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid gap-2">
+              <Label htmlFor="status">Cheque Status</Label>
+              <Select value={form.status} onValueChange={(v) => {
+                let nextClearanceType = form.clearanceAccountType || "bank";
+                let nextClearanceId = form.clearanceAccountId;
+                if (v === "Cleared" && !nextClearanceId) {
+                  const defaultBank = bankAccounts[0];
+                  nextClearanceId = defaultBank ? defaultBank._id : "";
+                }
+                setForm({ ...form, status: v, clearanceAccountType: nextClearanceType as "cash" | "bank", clearanceAccountId: nextClearanceId });
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Cleared">Cleared</SelectItem>
+                  <SelectItem value="Bounced">Bounced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.status === "Cleared" && (
+              <div className="grid grid-cols-2 gap-4 border-t pt-4 mt-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="clearanceAccountType">Clearance Channel</Label>
+                  <Select 
+                    value={form.clearanceAccountType} 
+                    onValueChange={(v: "cash" | "bank") => {
+                      let defaultId = "";
+                      if (v === "bank") {
+                        const defaultBank = bankAccounts[0];
+                        defaultId = defaultBank ? defaultBank._id : "";
+                      }
+                      setForm({ ...form, clearanceAccountType: v, clearanceAccountId: defaultId });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bank">Bank Account</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.clearanceAccountType === "bank" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="clearanceAccountId">Target Bank Account</Label>
+                    <Select 
+                      value={form.clearanceAccountId} 
+                      onValueChange={(v) => setForm({ ...form, clearanceAccountId: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bankAccounts.map((acc) => (
+                          <SelectItem key={acc._id} value={acc._id}>
+                            {acc.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
           </div>

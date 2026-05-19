@@ -139,6 +139,7 @@ export interface Sale {
   changeAmount: number;
   status: "completed" | "cancelled" | "refunded";
   notes?: string;
+  cashBankAccountId?: string;
   cashier: User | string;
   createdAt: string;
 }
@@ -283,6 +284,7 @@ export interface Purchase {
   paymentStatus: PurchasePaymentStatus;
   paymentMethod?: "cash" | "card" | "upi" | "bank_transfer" | "cheque";
   notes?: string;
+  cashBankAccountId?: string;
   createdBy: User | string;
   createdAt: string;
   updatedAt: string;
@@ -327,6 +329,7 @@ export interface Expense {
   receiptImage?: string;
   paymentMethod: "cash" | "card" | "upi" | "bank_transfer";
   reference?: string;
+  cashBankAccountId?: string;
   createdBy: User | string;
   isRecurring: boolean;
   createdAt: string;
@@ -439,6 +442,9 @@ export interface Cheque {
   partyName: string;
   bankName: string;
   status: "Pending" | "Cleared" | "Bounced";
+  clearanceAccountType?: "cash" | "bank";
+  clearanceAccountId?: string;
+  clearanceTransactionId?: string;
   createdAt: string;
   updatedAt: string;
 }

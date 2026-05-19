@@ -38,6 +38,11 @@ export default function SalesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [metrics, setMetrics] = useState({
+    totalAmount: 0,
+    amountPaid: 0,
+    balanceAmount: 0
+  });
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +55,13 @@ export default function SalesPage() {
         params as Parameters<typeof saleService.getAll>[0]
       );
       setSales(result.data);
+      if (result.totals) {
+        setMetrics({
+          totalAmount: result.totals.totalAmount,
+          amountPaid: result.totals.amountPaid,
+          balanceAmount: result.totals.balanceAmount
+        });
+      }
       setTotalPages(result.pagination.pages);
     } catch {
       toast.error("Failed to load sales");
@@ -128,16 +140,16 @@ export default function SalesPage() {
               <span className="text-[10px] text-muted-foreground mt-1">vs last month</span>
             </div>
           </div>
-          <div className="text-2xl font-bold mb-4">₹ 1,606.40</div>
+          <div className="text-2xl font-bold mb-4">{formatCurrency(metrics.totalAmount)}</div>
           <div className="flex items-center gap-4 text-xs font-medium bg-muted/30 p-2 rounded-md">
             <div className="flex items-center gap-1">
               <span className="text-muted-foreground">Received:</span>
-              <span className="text-emerald-500">₹ 1,318.40</span>
+              <span className="text-emerald-500">{formatCurrency(metrics.amountPaid)}</span>
             </div>
             <div className="w-px h-3 bg-border"></div>
             <div className="flex items-center gap-1">
               <span className="text-muted-foreground">Balance:</span>
-              <span className="text-red-500">₹ 288.00</span>
+              <span className="text-red-500">{formatCurrency(metrics.balanceAmount)}</span>
             </div>
           </div>
           <div className="absolute top-0 left-0 w-1 h-full bg-primary rounded-l-md"></div>

@@ -33,6 +33,7 @@ import {
   ArrowDownUp,
   History,
   ListCollapse,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/themeStore";
@@ -104,7 +105,10 @@ const navEntries: NavEntry[] = [
   {
     label: "Inventory",
     icon: Warehouse,
-    href: "/inventory"
+    children: [
+      { label: "Inventory Manager", href: "/inventory", icon: Warehouse },
+      { label: "Opening Stock", href: "/inventory/opening-stock", icon: Boxes },
+    ],
   },
   {
     label: "Cash & Bank",
@@ -112,7 +116,7 @@ const navEntries: NavEntry[] = [
     children: [
       { label: "Transaction History", href: "/cash-bank/transaction-history", icon: History },
       { label: "Bank Accounts", href: "/bank", icon: Building },
-      { label: "Cash In Hand", href: "/cash", icon: IndianRupee },
+      { label: "Cash", href: "/cash", icon: IndianRupee },
       { label: "Cheques", href: "/cheques", icon: Receipt },
       { label: "Loan Accounts", href: "/loans", icon: Building },
     ],

@@ -11,8 +11,10 @@ import {
   Layers,
   ArrowUpRight,
   ArrowDownLeft,
-  Calendar
+  Calendar,
+  Boxes,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -20,6 +22,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/shared/LoadingSkeleton";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { productService } from "@/services/productService";
@@ -123,19 +126,27 @@ export default function InventoryPage() {
       />
 
       {/* Top Aggregate valuation banner */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
-          <TabsList className="grid grid-cols-2 w-full sm:w-[320px]">
-            <TabsTrigger value="current" className="text-xs font-semibold flex items-center gap-2">
-              <Layers className="h-3.5 w-3.5" />
-              <span>Current Stock</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="text-xs font-semibold flex items-center gap-2">
-              <History className="h-3.5 w-3.5" />
-              <span>Stock Movement</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
+            <TabsList className="grid grid-cols-2 w-full sm:w-[320px]">
+              <TabsTrigger value="current" className="text-xs font-semibold flex items-center gap-2">
+                <Layers className="h-3.5 w-3.5" />
+                <span>Current Stock</span>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="text-xs font-semibold flex items-center gap-2">
+                <History className="h-3.5 w-3.5" />
+                <span>Stock Movement</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Link href="/inventory/opening-stock" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto text-xs font-semibold gap-1.5 h-9 rounded-xl shadow-md">
+              <Boxes className="h-4 w-4" />
+              Opening Stock Entry
+            </Button>
+          </Link>
+        </div>
 
         <Card className="px-4 py-2 border-primary/20 bg-primary/5 flex items-center gap-3 w-full sm:w-auto shadow-sm">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">

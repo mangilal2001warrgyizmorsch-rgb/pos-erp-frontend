@@ -15,7 +15,7 @@ import { cashBankService } from "@/services/cashBankService";
 import { toast } from "sonner";
 
 
-export default function CashInHandPage() {
+export default function CashPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,7 @@ export default function CashInHandPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-5">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-            Cash In Hand
+            Cash
           </h1>
           <span className={cn(
             "text-xl sm:text-2xl font-black font-mono tracking-tight",
@@ -182,7 +182,7 @@ export default function CashInHandPage() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <IndianRupee className="h-5 w-5 text-primary" /> Adjust Cash In Hand
+              <IndianRupee className="h-5 w-5 text-primary" /> Adjust Cash
             </DialogTitle>
             <DialogDescription>
               Add or reduce cash directly. Useful for petty cash handling or unrecorded adjustments.

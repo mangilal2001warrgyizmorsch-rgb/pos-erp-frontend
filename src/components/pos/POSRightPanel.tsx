@@ -3,6 +3,7 @@ import { Calendar, Search, ChevronDown, Receipt, Printer, Plus, X } from "lucide
 import { usePOSStore } from "@/store/posStore";
 import { customerService } from "@/services/customerService";
 import { saleService } from "@/services/saleService";
+import { cashBankService } from "@/services/cashBankService";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Customer, Sale } from "@/types";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ export function POSRightPanel() {
   const [showMultiPay, setShowMultiPay] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [printSaleData, setPrintSaleData] = useState<Sale | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
 
   // Auto-sync amount received with grand total
   const [isAmountEdited, setIsAmountEdited] = useState(false);
@@ -52,6 +54,14 @@ export function POSRightPanel() {
         }
       }
     }).catch(() => {});
+
+    cashBankService.getAccounts()
+      .then(res => {
+        if (res.success && res.data) {
+          setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
+        }
+      })
+      .catch(err => console.error("Failed to load bank accounts:", err));
   }, []);
 
   // Reset edited state and default walk-in customer when active bill changes
@@ -103,6 +113,7 @@ export function POSRightPanel() {
         items: bill.items.map(i => ({ product: i.productId || undefined, name: i.itemName, sku: i.itemCode, quantity: i.quantity, unitPrice: i.pricePerUnit, purchasePrice: i.purchasePrice, total: i.total })),
         subtotal, taxAmount: taxAmt, totalAmount: grandTotal, amountPaid: bill.amountReceived || grandTotal,
         status: "completed", paymentStatus: "paid", paymentMethod: bill.paymentMode.toLowerCase(), notes: bill.remarks,
+        cashBankAccountId: (bill.paymentMode !== "Cash" && bill.paymentMode !== "Wallet") ? bill.cashBankAccountId : undefined,
       });
       toast.success("Sale saved!"); 
       setPrintSaleData(savedSale);
@@ -193,7 +204,20 @@ export function POSRightPanel() {
           <div className="space-y-1.5">
             <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground pl-0.5">Payment Mode</label>
             <div className="relative">
-              <select value={bill.paymentMode} onChange={(e) => store.setPaymentMode(e.target.value)}
+              <select 
+                value={bill.paymentMode} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  store.setPaymentMode(val);
+                  if (val !== "Cash" && val !== "Wallet") {
+                    const defaultBank = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
+                    if (defaultBank && !bill.cashBankAccountId) {
+                      store.updateBillField("cashBankAccountId", defaultBank._id);
+                    }
+                  } else {
+                    store.updateBillField("cashBankAccountId", "");
+                  }
+                }}
                 className="w-full h-10 pl-3 pr-7 text-sm font-semibold bg-muted/30 border border-border/50 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer transition-all">
                 {modes.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
@@ -217,6 +241,27 @@ export function POSRightPanel() {
             </div>
           </div>
         </div>
+
+        {bill.paymentMode !== "Cash" && bill.paymentMode !== "Wallet" && bankAccounts.length > 0 && (
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground pl-0.5">Collect in Bank Account</label>
+            <div className="relative">
+              <select 
+                value={bill.cashBankAccountId || ""} 
+                onChange={(e) => store.updateBillField("cashBankAccountId", e.target.value)}
+                className="w-full h-10 pl-3 pr-7 text-sm font-semibold bg-muted/30 border border-border/50 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer transition-all"
+              >
+                <option value="" disabled>Select Bank Account</option>
+                {bankAccounts.map((account) => (
+                  <option key={account._id} value={account._id}>
+                    {account.accountName} {account.bankName ? `(${account.bankName})` : ""} - ₹{account.currentBalance.toFixed(2)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
