@@ -42,7 +42,8 @@ export function MultiPayModal({ open, onClose, onSave, onSaveNew }: Props) {
 
   if (!open || !bill) return null;
 
-  const grandTotal = bill.items.reduce((s, i) => s + i.total, 0);
+  const realItems = bill.items.filter(i => i.itemName !== "");
+  const grandTotal = realItems.reduce((s, i) => s + i.total, 0);
   // Based on the reference, the amount is just the cash amount inputted.
   const balance = grandTotal - cashAmount;
   const isLess = cashAmount < grandTotal;

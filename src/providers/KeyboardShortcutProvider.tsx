@@ -57,9 +57,11 @@ export const KeyboardShortcutProvider: React.FC<KeyboardShortcutProviderProps> =
     const shortcutIds = Object.keys(shortcuts);
     if (shortcutIds.length === 0) return;
 
-    // Register all shortcuts in the store
+    // Register only global shortcuts in the store
     shortcutIds.forEach((id) => {
-      store.registerShortcut(shortcuts[id]);
+      if (id.startsWith('global.')) {
+        store.registerShortcut(shortcuts[id]);
+      }
     });
 
     registeredRef.current = true;

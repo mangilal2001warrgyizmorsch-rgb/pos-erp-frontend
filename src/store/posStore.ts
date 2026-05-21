@@ -1,6 +1,20 @@
 import { create } from 'zustand';
 import type { Product, Customer } from '@/types';
 
+// Dummy walk-in customer — never persisted to DB
+export const WALK_IN_CUSTOMER: Customer = {
+  _id: 'walk-in',
+  name: 'Walk-in Customer',
+  phone: '',
+  email: '',
+  address: '',
+  totalPurchases: 0,
+  totalSpent: 0,
+  walletBalance: 0,
+  isActive: true,
+  createdAt: '',
+};
+
 export interface POSItem {
   id: string;
   productId?: string;
@@ -51,6 +65,7 @@ interface POSStore {
   getActiveBill: () => POSBill | undefined;
   addItem: (item: Partial<POSItem>) => void;
   updateItem: (id: string, updates: Partial<POSItem>) => void;
+  updateItemProduct: (id: string, updates: Partial<POSItem>) => void;
   removeItem: (id: string) => void;
   selectRow: (index: number) => void;
   setCustomer: (customer: Customer | null) => void;
@@ -60,12 +75,29 @@ interface POSStore {
   resetActiveBill: () => void;
 }
 
+export const createPlaceholderItem = (): POSItem => ({
+  id: crypto.randomUUID(),
+  itemCode: '',
+  itemName: '',
+  barcode: '',
+  customItem: true,
+  quantity: 1,
+  unit: 'Pcs',
+  pricePerUnit: 0,
+  purchasePrice: 0,
+  taxPercent: 0,
+  taxAmount: 0,
+  total: 0,
+  discount: 0,
+  isInclusive: false,
+});
+
 const createEmptyBill = (id: string, billNo: number): POSBill => ({
   id,
   billNo,
-  customer: null,
-  items: [],
-  selectedRowIndex: -1,
+  customer: WALK_IN_CUSTOMER,
+  items: [createPlaceholderItem()],
+  selectedRowIndex: 0,
   paymentMode: 'Cash',
   amountReceived: 0,
   discount: 0,
@@ -145,16 +177,17 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         ...itemData,
       };
 
-      // Calculate totals
+      // Calculate totals (with discount)
       const baseAmt = newItem.quantity * newItem.pricePerUnit;
+      const discountAmt = baseAmt * (newItem.discount / 100);
+      const afterDiscount = baseAmt - discountAmt;
       if (newItem.isInclusive && newItem.taxPercent > 0) {
-        const rowTotal = baseAmt;
-        const baseWithoutTax = rowTotal / (1 + newItem.taxPercent / 100);
-        newItem.taxAmount = rowTotal - baseWithoutTax;
-        newItem.total = rowTotal;
+        const baseWithoutTax = afterDiscount / (1 + newItem.taxPercent / 100);
+        newItem.taxAmount = afterDiscount - baseWithoutTax;
+        newItem.total = afterDiscount;
       } else {
-        newItem.taxAmount = baseAmt * (newItem.taxPercent / 100);
-        newItem.total = baseAmt + newItem.taxAmount;
+        newItem.taxAmount = afterDiscount * (newItem.taxPercent / 100);
+        newItem.total = afterDiscount + newItem.taxAmount;
       }
 
       return {
@@ -173,13 +206,15 @@ export const usePOSStore = create<POSStore>((set, get) => ({
               };
               // Recalculate
               const eBase = items[existingIndex].quantity * items[existingIndex].pricePerUnit;
+              const eDiscAmt = eBase * (items[existingIndex].discount / 100);
+              const eAfterDisc = eBase - eDiscAmt;
               if (items[existingIndex].isInclusive && items[existingIndex].taxPercent > 0) {
-                const eBaseWithoutTax = eBase / (1 + items[existingIndex].taxPercent / 100);
-                items[existingIndex].taxAmount = eBase - eBaseWithoutTax;
-                items[existingIndex].total = eBase;
+                const eBaseWithoutTax = eAfterDisc / (1 + items[existingIndex].taxPercent / 100);
+                items[existingIndex].taxAmount = eAfterDisc - eBaseWithoutTax;
+                items[existingIndex].total = eAfterDisc;
               } else {
-                items[existingIndex].taxAmount = eBase * (items[existingIndex].taxPercent / 100);
-                items[existingIndex].total = eBase + items[existingIndex].taxAmount;
+                items[existingIndex].taxAmount = eAfterDisc * (items[existingIndex].taxPercent / 100);
+                items[existingIndex].total = eAfterDisc + items[existingIndex].taxAmount;
               }
               return { ...b, items, selectedRowIndex: existingIndex };
             }
@@ -188,7 +223,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
           return {
             ...b,
             items: [...b.items, newItem],
-            selectedRowIndex: b.items.length, // Select the newly added row
+            selectedRowIndex: b.items.length - 1, // Keep focus on the row we just added
           };
         })
       };
@@ -204,16 +239,17 @@ export const usePOSStore = create<POSStore>((set, get) => ({
           items: b.items.map((item) => {
             if (item.id !== id) return item;
             const updated = { ...item, ...updates };
-            // Recalculate
+            // Recalculate with discount
             const baseAmt = updated.quantity * updated.pricePerUnit;
+            const discountAmt = baseAmt * (updated.discount / 100);
+            const afterDiscount = baseAmt - discountAmt;
             if (updated.isInclusive && updated.taxPercent > 0) {
-              const rowTotal = baseAmt;
-              const baseWithoutTax = rowTotal / (1 + updated.taxPercent / 100);
-              updated.taxAmount = rowTotal - baseWithoutTax;
-              updated.total = rowTotal;
+              const baseWithoutTax = afterDiscount / (1 + updated.taxPercent / 100);
+              updated.taxAmount = afterDiscount - baseWithoutTax;
+              updated.total = afterDiscount;
             } else {
-              updated.taxAmount = baseAmt * (updated.taxPercent / 100);
-              updated.total = baseAmt + updated.taxAmount;
+              updated.taxAmount = afterDiscount * (updated.taxPercent / 100);
+              updated.total = afterDiscount + updated.taxAmount;
             }
             return updated;
           })
@@ -222,11 +258,105 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     }));
   },
 
+  updateItemProduct: (id, updates) => {
+    set((state) => {
+      const activeBill = state.bills.find((b) => b.id === state.activeBillId);
+      if (!activeBill) return {};
+
+      const itemIndex = activeBill.items.findIndex(i => i.id === id);
+      if (itemIndex === -1) return {};
+
+      const currentItem = activeBill.items[itemIndex];
+      const updatedItem = {
+        ...currentItem,
+        ...updates,
+      };
+
+      // Calculate totals with discount
+      const baseAmt = updatedItem.quantity * updatedItem.pricePerUnit;
+      const discountAmt = baseAmt * (updatedItem.discount / 100);
+      const afterDiscount = baseAmt - discountAmt;
+      if (updatedItem.isInclusive && updatedItem.taxPercent > 0) {
+        const baseWithoutTax = afterDiscount / (1 + updatedItem.taxPercent / 100);
+        updatedItem.taxAmount = afterDiscount - baseWithoutTax;
+        updatedItem.total = afterDiscount;
+      } else {
+        updatedItem.taxAmount = afterDiscount * (updatedItem.taxPercent / 100);
+        updatedItem.total = afterDiscount + updatedItem.taxAmount;
+      }
+
+      let updatedItems = [...activeBill.items];
+      updatedItems[itemIndex] = updatedItem;
+
+      let selectedIndex = itemIndex;
+      if (updatedItem.productId) {
+        const duplicateIndex = updatedItems.findIndex(
+          (i, idx) => idx !== itemIndex && i.productId === updatedItem.productId
+        );
+
+        if (duplicateIndex >= 0) {
+          const existing = updatedItems[duplicateIndex];
+          const newQty = existing.quantity + updatedItem.quantity;
+          
+          const mergedItem = {
+            ...existing,
+            quantity: newQty,
+          };
+
+          // Recalculate merged totals
+          const eBase = mergedItem.quantity * mergedItem.pricePerUnit;
+          const eDiscAmt2 = eBase * (mergedItem.discount / 100);
+          const eAfterDisc2 = eBase - eDiscAmt2;
+          if (mergedItem.isInclusive && mergedItem.taxPercent > 0) {
+            const eBaseWithoutTax = eAfterDisc2 / (1 + mergedItem.taxPercent / 100);
+            mergedItem.taxAmount = eAfterDisc2 - eBaseWithoutTax;
+            mergedItem.total = eAfterDisc2;
+          } else {
+            mergedItem.taxAmount = eAfterDisc2 * (mergedItem.taxPercent / 100);
+            mergedItem.total = eAfterDisc2 + mergedItem.taxAmount;
+          }
+
+          updatedItems[duplicateIndex] = mergedItem;
+          selectedIndex = duplicateIndex;
+
+          if (itemIndex === updatedItems.length - 1) {
+            updatedItems[itemIndex] = createPlaceholderItem();
+            selectedIndex = itemIndex;
+          } else {
+            updatedItems.splice(itemIndex, 1);
+            if (selectedIndex > itemIndex) {
+              selectedIndex -= 1;
+            }
+          }
+        }
+      }
+
+      // Append new placeholder if we just filled the last one
+      const lastItem = updatedItems[updatedItems.length - 1];
+      if (lastItem && lastItem.itemName !== '') {
+        const newPlaceholder = createPlaceholderItem();
+        updatedItems.push(newPlaceholder);
+        // Do NOT change selectedIndex here. We want focus to stay on the newly filled row.
+      }
+
+      return {
+        bills: state.bills.map((b) =>
+          b.id === state.activeBillId
+            ? { ...b, items: updatedItems, selectedRowIndex: selectedIndex }
+            : b
+        ),
+      };
+    });
+  },
+
   removeItem: (id) => {
     set((state) => ({
       bills: state.bills.map((b) => {
         if (b.id !== state.activeBillId) return b;
-        const newItems = b.items.filter(i => i.id !== id);
+        let newItems = b.items.filter(i => i.id !== id);
+        if (newItems.length === 0) {
+          newItems = [createPlaceholderItem()];
+        }
         return {
           ...b,
           items: newItems,

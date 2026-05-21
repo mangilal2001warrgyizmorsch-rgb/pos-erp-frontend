@@ -195,7 +195,7 @@ export function ActionModals({ type, onClose }: Props) {
     remarks: "Remarks"
   };
 
-  const needSelection = ["qty", "itemDisc", "unit"].includes(type) && !selectedItem;
+  const needSelection = ["qty", "itemDisc", "unit"].includes(type) && (!selectedItem || selectedItem.itemName === "");
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">

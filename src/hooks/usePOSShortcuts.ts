@@ -61,7 +61,6 @@ export const usePOSShortcuts = (options: UsePOSShortcutsOptions = {}) => {
 
   const handleHoldSale = useCallback(() => {
     optionsRef.current.onHoldSale?.();
-    toast.success('Sale held successfully');
   }, []);
 
   const handleOpenPayment = useCallback(() => {
@@ -70,7 +69,6 @@ export const usePOSShortcuts = (options: UsePOSShortcutsOptions = {}) => {
 
   const handleCompleteSale = useCallback(() => {
     optionsRef.current.onCompleteSale?.();
-    toast.success('Sale completed');
   }, []);
 
   const handleOpenCart = useCallback(() => {
@@ -83,17 +81,14 @@ export const usePOSShortcuts = (options: UsePOSShortcutsOptions = {}) => {
 
   const handleSelectCash = useCallback(() => {
     optionsRef.current.onSelectCash?.();
-    toast.success('Cash payment selected');
   }, []);
 
   const handleSelectCard = useCallback(() => {
     optionsRef.current.onSelectCard?.();
-    toast.success('Card payment selected');
   }, []);
 
   const handleSelectUPI = useCallback(() => {
     optionsRef.current.onSelectUPI?.();
-    toast.success('UPI payment selected');
   }, []);
 
   const handlePrintReceipt = useCallback(() => {
@@ -103,7 +98,6 @@ export const usePOSShortcuts = (options: UsePOSShortcutsOptions = {}) => {
 
   const handleNewSale = useCallback(() => {
     optionsRef.current.onNewSale?.();
-    toast.success('New sale started');
   }, []);
 
   const handlePrintInvoice = useCallback(() => {

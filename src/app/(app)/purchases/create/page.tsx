@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,6 +12,9 @@ import {
   Save,
   Search,
   Package,
+  X,
+  ChevronDown,
+  LayoutList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,7 +46,8 @@ import { cashBankService } from "@/services/cashBankService";
 import { categoryService } from "@/services/categoryService";
 import { subcategoryService } from "@/services/subcategoryService";
 import { ImageUploader } from "@/components/shared/ImageUploader";
-import { formatCurrency } from "@/lib/utils";
+import { SupplierModal } from "@/components/shared/SupplierModal";
+import { formatCurrency, cn } from "@/lib/utils";
 import type {
   Supplier,
   Transporter,
@@ -51,6 +55,21 @@ import type {
   Category,
   Subcategory,
 } from "@/types";
+
+const TableCellInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(({ className, ...props }, ref) => {
+  return (
+    <input
+      ref={ref}
+      className={cn(
+        "w-full bg-transparent border-none outline-none ring-0 shadow-none px-1 py-1 text-center font-bold tabular-nums",
+        "focus:outline-none focus:ring-0 focus:border-none focus-visible:ring-0 focus-visible:outline-none",
+        className
+      )}
+      {...props}
+    />
+  );
+});
+TableCellInput.displayName = "TableCellInput";
 
 // ---------- Item Row Type ----------
 interface ItemRow {
@@ -113,6 +132,99 @@ const calcItemTotal = (item: ItemRow) => {
 export default function CreatePurchasePage() {
   const router = useRouter();
 
+  // Focus refs for each editable field in a row
+  const barcodeRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const skuRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const nameRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const qtyRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const purchaseRateRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const salesPriceRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const discountRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Ref to prevent double scans / race conditions on fast inputs
+  const lastMatchedRef = useRef<{ barcode: string; time: number } | null>(null);
+
+  // Mobile summary panel toggle
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  const focusCell = (itemId: string, field: "barcode" | "sku" | "name" | "quantity" | "purchaseRate" | "salesPrice" | "discount") => {
+    setTimeout(() => {
+      let input: HTMLInputElement | null = null;
+      if (field === "barcode") input = barcodeRefs.current[itemId];
+      else if (field === "sku") input = skuRefs.current[itemId];
+      else if (field === "name") input = nameRefs.current[itemId];
+      else if (field === "quantity") input = qtyRefs.current[itemId];
+      else if (field === "purchaseRate") input = purchaseRateRefs.current[itemId];
+      else if (field === "salesPrice") input = salesPriceRefs.current[itemId];
+      else if (field === "discount") input = discountRefs.current[itemId];
+
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 50);
+  };
+
+  const handleCustomTab = (
+    e: React.KeyboardEvent,
+    itemId: string,
+    currentField: "barcode" | "sku" | "name" | "quantity" | "purchaseRate" | "salesPrice" | "discount",
+    idx: number
+  ) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const prevItem = items[idx - 1];
+      const nextItem = items[idx + 1];
+      const hasNameField = !items[idx].product;
+
+      if (!e.shiftKey) {
+        if (currentField === "barcode") {
+          focusCell(itemId, "sku");
+        } else if (currentField === "sku") {
+          if (hasNameField) {
+            focusCell(itemId, "name");
+          } else {
+            focusCell(itemId, "quantity");
+          }
+        } else if (currentField === "name") {
+          focusCell(itemId, "quantity");
+        } else if (currentField === "quantity") {
+          focusCell(itemId, "purchaseRate");
+        } else if (currentField === "purchaseRate") {
+          focusCell(itemId, "salesPrice");
+        } else if (currentField === "salesPrice") {
+          focusCell(itemId, "discount");
+        } else if (currentField === "discount") {
+          if (nextItem) {
+            focusCell(nextItem.id, "barcode");
+          }
+        }
+      } else {
+        if (currentField === "barcode") {
+          if (prevItem) {
+            focusCell(prevItem.id, "discount");
+          }
+        } else if (currentField === "sku") {
+          focusCell(itemId, "barcode");
+        } else if (currentField === "name") {
+          focusCell(itemId, "sku");
+        } else if (currentField === "quantity") {
+          if (hasNameField) {
+            focusCell(itemId, "name");
+          } else {
+            focusCell(itemId, "sku");
+          }
+        } else if (currentField === "purchaseRate") {
+          focusCell(itemId, "quantity");
+        } else if (currentField === "salesPrice") {
+          focusCell(itemId, "purchaseRate");
+        } else if (currentField === "discount") {
+          focusCell(itemId, "salesPrice");
+        }
+      }
+    }
+  };
+
   // Master data
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [transporters, setTransporters] = useState<Transporter[]>([]);
@@ -149,6 +261,42 @@ export default function CreatePurchasePage() {
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
   const [isSupplierMatched, setIsSupplierMatched] = useState(false);
   const [selectedSupplierDropdownIdx, setSelectedSupplierDropdownIdx] = useState(-1);
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
+  const supplierWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close supplier dropdown
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        supplierWrapperRef.current &&
+        !supplierWrapperRef.current.contains(e.target as Node)
+      ) {
+        setShowSupplierSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const clearSupplier = () => {
+    setSupplierId("");
+    setSupplierSearch("");
+    setSupplierPhone("");
+    setSupplierGst("");
+    setIsSupplierMatched(false);
+  };
+
+  const reloadSuppliers = async () => {
+    try {
+      const res = await supplierService.getAll({ limit: 200 });
+      const newSuppliers = res.data.filter((s: Supplier) => !suppliers.some(prev => prev._id === s._id));
+      setSuppliers(res.data);
+      if (newSuppliers.length > 0) {
+        selectSupplier(newSuppliers[0]);
+      }
+    } catch (e) {}
+  };
+
   const [transporterId, setTransporterId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(
@@ -160,41 +308,20 @@ export default function CreatePurchasePage() {
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
+  const [scanHistory, setScanHistory] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    supplierService
-      .getAll({ limit: 200 })
-      .then((r) => setSuppliers(r.data))
-      .catch(() => {});
-    transporterService
-      .getAll({ limit: 200 })
-      .then((r) => setTransporters(r.data))
-      .catch(() => {});
-    productService
-      .getAll({ limit: 500 })
-      .then((r) => setProducts(r.data))
-      .catch(() => {});
-    categoryService
-      .getAll()
-      .then((r) => setCategories(r))
-      .catch(() => {});
-    subcategoryService
-      .getAll()
-      .then((r) => setSubcategories(r))
-      .catch(() => {});
-    cashBankService
-      .getAccounts()
-      .then((res) => {
-        if (res.success && res.data) {
-          setBankAccounts(
-            res.data.filter(
-              (a: any) => a.accountType === "bank" && a.status === "active",
-            ),
-          );
-        }
-      })
-      .catch((err) => console.error("Failed to load bank accounts:", err));
+    supplierService.getAll({ limit: 200 }).then((r) => setSuppliers(r.data)).catch(() => {});
+    transporterService.getAll({ limit: 200 }).then((r) => setTransporters(r.data)).catch(() => {});
+    productService.getAll({ limit: 500 }).then((r) => setProducts(r.data)).catch(() => {});
+    categoryService.getAll().then((r) => setCategories(r)).catch(() => {});
+    subcategoryService.getAll().then((r) => setSubcategories(r)).catch(() => {});
+    cashBankService.getAccounts().then((res) => {
+      if (res.success && res.data) {
+        setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
+      }
+    }).catch((err) => console.error("Failed to load bank accounts:", err));
   }, []);
 
   useEffect(() => {
@@ -204,8 +331,7 @@ export default function CreatePurchasePage() {
   const handlePaymentMethodChange = (val: string) => {
     setPaymentMethod(val);
     if (val !== "cash") {
-      const defaultBank =
-        bankAccounts.find((a) => a.isDefault) || bankAccounts[0];
+      const defaultBank = bankAccounts.find((a) => a.isDefault) || bankAccounts[0];
       if (defaultBank && !cashBankAccountId) {
         setCashBankAccountId(defaultBank._id);
       }
@@ -214,7 +340,14 @@ export default function CreatePurchasePage() {
     }
   };
 
-  // On supplier select
+  const filteredSuppliers = supplierSearch.trim()
+    ? suppliers.filter(
+        (s) =>
+          s.name.toLowerCase().includes(supplierSearch.toLowerCase()) ||
+          (s.phone && s.phone.includes(supplierSearch))
+      )
+    : suppliers;
+
   const handleSupplierSearch = (query: string) => {
     setSupplierSearch(query);
     setSelectedSupplierDropdownIdx(-1);
@@ -224,11 +357,10 @@ export default function CreatePurchasePage() {
       setSupplierPhone("");
       setSupplierGst("");
       setIsSupplierMatched(false);
-      setShowSupplierSuggestions(false);
+      setShowSupplierSuggestions(true);
       return;
     }
 
-    // Try to find if there's an exact match (case-insensitive)
     const exact = suppliers.find(
       (s) => s.name.toLowerCase() === query.trim().toLowerCase()
     );
@@ -256,10 +388,7 @@ export default function CreatePurchasePage() {
   };
 
   const handleSupplierKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const filtered = suppliers.filter((s) =>
-      s.name.toLowerCase().includes(supplierSearch.toLowerCase())
-    );
-
+    const filtered = filteredSuppliers.slice(0, 10);
     if (filtered.length === 0) return;
 
     if (e.key === "ArrowDown") {
@@ -276,10 +405,7 @@ export default function CreatePurchasePage() {
       });
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (
-        selectedSupplierDropdownIdx >= 0 &&
-        selectedSupplierDropdownIdx < filtered.length
-      ) {
+      if (selectedSupplierDropdownIdx >= 0 && selectedSupplierDropdownIdx < filtered.length) {
         selectSupplier(filtered[selectedSupplierDropdownIdx]);
       } else if (filtered.length > 0) {
         selectSupplier(filtered[0]);
@@ -290,19 +416,11 @@ export default function CreatePurchasePage() {
     }
   };
 
-  const handleSupplierBlur = () => {
-    setTimeout(() => {
-      setShowSupplierSuggestions(false);
-    }, 200);
-  };
-
-  // Product search within item row
   const handleProductSearch = (idx: number, query: string) => {
     const updated = [...items];
     updated[idx].productSearch = query;
-    updated[idx].product = null; // Reset product when typing
+    updated[idx].product = null;
     updated[idx].barcode = query;
-    // Retain existing auto-generated SKU, or generate a new one if cleared
     if (!updated[idx].sku || updated[idx].sku.trim() === "") {
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       updated[idx].sku = `SKU-${randomSuffix}`;
@@ -315,13 +433,23 @@ export default function CreatePurchasePage() {
       return;
     }
 
-    const q = query.toLowerCase();
+    const q = query.trim().toLowerCase();
 
-    // Auto-select exact barcode/SKU
     const exactMatch = products.find(
-      (p) => p.barcode?.toLowerCase() === q || p.sku.toLowerCase() === q,
+      (p) => p.barcode?.trim().toLowerCase() === q || p.sku.trim().toLowerCase() === q,
     );
+
     if (exactMatch) {
+      const now = Date.now();
+      const matchKey = exactMatch.barcode || exactMatch.sku;
+      if (
+        lastMatchedRef.current &&
+        lastMatchedRef.current.barcode === matchKey &&
+        now - lastMatchedRef.current.time < 800
+      ) {
+        return;
+      }
+      lastMatchedRef.current = { barcode: matchKey, time: now };
       selectProduct(idx, exactMatch);
       return;
     }
@@ -335,19 +463,16 @@ export default function CreatePurchasePage() {
     setProductResults(results.slice(0, 8));
   };
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    idx: number,
-  ) => {
-    if (productResults.length === 0) return;
-
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
     if (e.key === "ArrowDown") {
+      if (productResults.length === 0) return;
       e.preventDefault();
       setSelectedDropdownIdx((prev) => {
         const next = prev + 1;
         return next >= productResults.length ? 0 : next;
       });
     } else if (e.key === "ArrowUp") {
+      if (productResults.length === 0) return;
       e.preventDefault();
       setSelectedDropdownIdx((prev) => {
         const next = prev - 1;
@@ -355,13 +480,32 @@ export default function CreatePurchasePage() {
       });
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (
-        selectedDropdownIdx >= 0 &&
-        selectedDropdownIdx < productResults.length
-      ) {
-        selectProduct(idx, productResults[selectedDropdownIdx]);
-      } else if (productResults.length > 0) {
-        selectProduct(idx, productResults[0]);
+      const query = items[idx].productSearch.trim().toLowerCase();
+      if (query) {
+        const exactMatch = products.find(
+          (p) => p.barcode?.trim().toLowerCase() === query || p.sku.trim().toLowerCase() === query,
+        );
+        if (exactMatch) {
+          const now = Date.now();
+          const matchKey = exactMatch.barcode || exactMatch.sku;
+          if (
+            lastMatchedRef.current &&
+            lastMatchedRef.current.barcode === matchKey &&
+            now - lastMatchedRef.current.time < 800
+          ) {
+            return;
+          }
+          lastMatchedRef.current = { barcode: matchKey, time: now };
+          selectProduct(idx, exactMatch);
+          return;
+        }
+      }
+      if (productResults.length > 0) {
+        if (selectedDropdownIdx >= 0 && selectedDropdownIdx < productResults.length) {
+          selectProduct(idx, productResults[selectedDropdownIdx]);
+        } else {
+          selectProduct(idx, productResults[0]);
+        }
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -370,8 +514,31 @@ export default function CreatePurchasePage() {
     }
   };
 
-  // Select product for item row
   const selectProduct = (idx: number, product: Product) => {
+    const existingIdx = items.findIndex((item, i) => {
+      if (i === idx) return false;
+      if (item.product && product && item.product._id === product._id) return true;
+      if (item.barcode && product.barcode && item.barcode.trim() !== "" && item.barcode.trim().toLowerCase() === product.barcode.trim().toLowerCase()) return true;
+      if (item.sku && product.sku && item.sku.trim() !== "" && item.sku.trim().toLowerCase() === product.sku.trim().toLowerCase()) return true;
+      return false;
+    });
+
+    if (existingIdx !== -1) {
+      const updated = [...items];
+      updated[existingIdx] = { ...updated[existingIdx], quantity: updated[existingIdx].quantity + 1 };
+      updated[existingIdx].total = calcItemTotal(updated[existingIdx]);
+      if (!items[idx].product) {
+        updated[idx] = { ...updated[idx], productSearch: "", barcode: "", product: null };
+      }
+      setItems(updated);
+      setProductResults([]);
+      setActiveSearchIdx(null);
+      setScanHistory((prev) => [...prev, updated[existingIdx].id]);
+      focusCell(updated[idx].id, "barcode");
+      toast.success(`${product.name} qty increased to ${updated[existingIdx].quantity}`);
+      return;
+    }
+
     const updated = [...items];
     updated[idx] = {
       ...updated[idx],
@@ -390,31 +557,17 @@ export default function CreatePurchasePage() {
       newProductData: undefined,
     };
     updated[idx].total = calcItemTotal(updated[idx]);
-
-    // Automatically add a new row if we selected the product for the last row
-    if (idx === updated.length - 1) {
-      updated.push(newItem());
-      // Set focus to the new barcode input after rendering
-      setTimeout(() => {
-        const nextInput = document.getElementById(`scan-input-${idx + 1}`);
-        if (nextInput) {
-          nextInput.focus();
-        }
-      }, 50);
-    }
-
+    if (idx === updated.length - 1) updated.push(newItem());
     setItems(updated);
     setProductResults([]);
     setActiveSearchIdx(null);
+    setScanHistory((prev) => [...prev, updated[idx].id]);
+    focusCell(updated[idx].id, "quantity");
   };
 
   const handleAddNewProductSubmit = async () => {
     if (newProductIdx === null) return;
-    if (
-      !newProductForm.name ||
-      !newProductForm.category ||
-      !newProductForm.sku
-    ) {
+    if (!newProductForm.name || !newProductForm.category || !newProductForm.sku) {
       toast.error("Please fill Name, Category, and SKU");
       return;
     }
@@ -432,15 +585,10 @@ export default function CreatePurchasePage() {
         lowStockThreshold: Number(newProductForm.lowStockThreshold) || 10,
         unit: newProductForm.unit as any,
         images: newProductForm.images,
-        image:
-          newProductForm.images.length > 0
-            ? newProductForm.images[0]
-            : undefined,
+        image: newProductForm.images.length > 0 ? newProductForm.images[0] : undefined,
       };
       const savedProduct = await productService.create(payload);
-      // Add saved product to local list so it's searchable
       setProducts((prev) => [...prev, savedProduct]);
-      // Populate the item row with the real saved product
       const updated = [...items];
       updated[newProductIdx] = {
         ...updated[newProductIdx],
@@ -459,19 +607,7 @@ export default function CreatePurchasePage() {
       };
       setItems(updated);
       setNewProductModalOpen(false);
-      setNewProductForm({
-        name: "",
-        description: "",
-        barcode: "",
-        sku: "",
-        category: "",
-        subcategoryId: "",
-        hsnCode: "",
-        unit: "piece",
-        stock: "0",
-        lowStockThreshold: "10",
-        images: [],
-      });
+      setNewProductForm({ name: "", description: "", barcode: "", sku: "", category: "", subcategoryId: "", hsnCode: "", unit: "piece", stock: "0", lowStockThreshold: "10", images: [] });
       setProductResults([]);
       setActiveSearchIdx(null);
       toast.success("Product created successfully!");
@@ -483,59 +619,142 @@ export default function CreatePurchasePage() {
     }
   };
 
-  // Update item field
-  const updateItem = (
-    idx: number,
-    field: keyof ItemRow,
-    value: number | string,
-  ) => {
+  const updateItem = (idx: number, field: keyof ItemRow, value: number | string) => {
     const updated = [...items];
     updated[idx] = { ...updated[idx], [field]: value };
     updated[idx].total = calcItemTotal(updated[idx]);
     setItems(updated);
   };
 
-  // Add / Remove rows
-  const addRow = () => setItems([...items, newItem()]);
-  const removeRow = (idx: number) => {
-    if (items.length <= 1) return;
-    setItems(items.filter((_, i) => i !== idx));
+  const addRow = () => {
+    const ni = newItem();
+    setItems(prev => [...prev, ni]);
+    setTimeout(() => focusCell(ni.id, "barcode"), 80);
   };
 
-  // Auto-calculate salesPrice preview
-  useEffect(() => {
-    const totalQty = items.reduce(
-      (s, item) => s + (item.product || item.isNewProduct ? item.quantity : 0),
-      0,
+  const removeRow = (idx: number) => {
+    if (items.length <= 1) return;
+    const removedId = items[idx].id;
+    setItems(items.filter((_, i) => i !== idx));
+    setScanHistory(prev => prev.filter(id => id !== removedId));
+  };
+
+  const isRowFilled = (item: ItemRow) => {
+    return (
+      item.product !== null ||
+      item.productSearch.trim() !== "" ||
+      item.barcode.trim() !== "" ||
+      (item.newProductName !== undefined && item.newProductName.trim() !== "")
     );
+  };
+
+  useEffect(() => {
+    const handleGlobalKeys = (e: KeyboardEvent) => {
+      if (newProductModalOpen || supplierModalOpen) return;
+
+      switch (e.key) {
+        case "F1": {
+          e.preventDefault();
+          let targetItemId: string | null = null;
+          let newHistory = [...scanHistory];
+          while (newHistory.length > 0) {
+            const lastId = newHistory[newHistory.length - 1];
+            const itemExists = items.some(i => i.id === lastId && isRowFilled(i));
+            if (itemExists) { targetItemId = lastId; break; }
+            else newHistory.pop();
+          }
+          if (targetItemId) {
+            const targetIdx = items.findIndex(i => i.id === targetItemId);
+            if (targetIdx !== -1) {
+              const targetRow = items[targetIdx];
+              if (targetRow.quantity > 1) {
+                const updatedRow = { ...targetRow, quantity: targetRow.quantity - 1 };
+                updatedRow.total = calcItemTotal(updatedRow);
+                toast.success(`Reduced qty of ${updatedRow.product?.name || updatedRow.newProductName || "item"}`);
+                newHistory.pop();
+                setScanHistory(newHistory);
+                setItems(prev => { const next = [...prev]; next[targetIdx] = updatedRow; return next; });
+              } else {
+                toast.success("Row removed");
+                newHistory.pop();
+                setScanHistory(newHistory);
+                setItems(prev => prev.length <= 1 ? [newItem()] : prev.filter((_, i) => i !== targetIdx));
+              }
+            }
+          } else {
+            const lastFilledIdxReversed = [...items].reverse().findIndex(isRowFilled);
+            if (lastFilledIdxReversed !== -1) {
+              const lastFilledIdx = items.length - 1 - lastFilledIdxReversed;
+              const lastFilledRow = items[lastFilledIdx];
+              if (lastFilledRow.quantity > 1) {
+                const updatedRow = { ...lastFilledRow, quantity: lastFilledRow.quantity - 1 };
+                updatedRow.total = calcItemTotal(updatedRow);
+                toast.success(`Reduced qty of ${updatedRow.product?.name || updatedRow.newProductName || "item"}`);
+                setItems(prev => { const next = [...prev]; next[lastFilledIdx] = updatedRow; return next; });
+              } else {
+                toast.success("Row removed");
+                setItems(prev => prev.length <= 1 ? [newItem()] : prev.filter((_, i) => i !== lastFilledIdx));
+              }
+            } else {
+              setItems(prev => { if (prev.length > 1) { toast.success("Row removed"); return prev.slice(0, -1); } return prev; });
+            }
+          }
+          break;
+        }
+        case "F2": e.preventDefault(); addRow(); toast.success("New row added"); break;
+        case "F3": {
+          e.preventDefault();
+          const lastFilled = [...items].reverse().find(isRowFilled);
+          if (lastFilled) focusCell(lastFilled.id, "quantity");
+          break;
+        }
+        case "F5": {
+          e.preventDefault();
+          const lastDisc = [...items].reverse().find(isRowFilled);
+          if (lastDisc) focusCell(lastDisc.id, "discount");
+          break;
+        }
+        case "F8": {
+          e.preventDefault();
+          const shippingInput = document.querySelector<HTMLInputElement>('input[data-field="shipping"]');
+          if (shippingInput) { shippingInput.focus(); shippingInput.select(); }
+          break;
+        }
+        case "F9": e.preventDefault(); handleSubmit("confirmed"); break;
+        case "F12": {
+          e.preventDefault();
+          const notesEl = document.querySelector<HTMLTextAreaElement>('textarea[data-field="notes"]');
+          if (notesEl) notesEl.focus();
+          break;
+        }
+        case "Escape": {
+          setActiveSearchIdx(null);
+          setProductResults([]);
+          setShowSupplierSuggestions(false);
+          break;
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeys);
+    return () => window.removeEventListener("keydown", handleGlobalKeys);
+  }, [items, scanHistory, newProductModalOpen, supplierModalOpen]);
+
+  useEffect(() => {
+    const totalQty = items.reduce((s, item) => s + (item.product || item.isNewProduct ? item.quantity : 0), 0);
     const perItemShipping = totalQty > 0 ? shippingCharges / totalQty : 0;
 
     setItems((prev) => {
       let changed = false;
       const next = prev.map((item) => {
         if (!item.product && !item.isNewProduct) return item;
-
         const base = item.purchaseRate;
         const discAmt = (base * item.discount) / 100;
         const afterDisc = base - discAmt;
         const taxAmt = (afterDisc * item.taxRate) / 100;
-
-        // Auto-calculated sales price: Purchase + Tax + Pro-rata Shipping - Discount
-        const newSalesPrice = Number(
-          (afterDisc + taxAmt + perItemShipping).toFixed(2),
-        );
-
-        // Only update if it's currently 0 or we want strict tracking (we will overwrite if they change cost)
-        if (
-          item.salesPrice !== newSalesPrice &&
-          (item.salesPrice === 0 || item._autoCalculated === item.salesPrice)
-        ) {
+        const newSalesPrice = Number((afterDisc + taxAmt + perItemShipping).toFixed(2));
+        if (item.salesPrice !== newSalesPrice && (item.salesPrice === 0 || item._autoCalculated === item.salesPrice)) {
           changed = true;
-          return {
-            ...item,
-            salesPrice: newSalesPrice,
-            _autoCalculated: newSalesPrice,
-          };
+          return { ...item, salesPrice: newSalesPrice, _autoCalculated: newSalesPrice };
         }
         return item;
       });
@@ -543,13 +762,9 @@ export default function CreatePurchasePage() {
     });
   }, [items, shippingCharges]);
 
-  // Calculations
   const subtotal = items.reduce((s, item) => {
     const taxMultiplier = 1 + item.taxRate / 100;
-    const baseRate =
-      item.purchaseTaxType === "with"
-        ? item.purchaseRate / taxMultiplier
-        : item.purchaseRate;
+    const baseRate = item.purchaseTaxType === "with" ? item.purchaseRate / taxMultiplier : item.purchaseRate;
     const base = item.quantity * baseRate;
     const discAmt = (base * item.discount) / 100;
     return s + (base - discAmt);
@@ -557,10 +772,7 @@ export default function CreatePurchasePage() {
 
   const totalTax = items.reduce((s, item) => {
     const taxMultiplier = 1 + item.taxRate / 100;
-    const baseRate =
-      item.purchaseTaxType === "with"
-        ? item.purchaseRate / taxMultiplier
-        : item.purchaseRate;
+    const baseRate = item.purchaseTaxType === "with" ? item.purchaseRate / taxMultiplier : item.purchaseRate;
     const base = item.quantity * baseRate;
     const discAmt = (base * item.discount) / 100;
     const afterDisc = base - discAmt;
@@ -569,52 +781,34 @@ export default function CreatePurchasePage() {
 
   const totalDiscount = items.reduce((s, item) => {
     const taxMultiplier = 1 + item.taxRate / 100;
-    const baseRate =
-      item.purchaseTaxType === "with"
-        ? item.purchaseRate / taxMultiplier
-        : item.purchaseRate;
+    const baseRate = item.purchaseTaxType === "with" ? item.purchaseRate / taxMultiplier : item.purchaseRate;
     const base = item.quantity * baseRate;
     return s + (base * item.discount) / 100;
   }, 0);
 
   const grandTotal = subtotal + totalTax + shippingCharges;
 
-  // Submit
   const handleSubmit = async (status: "confirmed" | "draft") => {
     let finalSupplierId = supplierId;
     let finalSupplierName = "";
 
     if (!finalSupplierId) {
-      if (!supplierSearch.trim()) {
-        toast.error("Please enter a supplier name");
-        return;
-      }
-      if (!supplierPhone.trim()) {
-        toast.error("Please enter a mobile number for the unmatched supplier");
-        return;
-      }
+      if (!supplierSearch.trim()) { toast.error("Please enter a supplier name"); return; }
+      if (!supplierPhone.trim()) { toast.error("Please enter a mobile number for the unmatched supplier"); return; }
     }
 
     const validItems = items.filter(
       (i) => i.product || (i.productSearch.trim() !== "" || (i.newProductName && i.newProductName.trim() !== "")),
     );
-    if (validItems.length === 0) {
-      toast.error("Please add at least one product");
-      return;
-    }
+    if (validItems.length === 0) { toast.error("Please add at least one product"); return; }
     if (validItems.some((i) => !i.product && (!i.newProductName || i.newProductName.trim() === ""))) {
-      toast.error("Please enter a product name for all new items");
-      return;
+      toast.error("Please enter a product name for all new items"); return;
     }
-    if (validItems.some((i) => i.quantity <= 0)) {
-      toast.error("Quantity must be > 0");
-      return;
-    }
+    if (validItems.some((i) => i.quantity <= 0)) { toast.error("Quantity must be > 0"); return; }
 
     try {
       setSaving(true);
 
-      // Create new supplier inline if unmatched
       if (!finalSupplierId) {
         const newSupplier = await supplierService.create({
           name: supplierSearch.trim(),
@@ -631,91 +825,54 @@ export default function CreatePurchasePage() {
 
       const defaultCategoryId = categories[0]?._id;
 
-      // 1. Create any brand new products inline first!
       const resolvedItems = await Promise.all(
         validItems.map(async (item) => {
-          if (item.product) {
-            return item;
-          }
+          if (item.product) return item;
 
-          // Calculate base purchase price without tax if entered "with" tax
           const taxMultiplier = 1 + item.taxRate / 100;
-          const purchasePrice =
-            item.purchaseTaxType === "with"
-              ? item.purchaseRate / taxMultiplier
-              : item.purchaseRate;
-
-          // Calculate base sales price without tax if entered "with" tax
-          const salesPrice =
-            item.salesTaxType === "with"
-              ? item.salesPrice / taxMultiplier
-              : item.salesPrice;
-
+          const purchasePrice = item.purchaseTaxType === "with" ? item.purchaseRate / taxMultiplier : item.purchaseRate;
+          const salesPrice = item.salesTaxType === "with" ? item.salesPrice / taxMultiplier : item.salesPrice;
           const finalBarcode = item.barcode.trim();
-          const finalSku =
-            item.sku.trim() ||
-            finalBarcode ||
-            `SKU-${Math.floor(100000 + Math.random() * 900000)}`;
+          const finalSku = item.sku.trim() || finalBarcode || `SKU-${Math.floor(100000 + Math.random() * 900000)}`;
 
           const savedProduct = await productService.create({
             name: item.newProductName!.trim(),
             sku: finalSku,
             barcode: finalBarcode,
             category: defaultCategoryId,
-            stock: 0, // Purchase transaction will add the stock
-            purchasePrice: purchasePrice,
-            salesPrice: salesPrice,
+            stock: 0,
+            purchasePrice,
+            salesPrice,
             taxRate: item.taxRate,
             unit: item.unit || "piece",
           });
-
-          // Add saved product to local state list
           setProducts((prev) => [...prev, savedProduct]);
-
-          return {
-            ...item,
-            product: savedProduct,
-          };
+          return { ...item, product: savedProduct };
         })
       );
 
       const payload = {
         supplier: finalSupplierId,
         supplierName: finalSupplierName,
-        transporter:
-          transporterId && transporterId !== "none" ? transporterId : undefined,
-        transporterName:
-          transporterId && transporterId !== "none"
-            ? transporters.find((t) => t._id === transporterId)?.name
-            : undefined,
+        transporter: transporterId && transporterId !== "none" ? transporterId : undefined,
+        transporterName: transporterId && transporterId !== "none" ? transporters.find((t) => t._id === transporterId)?.name : undefined,
         invoiceNumber,
         purchaseDate,
         items: resolvedItems.map((i) => {
-          // Calculate base purchase price without tax if entered "with" tax
           const taxMultiplier = 1 + i.taxRate / 100;
-          const purchasePrice =
-            i.purchaseTaxType === "with"
-              ? i.purchaseRate / taxMultiplier
-              : i.purchaseRate;
-
-          // Calculate base sales price without tax if entered "with" tax
-          const salesPrice =
-            i.salesTaxType === "with"
-              ? i.salesPrice / taxMultiplier
-              : i.salesPrice;
-
+          const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
+          const salesPrice = i.salesTaxType === "with" ? i.salesPrice / taxMultiplier : i.salesPrice;
           const finalSubtotal = i.quantity * purchasePrice;
           const discountAmt = (finalSubtotal * i.discount) / 100;
           const finalAfterDisc = finalSubtotal - discountAmt;
           const taxAmt = (finalAfterDisc * i.taxRate) / 100;
-
           return {
             product: i.product!._id,
             name: i.product!.name,
             sku: i.product!.sku,
             quantity: i.quantity,
-            purchasePrice: purchasePrice,
-            salesPrice: salesPrice,
+            purchasePrice,
+            salesPrice,
             discount: i.discount,
             discountAmount: discountAmt,
             taxRate: i.taxRate,
@@ -725,37 +882,25 @@ export default function CreatePurchasePage() {
         }),
         subtotal: resolvedItems.reduce((s, i) => {
           const taxMultiplier = 1 + i.taxRate / 100;
-          const purchasePrice =
-            i.purchaseTaxType === "with"
-              ? i.purchaseRate / taxMultiplier
-              : i.purchaseRate;
+          const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
           return s + i.quantity * purchasePrice;
         }, 0),
         taxAmount: resolvedItems.reduce((s, i) => {
           const taxMultiplier = 1 + i.taxRate / 100;
-          const purchasePrice =
-            i.purchaseTaxType === "with"
-              ? i.purchaseRate / taxMultiplier
-              : i.purchaseRate;
+          const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
           const base = i.quantity * purchasePrice;
           const disc = (base * i.discount) / 100;
           return s + ((base - disc) * i.taxRate) / 100;
         }, 0),
         discountAmount: resolvedItems.reduce((s, i) => {
           const taxMultiplier = 1 + i.taxRate / 100;
-          const purchasePrice =
-            i.purchaseTaxType === "with"
-              ? i.purchaseRate / taxMultiplier
-              : i.purchaseRate;
+          const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
           const base = i.quantity * purchasePrice;
           return s + (base * i.discount) / 100;
         }, 0),
         totalAmount: resolvedItems.reduce((s, i) => {
           const taxMultiplier = 1 + i.taxRate / 100;
-          const purchasePrice =
-            i.purchaseTaxType === "with"
-              ? i.purchaseRate / taxMultiplier
-              : i.purchaseRate;
+          const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
           const base = i.quantity * purchasePrice;
           const disc = (base * i.discount) / 100;
           const tax = ((base - disc) * i.taxRate) / 100;
@@ -766,10 +911,7 @@ export default function CreatePurchasePage() {
         status,
         paymentStatus: status === "confirmed" ? "paid" : "pending",
         paymentMethod: status === "confirmed" ? paymentMethod : undefined,
-        cashBankAccountId:
-          status === "confirmed" && paymentMethod !== "cash"
-            ? cashBankAccountId
-            : undefined,
+        cashBankAccountId: status === "confirmed" && paymentMethod !== "cash" ? cashBankAccountId : undefined,
         notes,
       };
 
@@ -793,866 +935,622 @@ export default function CreatePurchasePage() {
   };
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-115px)] overflow-y-auto lg:overflow-hidden space-y-4 pb-2 h-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 shrink-0">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-primary" />
-            Create Purchase Bill
-          </h1>
+    <div className="flex flex-col h-[calc(100vh-60px)] -m-4 bg-background overflow-hidden relative">
+
+      {/* Top Header / Action Bar */}
+      <div className="shrink-0 px-3 sm:px-4 py-2 border-b bg-card flex items-center justify-between z-20 shadow-sm gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+          <h1 className="text-xs sm:text-sm font-bold tracking-tight truncate">Create Purchase Bill</h1>
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          {/* Mobile summary toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs font-semibold lg:hidden px-2"
+            onClick={() => setSummaryOpen((o) => !o)}
+          >
+            <LayoutList className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline ml-1">Summary</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 sm:h-8 text-xs font-semibold px-2 sm:px-3"
+            onClick={() => handleSubmit("draft")}
+            disabled={saving}
+          >
+            <Save className="h-3.5 w-3.5 sm:mr-1" />
+            <span className="hidden sm:inline">Save Draft</span>
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 sm:h-8 text-xs font-bold shadow-lg shadow-primary/20 px-2 sm:px-3"
+            onClick={() => handleSubmit("confirmed")}
+            disabled={saving}
+          >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin sm:mr-1" />}
+            <span className="hidden sm:inline">Submit Purchase</span>
+            <span className="sm:hidden">Submit</span>
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start flex-1 min-h-0">
-        {/* Left Side: Supplier details and products table */}
-        <div className="lg:col-span-2 flex flex-col lg:h-full lg:min-h-0 h-auto space-y-4">
-          {/* Supplier Details Card */}
-          <Card className="shrink-0">
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm font-semibold">
-                Supplier Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3 pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-1 relative">
-                  <Label className="text-xs">Supplier *</Label>
-                  <Input
-                    value={supplierSearch}
-                    onChange={(e) => handleSupplierSearch(e.target.value)}
-                    onKeyDown={handleSupplierKeyDown}
-                    onFocus={() => setShowSupplierSuggestions(true)}
-                    onBlur={handleSupplierBlur}
-                    placeholder="Type Supplier Name..."
-                    className={`h-9 text-sm transition-all ${
-                      isSupplierMatched
-                        ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-200"
-                        : supplierSearch.trim() !== ""
-                        ? "border-amber-500/50 bg-amber-500/5 text-amber-200"
-                        : ""
-                    }`}
-                  />
-                  {showSupplierSuggestions && supplierSearch.length > 0 && (
-                    <div className="absolute z-50 left-0 w-full top-full mt-1 bg-card border rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                      {suppliers.filter((s) =>
-                        s.name.toLowerCase().includes(supplierSearch.toLowerCase())
-                      ).length === 0 ? (
-                        <div className="p-3 text-sm text-center text-muted-foreground">
-                          Supplier not found. Enter details manually to register them on save.
+      {/* Mobile Summary Drawer (collapsible) */}
+      <AnimatePresence>
+        {summaryOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="lg:hidden shrink-0 overflow-hidden border-b bg-card z-10"
+          >
+            <div className="px-4 py-3 space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bill Summary</h3>
+              <div className="bg-muted/30 p-3 rounded-xl border border-border/50 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-muted-foreground font-medium">Items</span>
+                  <span className="text-sm font-bold">{items.filter(i => i.product || i.newProductName).length}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-muted-foreground font-medium">Subtotal</span>
+                  <span className="text-sm font-bold tabular-nums">{formatCurrency(subtotal)}</span>
+                </div>
+                {totalDiscount > 0 && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-emerald-500 font-medium">Discount</span>
+                    <span className="text-sm font-bold tabular-nums text-emerald-500">- {formatCurrency(totalDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-muted-foreground font-medium">Total</span>
+                  <span className="text-sm font-black text-primary tabular-nums">{formatCurrency(grandTotal)}</span>
+                </div>
+              </div>
+              {/* Shipping inline on mobile */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground font-medium">Shipping</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={shippingCharges || ""}
+                  onChange={(e) => setShippingCharges(+e.target.value)}
+                  placeholder="0"
+                  className="w-[100px] h-7 px-2 text-right tabular-nums font-bold bg-background text-xs"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Left Side: Forms & Table */}
+        <div className="flex flex-col flex-1 min-w-0 bg-background">
+
+          {/* Supplier & Details Compact Grid */}
+          <div className="shrink-0 p-2 sm:p-3 bg-muted/10 border-b grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 z-30 relative">
+            {/* Supplier - full width on mobile */}
+            <div className="col-span-2 sm:col-span-3 md:col-span-2 space-y-1 relative" ref={supplierWrapperRef}>
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Supplier *</Label>
+              <div className="relative flex items-center">
+                <Input
+                  value={supplierSearch}
+                  onChange={(e) => {
+                    handleSupplierSearch(e.target.value);
+                    setShowSupplierSuggestions(true);
+                  }}
+                  onFocus={() => setShowSupplierSuggestions(true)}
+                  onKeyDown={handleSupplierKeyDown}
+                  placeholder="Search/Add Supplier..."
+                  className={cn(
+                    "h-7 text-xs font-semibold pr-8 bg-card transition-all placeholder:text-muted-foreground/60",
+                    isSupplierMatched
+                      ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-600 font-bold"
+                      : supplierSearch.trim() !== ""
+                      ? "border-amber-500/55 bg-amber-500/5 text-amber-600 font-semibold"
+                      : ""
+                  )}
+                />
+                {isSupplierMatched ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearSupplier();
+                      setShowSupplierSuggestions(true);
+                    }}
+                    className="absolute right-2 p-0.5 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all z-10"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <ChevronDown className="absolute right-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                )}
+              </div>
+
+              {showSupplierSuggestions && (
+                <div className="absolute z-50 left-0 w-full min-w-[240px] top-full mt-1 bg-card border border-border rounded-xl shadow-2xl max-h-56 overflow-y-auto flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => { setSupplierModalOpen(true); setShowSupplierSuggestions(false); }}
+                    className="px-3 py-2 text-left text-xs font-bold text-primary hover:bg-primary/10 border-b border-border/50 sticky top-0 bg-card z-10 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add New Supplier
+                  </button>
+                  {filteredSuppliers.length === 0 ? (
+                    <div className="p-3 text-xs text-center text-muted-foreground">No suppliers found.</div>
+                  ) : (
+                    filteredSuppliers.slice(0, 10).map((s, idx) => (
+                      <button
+                        key={s._id}
+                        type="button"
+                        onClick={() => selectSupplier(s)}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-xs hover:bg-muted/50 transition-colors flex justify-between border-b border-border/10 last:border-0",
+                          selectedSupplierDropdownIdx === idx ? "bg-primary/10 text-primary font-bold" : "",
+                          supplierId === s._id && "bg-primary/5 font-semibold"
+                        )}
+                      >
+                        <div>
+                          <p className="font-semibold">{s.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{s.phone}</p>
                         </div>
-                      ) : (
-                        suppliers
-                          .filter((s) =>
-                            s.name.toLowerCase().includes(supplierSearch.toLowerCase())
-                          )
-                          .map((s, idx) => (
-                            <button
-                              key={s._id}
-                              type="button"
-                              onClick={() => selectSupplier(s)}
-                              className={`flex items-center justify-between w-full px-3 py-2 text-left transition-colors text-sm ${
-                                selectedSupplierDropdownIdx === idx
-                                  ? "bg-primary/10 text-primary font-medium"
-                                  : "hover:bg-muted/50"
-                              }`}
-                            >
-                              <div>
-                                <p className="font-medium">{s.name}</p>
-                                <p className="text-xs text-muted-foreground">{s.phone}</p>
-                              </div>
-                              {s.gstNumber && (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  GST
-                                </Badge>
-                              )}
-                            </button>
-                          ))
-                      )}
-                    </div>
+                        {s.gstNumber && <Badge variant="secondary" className="text-[9px] shrink-0 self-center">GST</Badge>}
+                      </button>
+                    ))
                   )}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Mobile Number</Label>
-                  <Input
-                    value={supplierPhone}
-                    onChange={(e) => {
-                      if (!isSupplierMatched) {
-                        setSupplierPhone(e.target.value);
-                      }
-                    }}
-                    readOnly={isSupplierMatched}
-                    placeholder="Enter phone number..."
-                    className={`h-9 text-sm transition-all ${
-                      isSupplierMatched
-                        ? "bg-muted/50 text-muted-foreground border-transparent"
-                        : "border-amber-500/30 focus-visible:ring-amber-500 bg-amber-500/5 font-semibold text-amber-100 placeholder:text-amber-500/30"
-                    }`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">GST Number</Label>
-                  <Input
-                    value={supplierGst}
-                    onChange={(e) => {
-                      if (!isSupplierMatched) {
-                        setSupplierGst(e.target.value);
-                      }
-                    }}
-                    readOnly={isSupplierMatched}
-                    placeholder="Enter GST number..."
-                    className={`h-9 text-sm transition-all ${
-                      isSupplierMatched
-                        ? "bg-muted/50 text-muted-foreground border-transparent"
-                        : "border-amber-500/30 focus-visible:ring-amber-500 bg-amber-500/5 font-semibold text-amber-100 placeholder:text-amber-500/30"
-                    }`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Invoice Number</Label>
-                  <Input
-                    value={invoiceNumber}
-                    onChange={(e) => setInvoiceNumber(e.target.value)}
-                    placeholder="Supplier invoice no."
-                    className="h-9 text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Purchase Date</Label>
-                  <Input
-                    type="date"
-                    value={purchaseDate}
-                    onChange={(e) => setPurchaseDate(e.target.value)}
-                    className="h-9 text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Transporter</Label>
-                  <Select
-                    value={transporterId}
-                    onValueChange={setTransporterId}
-                  >
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Select Transporter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {transporters.map((t) => (
-                        <SelectItem key={t._id} value={t._id}>
-                          {t.name}{" "}
-                          {t.vehicleNumber ? `(${t.vehicleNumber})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              )}
+            </div>
 
-          {/* Item Details Card */}
-          <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between py-3 shrink-0">
-              <CardTitle className="text-sm font-semibold">
-                Item Details
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={addRow}
-                className="gap-1 h-8 py-0"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add Row
-              </Button>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 flex flex-col p-0 overflow-hidden">
-              <div className="flex-1 overflow-auto border-t animate-in fade-in duration-300">
-                <table className="w-full min-w-[1320px]">
-                  <thead>
-                    <tr className="border-b bg-muted/30 sticky top-0 z-10">
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-12">
-                        #
-                      </th>
-                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground w-40">
-                        Barcode
-                      </th>
-                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground w-40">
-                        SKU / Item Code
-                      </th>
-                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground min-w-[200px]">
-                        Product Name
-                      </th>
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-28">
-                        Unit
-                      </th>
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-20">
-                        Qty
-                      </th>
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-48">
-                        Purchase Price
-                      </th>
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-48">
-                        Sales Price
-                      </th>
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-20">
-                        Disc %
-                      </th>
-                      <th className="text-center p-3 text-xs font-semibold text-muted-foreground w-24">
-                        Tax %
-                      </th>
-                      <th className="text-right p-3 text-xs font-semibold text-muted-foreground w-32 pr-4">
-                        Total (₹)
-                      </th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <AnimatePresence>
-                      {items.map((item, idx) => {
-                        return (
-                          <motion.tr
-                            key={item.id}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="border-b border-border/30 hover:bg-muted/10 transition-colors"
-                          >
-                            <td className="p-2 text-sm text-muted-foreground font-mono text-center">
-                              {idx + 1}
-                            </td>
+            {/* Mobile: Mobile + GST side by side (hidden on md+) */}
+            <div className="space-y-1 md:hidden">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mobile</Label>
+              <Input value={supplierPhone} onChange={(e) => { if (!isSupplierMatched) setSupplierPhone(e.target.value); }} readOnly={isSupplierMatched} placeholder="Phone..." className={`h-7 text-xs ${isSupplierMatched ? "bg-muted/30 text-muted-foreground border-transparent" : "bg-card"}`} />
+            </div>
 
-                            {/* Barcode Scan Column */}
-                            <td className="p-2 relative">
-                              <div className="relative">
-                                <Input
-                                  id={`scan-input-${idx}`}
-                                  value={
-                                    item.product
-                                      ? item.product.barcode || item.product.sku
-                                      : item.productSearch
-                                  }
-                                  onChange={(e) =>
-                                    handleProductSearch(idx, e.target.value)
-                                  }
-                                  onFocus={() => setActiveSearchIdx(idx)}
-                                  onKeyDown={(e) => handleKeyDown(e, idx)}
-                                  placeholder="Scan Barcode..."
-                                  className={`h-9 text-sm font-mono transition-all ${
-                                    item.productSearch && !item.product
-                                      ? "border-amber-500/50 bg-amber-500/5 focus-visible:ring-amber-500 text-amber-200"
-                                      : item.product
-                                      ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-200"
-                                      : ""
-                                  }`}
-                                />
-                              </div>
-                              {/* Dropdown list */}
-                              {activeSearchIdx === idx &&
-                                item.productSearch.length > 0 && (
-                                  <div className="absolute z-50 left-0 w-[400px] top-full mt-1 bg-card border rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                                    {productResults.length === 0 ? (
-                                      <div className="p-3 text-sm text-center text-muted-foreground">
-                                        No matching product. Type details directly in the row to create.
-                                      </div>
-                                    ) : (
-                                      productResults.map((p, pIdx) => (
-                                        <button
-                                          key={p._id}
-                                          type="button"
-                                          onClick={() => selectProduct(idx, p)}
-                                          className={`flex items-center gap-3 w-full px-3 py-2 text-left transition-colors text-sm ${
-                                            selectedDropdownIdx === pIdx
-                                              ? "bg-primary/10 text-primary font-medium"
-                                              : "hover:bg-muted/50"
-                                          }`}
-                                        >
-                                          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                                            {p.image ? (
-                                              <img
-                                                src={p.image}
-                                                alt=""
-                                                className="h-8 w-8 rounded-lg object-cover"
-                                              />
-                                            ) : (
-                                              <Package className="h-4 w-4 text-muted-foreground" />
-                                            )}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-medium truncate">
-                                              {p.name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                              SKU: {p.sku}{" "}
-                                              {p.barcode ? `• ${p.barcode}` : ""}
-                                            </p>
-                                          </div>
-                                          <div className="text-right shrink-0">
-                                            <Badge
-                                              variant="secondary"
-                                              className="text-[10px]"
-                                            >
-                                              {p.stock} in stock
-                                            </Badge>
-                                          </div>
-                                        </button>
-                                      ))
-                                    )}
-                                  </div>
-                                )}
-                            </td>
+            {/* Desktop: Mobile field */}
+            <div className="space-y-1 hidden md:block">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mobile</Label>
+              <Input value={supplierPhone} onChange={(e) => { if (!isSupplierMatched) setSupplierPhone(e.target.value); }} readOnly={isSupplierMatched} placeholder="Phone..." className={`h-7 text-xs ${isSupplierMatched ? "bg-muted/30 text-muted-foreground border-transparent" : "bg-card"}`} />
+            </div>
 
-                            {/* SKU / Item Code Column */}
-                            <td className="p-2">
-                              <Input
-                                value={item.sku}
-                                onChange={(e) =>
-                                  updateItem(idx, "sku", e.target.value)
-                                }
-                                placeholder="SKU-XXXX"
-                                className="h-9 text-sm text-center font-mono"
-                              />
-                            </td>
+            {/* GST - hidden on smallest, show from sm */}
+            <div className="space-y-1 hidden sm:block">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">GST No</Label>
+              <Input value={supplierGst} onChange={(e) => { if (!isSupplierMatched) setSupplierGst(e.target.value); }} readOnly={isSupplierMatched} placeholder="GST..." className={`h-7 text-xs ${isSupplierMatched ? "bg-muted/30 text-muted-foreground border-transparent" : "bg-card"}`} />
+            </div>
 
-                            {/* Product Name Column */}
-                            <td className="p-2">
-                              {item.product ? (
-                                <Input
-                                  value={item.product.name}
-                                  readOnly
-                                  className="h-9 text-sm bg-muted/20 border-transparent focus-visible:ring-0"
-                                />
-                              ) : (
-                                <Input
-                                  value={item.newProductName}
-                                  onChange={(e) =>
-                                    updateItem(idx, "newProductName", e.target.value)
-                                  }
-                                  placeholder="Enter Product Name..."
-                                  className="h-9 text-sm border-amber-500/30 focus-visible:ring-amber-500 bg-amber-500/5 font-semibold text-amber-100 placeholder:text-amber-500/50"
-                                />
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Invoice No</Label>
+              <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-..." className="h-7 text-xs bg-card" />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</Label>
+              <Input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="h-7 text-xs bg-card" />
+            </div>
+          </div>
+
+          {/* Table Area - horizontally scrollable on small screens */}
+          <div className="flex-1 overflow-auto bg-card relative">
+            <div className="min-w-[780px]">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-muted/50 backdrop-blur-md border-b-2 border-border/60 whitespace-nowrap">
+                    <th className="w-[24px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">#</th>
+                    <th className="w-[80px] min-w-[80px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Barcode</th>
+                    <th className="w-[80px] min-w-[80px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">SKU</th>
+                    <th className="w-full min-w-[100px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Product Name</th>
+                    <th className="w-[40px] min-w-[40px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Unit</th>
+                    <th className="w-[40px] min-w-[40px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Qty</th>
+                    <th className="w-[85px] min-w-[85px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Pur. Price(₹)</th>
+                    <th className="w-[85px] min-w-[85px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Sales Price(₹)</th>
+                    <th className="w-[35px] min-w-[35px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Disc%</th>
+                    <th className="w-[45px] min-w-[45px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Tax%</th>
+                    <th className="w-[70px] min-w-[70px] px-1 py-1.5 text-right text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Total(₹)</th>
+                    <th className="w-[24px]"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <AnimatePresence>
+                    {items.map((item, idx) => (
+                      <motion.tr
+                        key={item.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className={cn(
+                          "border-b border-border/10 hover:bg-muted/30 transition-colors group",
+                          activeSearchIdx === idx ? "relative z-30" : "relative z-0"
+                        )}
+                      >
+                        <td className="px-1 py-1 text-center border-r border-border/20">
+                          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold bg-muted/60 text-muted-foreground">{idx + 1}</span>
+                        </td>
+
+                        <td className="px-1 py-0.5 border-r border-border/20 relative">
+                          <div className="relative">
+                            <TableCellInput
+                              id={`scan-input-${idx}`}
+                              ref={(el) => { barcodeRefs.current[item.id] = el; }}
+                              value={item.product ? item.product.barcode || item.product.sku : item.productSearch}
+                              onChange={(e) => handleProductSearch(idx, e.target.value)}
+                              onFocus={() => setActiveSearchIdx(idx)}
+                              onKeyDown={(e) => { handleKeyDown(e, idx); handleCustomTab(e, item.id, "barcode", idx); }}
+                              placeholder="Scan..."
+                              className={cn(
+                                "text-left font-mono text-[11px] bg-primary/5 rounded-md px-1.5 py-0 h-5.5",
+                                item.productSearch && !item.product ? "border-amber-500/50 text-amber-500" : ""
                               )}
-                            </td>
+                            />
+                          </div>
+                          {activeSearchIdx === idx && item.productSearch.length > 0 && (
+                            <div className="absolute z-50 left-0 w-[min(400px,90vw)] top-full mt-1 bg-card border border-border rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
+                              {productResults.length === 0 ? (
+                                <div className="p-3 text-[10px] text-center text-muted-foreground">Type to create a new product</div>
+                              ) : (
+                                productResults.map((p, pIdx) => (
+                                  <button key={p._id} type="button" onClick={() => selectProduct(idx, p)} className={`flex items-center gap-2 w-full px-2 py-1.5 text-left transition-colors border-b border-border/10 last:border-0 ${selectedDropdownIdx === pIdx ? "bg-primary/10" : "hover:bg-muted/40"}`}>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[11px] font-semibold truncate">{p.name}</p>
+                                      <p className="text-[9px] font-mono text-muted-foreground">{p.sku} {p.barcode ? `• ${p.barcode}` : ""}</p>
+                                    </div>
+                                    <Badge variant="secondary" className="text-[9px] shrink-0">{p.stock} in stock</Badge>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </td>
 
-                            {/* Unit Selection Column */}
-                            <td className="p-2">
-                              <select
-                                value={item.unit}
-                                onChange={(e) => updateItem(idx, "unit", e.target.value as any)}
-                                className="h-9 px-2 text-xs text-center rounded-lg bg-background border focus-visible:ring-1 w-full font-semibold outline-none"
-                              >
-                                <option value="piece">Piece (Pcs)</option>
-                                <option value="box">Box</option>
-                                <option value="kg">Kilogram (Kg)</option>
-                                <option value="liter">Liter (L)</option>
-                                <option value="meter">Meter (m)</option>
-                                <option value="dozen">Dozen</option>
-                              </select>
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <TableCellInput
+                            ref={(el) => { skuRefs.current[item.id] = el; }}
+                            value={item.sku}
+                            onChange={(e) => updateItem(idx, "sku", e.target.value)}
+                            onKeyDown={(e) => handleCustomTab(e, item.id, "sku", idx)}
+                            placeholder="SKU-XXXX"
+                            className="text-[11px] font-mono px-1 py-0 h-5.5 text-center"
+                          />
+                        </td>
 
-                            {/* Quantity Column */}
-                            <td className="p-2">
-                              <Input
-                                type="number"
-                                min={1}
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateItem(idx, "quantity", +e.target.value)
-                                }
-                                className="h-9 px-2 text-sm text-center font-medium"
-                              />
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          {item.product ? (
+                            <span className="text-[11px] font-semibold px-1.5 block truncate w-full">{item.product.name}</span>
+                          ) : (
+                            <TableCellInput
+                              ref={(el) => { nameRefs.current[item.id] = el; }}
+                              value={item.newProductName}
+                              onChange={(e) => updateItem(idx, "newProductName", e.target.value)}
+                              onKeyDown={(e) => handleCustomTab(e, item.id, "name", idx)}
+                              placeholder="New product name..."
+                              className="text-left text-[11px] font-semibold bg-amber-500/5 border border-amber-500/30 text-amber-500 placeholder:text-amber-500/40 rounded-md px-1.5 py-0 h-5.5"
+                            />
+                          )}
+                        </td>
 
-                            {/* Purchase Price Column */}
-                            <td className="p-2">
-                              <div className="flex items-center gap-1.5 min-w-[130px]">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={item.purchaseRate || ""}
-                                  onChange={(e) =>
-                                    updateItem(idx, "purchaseRate", +e.target.value)
-                                  }
-                                  className="h-9 px-2 text-sm text-center flex-1 font-medium"
-                                />
-                                <Select
-                                  value={item.purchaseTaxType}
-                                  onValueChange={(val: any) =>
-                                    updateItem(idx, "purchaseTaxType", val)
-                                  }
-                                >
-                                  <SelectTrigger className="h-9 w-[70px] text-[10px] px-1 bg-muted/30">
-                                    <SelectValue placeholder="Tax" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="without" className="text-xs">Without</SelectItem>
-                                    <SelectItem value="with" className="text-xs">With Tax</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <Select value={item.unit} onValueChange={(v) => updateItem(idx, "unit", v)}>
+                            <SelectTrigger className="h-5.5 w-full px-1 py-0 bg-transparent hover:bg-muted/40 border-transparent hover:border-border/40 focus:ring-0 focus:ring-offset-0 rounded-md text-[11px] font-bold text-muted-foreground cursor-pointer transition-all [&>svg]:hidden justify-center gap-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="center" className="min-w-[80px]">
+                              <SelectItem value="piece" className="text-xs font-semibold">Pcs</SelectItem>
+                              <SelectItem value="box" className="text-xs font-semibold">Box</SelectItem>
+                              <SelectItem value="kg" className="text-xs font-semibold">Kg</SelectItem>
+                              <SelectItem value="liter" className="text-xs font-semibold">L</SelectItem>
+                              <SelectItem value="meter" className="text-xs font-semibold">m</SelectItem>
+                              <SelectItem value="dozen" className="text-xs font-semibold">Dz</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
 
-                            {/* Sales Price Column */}
-                            <td className="p-2">
-                              <div className="flex items-center gap-1.5 min-w-[130px]">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={item.salesPrice || ""}
-                                  onChange={(e) =>
-                                    updateItem(idx, "salesPrice", +e.target.value)
-                                  }
-                                  className="h-9 px-2 text-sm text-center flex-1 font-medium"
-                                />
-                                <Select
-                                  value={item.salesTaxType}
-                                  onValueChange={(val: any) =>
-                                    updateItem(idx, "salesTaxType", val)
-                                  }
-                                >
-                                  <SelectTrigger className="h-9 w-[70px] text-[10px] px-1 bg-muted/30">
-                                    <SelectValue placeholder="Tax" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="without" className="text-xs">Without</SelectItem>
-                                    <SelectItem value="with" className="text-xs">With Tax</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <TableCellInput
+                            ref={(el) => { qtyRefs.current[item.id] = el; }}
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => updateItem(idx, "quantity", +e.target.value)}
+                            onKeyDown={(e) => handleCustomTab(e, item.id, "quantity", idx)}
+                            className="text-[13px] font-bold px-1 py-0 h-5.5 text-center"
+                          />
+                        </td>
 
-                            {/* Discount Column */}
-                            <td className="p-2">
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={item.discount}
-                                onChange={(e) =>
-                                  updateItem(idx, "discount", +e.target.value)
-                                }
-                                className="h-9 px-2 text-sm text-center font-medium"
-                              />
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <div className="flex items-center gap-0.5">
+                            <TableCellInput
+                              ref={(el) => { purchaseRateRefs.current[item.id] = el; }}
+                              type="number"
+                              min={0}
+                              value={item.purchaseRate || ""}
+                              onChange={(e) => updateItem(idx, "purchaseRate", +e.target.value)}
+                              onKeyDown={(e) => handleCustomTab(e, item.id, "purchaseRate", idx)}
+                              className="text-right text-[13px] font-semibold px-1 py-0 h-5.5"
+                            />
+                            <Select value={item.purchaseTaxType} onValueChange={(v) => updateItem(idx, "purchaseTaxType", v)}>
+                              <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/40 hover:bg-muted/60 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center gap-0">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent align="end" className="min-w-[70px]">
+                                <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
+                                <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </td>
 
-                            {/* Tax Rate Dropdown */}
-                            <td className="p-2">
-                              <Select
-                                value={item.taxRate.toString()}
-                                onValueChange={(val) =>
-                                  updateItem(idx, "taxRate", +val)
-                                }
-                              >
-                                <SelectTrigger className="h-9 w-20 text-xs px-1 text-center">
-                                  <SelectValue placeholder="GST" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="0" className="text-xs">0% GST</SelectItem>
-                                  <SelectItem value="5" className="text-xs">5% GST</SelectItem>
-                                  <SelectItem value="12" className="text-xs">12% GST</SelectItem>
-                                  <SelectItem value="18" className="text-xs">18% GST</SelectItem>
-                                  <SelectItem value="28" className="text-xs">28% GST</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <div className="flex items-center gap-0.5">
+                            <TableCellInput
+                              ref={(el) => { salesPriceRefs.current[item.id] = el; }}
+                              type="number"
+                              min={0}
+                              value={item.salesPrice || ""}
+                              onChange={(e) => updateItem(idx, "salesPrice", +e.target.value)}
+                              onKeyDown={(e) => handleCustomTab(e, item.id, "salesPrice", idx)}
+                              className="text-right text-[13px] font-semibold px-1 py-0 h-5.5"
+                            />
+                            <Select value={item.salesTaxType} onValueChange={(v) => updateItem(idx, "salesTaxType", v)}>
+                              <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/40 hover:bg-muted/60 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center gap-0">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent align="end" className="min-w-[70px]">
+                                <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
+                                <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </td>
 
-                            {/* Total Column */}
-                            <td className="p-2 text-right font-bold text-sm text-emerald-400 font-mono pr-4">
-                              {formatCurrency(item.total)}
-                            </td>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <TableCellInput
+                            ref={(el) => { discountRefs.current[item.id] = el; }}
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={item.discount}
+                            onChange={(e) => updateItem(idx, "discount", +e.target.value)}
+                            onKeyDown={(e) => handleCustomTab(e, item.id, "discount", idx)}
+                            className="text-[12px] font-bold px-1 py-0 h-5.5 text-center"
+                          />
+                        </td>
 
-                            {/* Actions Column */}
-                            <td className="p-2 text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => removeRow(idx)}
-                                disabled={items.length <= 1}
-                                className="text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </motion.tr>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </div>
+                        <td className="px-1 py-0.5 border-r border-border/20">
+                          <Select value={item.taxRate.toString()} onValueChange={(v) => updateItem(idx, "taxRate", +v)}>
+                            <SelectTrigger className="h-5.5 w-full px-1 py-0 bg-transparent hover:bg-muted/40 border-transparent hover:border-border/40 focus:ring-0 focus:ring-offset-0 rounded-md text-[11px] font-bold text-muted-foreground cursor-pointer transition-all [&>svg]:hidden justify-center gap-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="center" className="min-w-[70px]">
+                              <SelectItem value="0" className="text-xs font-bold">0%</SelectItem>
+                              <SelectItem value="5" className="text-xs font-bold">5%</SelectItem>
+                              <SelectItem value="12" className="text-xs font-bold">12%</SelectItem>
+                              <SelectItem value="18" className="text-xs font-bold">18%</SelectItem>
+                              <SelectItem value="28" className="text-xs font-bold">28%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
 
-              {/* Add row button below table */}
-              <div className="py-2 px-4 border-t flex justify-center shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addRow}
-                  className="gap-1 border-dashed border-2 w-full max-w-xs h-8"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Another Item
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                        <td className="px-1.5 py-1 text-right border-r border-border/20">
+                          <span className="text-[12px] font-black tabular-nums tracking-tight">{formatCurrency(item.total)}</span>
+                        </td>
+
+                        <td className="px-0.5 py-0.5 text-center">
+                          <button onClick={() => removeRow(idx)} disabled={items.length <= 1} className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-0 disabled:pointer-events-none">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+
+                  {/* Empty Filler Row */}
+                  <tr className="h-[40px] border-b border-border/10">
+                    <td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="shrink-0 p-2 border-t bg-muted/10 flex justify-center z-10">
+            <Button variant="outline" size="sm" onClick={addRow} className="h-7 text-xs font-semibold gap-1 px-4 rounded-full border-dashed border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground">
+              <Plus className="h-3 w-3" /> Add Item
+            </Button>
+          </div>
         </div>
 
-        {/* Right Side: Additional details & Bill Summary */}
-        <div className="lg:col-span-1 flex flex-col lg:h-full lg:min-h-0 h-auto space-y-4 lg:overflow-y-auto pr-1">
-          {/* Additional Details */}
-          <Card className="shrink-0">
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm font-semibold">
-                Additional Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-0">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Payment Method</Label>
-                  <Select
-                    value={paymentMethod}
-                    onValueChange={handlePaymentMethodChange}
-                  >
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="bank_transfer">
-                        Bank Transfer
-                      </SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="upi">UPI</SelectItem>
-                      <SelectItem value="card">Card</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Shipping Charges</Label>
+        {/* Right Side: Bill Summary — hidden on mobile/tablet, visible on lg+ */}
+        <div className="hidden lg:flex w-[240px] shrink-0 border-l flex-col bg-card z-20">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bill Summary</h3>
+              <div className="bg-muted/30 p-3 rounded-xl border border-border/50 space-y-3">
+                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Items</span><span>{items.filter(i => i.product || i.newProductName).length}</span></div>
+                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums font-bold">{formatCurrency(subtotal)}</span></div>
+                {totalDiscount > 0 && <div className="flex justify-between text-xs font-bold text-emerald-500"><span>Discount</span><span className="tabular-nums">- {formatCurrency(totalDiscount)}</span></div>}
+                {totalTax > 0 && <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Tax Amount</span><span className="tabular-nums font-bold">{formatCurrency(totalTax)}</span></div>}
+                <div className="flex justify-between text-xs font-medium items-center">
+                  <span className="text-muted-foreground">Shipping</span>
                   <Input
                     type="number"
                     min={0}
-                    value={shippingCharges}
+                    value={shippingCharges || ""}
                     onChange={(e) => setShippingCharges(+e.target.value)}
                     placeholder="0"
-                    className="h-9 text-sm"
+                    data-field="shipping"
+                    className="w-[80px] h-6 px-2 text-right tabular-nums font-bold bg-background text-[11px]"
                   />
                 </div>
+                <div className="border-t border-border/50 pt-3 flex justify-between text-base font-black">
+                  <span>Total</span><span className="text-primary tabular-nums tracking-tight">{formatCurrency(grandTotal)}</span>
+                </div>
               </div>
+            </div>
 
-              {paymentMethod !== "cash" && bankAccounts.length > 0 && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Pay From Bank Account *</Label>
-                  <Select
-                    value={cashBankAccountId}
-                    onValueChange={setCashBankAccountId}
-                  >
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Select bank account" />
-                    </SelectTrigger>
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Payment Details</h3>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Payment Method</Label>
+                  <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
+                    <SelectTrigger className="h-8 text-xs font-semibold bg-muted/20 hover:bg-muted/40 border border-border/40 hover:border-border/80 transition-all cursor-pointer focus:ring-1 focus:ring-primary/40 focus:bg-background"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {bankAccounts.map((account) => (
-                        <SelectItem key={account._id} value={account._id}>
-                          {account.accountName}{" "}
-                          {account.bankName ? `(${account.bankName})` : ""} - ₹
-                          {account.currentBalance.toFixed(2)}
-                        </SelectItem>
+                      <SelectItem value="cash" className="text-xs">Cash</SelectItem>
+                      <SelectItem value="bank_transfer" className="text-xs">Bank Transfer</SelectItem>
+                      <SelectItem value="cheque" className="text-xs">Cheque</SelectItem>
+                      <SelectItem value="upi" className="text-xs">UPI</SelectItem>
+                      <SelectItem value="card" className="text-xs">Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {paymentMethod !== "cash" && bankAccounts.length > 0 && (
+                  <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Bank *</Label>
+                    <Select value={cashBankAccountId} onValueChange={setCashBankAccountId}>
+                      <SelectTrigger className="h-8 text-xs font-semibold bg-muted/20 hover:bg-muted/40 border border-border/40 hover:border-border/80 transition-all cursor-pointer focus:ring-1 focus:ring-primary/40 focus:bg-background"><SelectValue placeholder="Select bank" /></SelectTrigger>
+                      <SelectContent>
+                        {bankAccounts.map((account) => (
+                          <SelectItem key={account._id} value={account._id} className="text-xs">
+                            {account.accountName} - ₹{account.currentBalance.toFixed(2)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Transporter</Label>
+                  <Select value={transporterId} onValueChange={setTransporterId}>
+                    <SelectTrigger className="h-8 text-xs font-semibold bg-muted/20 hover:bg-muted/40 border border-border/40 hover:border-border/80 transition-all cursor-pointer focus:ring-1 focus:ring-primary/40 focus:bg-background"><SelectValue placeholder="Select Transporter" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-xs">None</SelectItem>
+                      {transporters.map((t) => (
+                        <SelectItem key={t._id} value={t._id} className="text-xs">{t.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Bill Summary */}
-          <Card className="bg-muted/20 shrink-0">
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm font-semibold">
-                Bill Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-0">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Items</span>
-                <span>{items.filter((i) => i.product).length}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-emerald-500">
-                <span>Discount</span>
-                <span>- {formatCurrency(totalDiscount)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Tax</span>
-                <span>{formatCurrency(totalTax)}</span>
-              </div>
-              {shippingCharges > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span>{formatCurrency(shippingCharges)}</span>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Notes</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    data-field="notes"
+                    placeholder="Add purchase notes..."
+                    className="h-16 text-xs bg-muted/30 resize-none"
+                  />
                 </div>
-              )}
-              <div className="border-t pt-2 flex justify-between text-base font-bold">
-                <span>Grand Total</span>
-                <span className="text-primary">
-                  {formatCurrency(grandTotal)}
-                </span>
               </div>
-
-              <div className="pt-2 space-y-2">
-                <Button
-                  className="w-full h-10 text-sm font-semibold shadow-lg shadow-primary/20"
-                  onClick={() => handleSubmit("confirmed")}
-                  disabled={saving}
-                >
-                  {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Submit Purchase
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full h-9 text-sm"
-                  onClick={() => handleSubmit("draft")}
-                  disabled={saving}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save as Draft
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
+
       </div>
 
-      {/* New Product Modal — matches Products page */}
+      {/* New Product Modal */}
       <Dialog open={newProductModalOpen} onOpenChange={setNewProductModalOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-32px)] sm:w-auto sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl">
           <DialogHeader>
             <DialogTitle>Add Product</DialogTitle>
-            <DialogDescription>
-              Fill in the product details and upload images.
-            </DialogDescription>
+            <DialogDescription>Fill in the product details and upload images.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            {/* Images */}
+          <div className="grid gap-4 sm:gap-6 py-4">
             <div className="space-y-2">
               <Label>Product Images</Label>
               <ImageUploader
                 multiple
                 value={newProductForm.images}
-                onChange={(urls) =>
-                  setNewProductForm({
-                    ...newProductForm,
-                    images: urls as string[],
-                  })
-                }
+                onChange={(urls) => setNewProductForm({ ...newProductForm, images: urls as string[] })}
                 folder="products"
                 maxFiles={10}
               />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Name *</Label>
-                <Input
-                  value={newProductForm.name}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      name: e.target.value,
-                    })
-                  }
-                  placeholder="Product name"
-                />
+                <Input value={newProductForm.name} onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="Product name" />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Input
-                  value={newProductForm.description}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Brief description"
-                />
+                <Input value={newProductForm.description} onChange={(e) => setNewProductForm({ ...newProductForm, description: e.target.value })} placeholder="Brief description" />
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 p-3 sm:p-4 rounded-xl border border-border/50">
               <div className="space-y-2">
                 <Label>Category *</Label>
-                <Select
-                  value={newProductForm.category}
-                  onValueChange={(v) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      category: v,
-                      subcategoryId: "",
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
+                <Select value={newProductForm.category} onValueChange={(v) => setNewProductForm({ ...newProductForm, category: v, subcategoryId: "" })}>
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat._id} value={cat._id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
+                    {categories.map((cat) => <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Subcategory</Label>
-                <Select
-                  value={newProductForm.subcategoryId}
-                  onValueChange={(v) =>
-                    setNewProductForm({ ...newProductForm, subcategoryId: v })
-                  }
-                  disabled={!newProductForm.category}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subcategory" />
-                  </SelectTrigger>
+                <Select value={newProductForm.subcategoryId} onValueChange={(v) => setNewProductForm({ ...newProductForm, subcategoryId: v })} disabled={!newProductForm.category}>
+                  <SelectTrigger><SelectValue placeholder="Select subcategory" /></SelectTrigger>
                   <SelectContent>
-                    {subcategories
-                      .filter((s) => {
-                        const pId =
-                          typeof s.parentCategoryId === "string"
-                            ? s.parentCategoryId
-                            : (s.parentCategoryId as any)._id;
-                        return pId === newProductForm.category;
-                      })
-                      .map((sub) => (
-                        <SelectItem key={sub._id} value={sub._id}>
-                          {sub.name}
-                        </SelectItem>
-                      ))}
+                    {subcategories.filter((s) => { const pId = typeof s.parentCategoryId === "string" ? s.parentCategoryId : (s.parentCategoryId as any)._id; return pId === newProductForm.category; }).map((sub) => <SelectItem key={sub._id} value={sub._id}>{sub.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>SKU *</Label>
-                <Input
-                  value={newProductForm.sku}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      sku: e.target.value.toUpperCase(),
-                    })
-                  }
-                  placeholder="SKU-001"
-                />
+                <Input value={newProductForm.sku} onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value.toUpperCase() })} placeholder="SKU-001" />
               </div>
               <div className="space-y-2">
                 <Label>HSN Code</Label>
-                <Input
-                  value={newProductForm.hsnCode}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      hsnCode: e.target.value,
-                    })
-                  }
-                  placeholder="HSN"
-                />
+                <Input value={newProductForm.hsnCode} onChange={(e) => setNewProductForm({ ...newProductForm, hsnCode: e.target.value })} placeholder="HSN" />
               </div>
               <div className="space-y-2">
                 <Label>Barcode</Label>
-                <Input
-                  value={newProductForm.barcode}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      barcode: e.target.value,
-                    })
-                  }
-                  placeholder="Barcode"
-                />
+                <Input value={newProductForm.barcode} onChange={(e) => setNewProductForm({ ...newProductForm, barcode: e.target.value })} placeholder="Barcode" />
               </div>
             </div>
-
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Stock *</Label>
-                <Input
-                  type="number"
-                  value={newProductForm.stock}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      stock: e.target.value,
-                    })
-                  }
-                  placeholder="0"
-                />
+                <Input type="number" value={newProductForm.stock} onChange={(e) => setNewProductForm({ ...newProductForm, stock: e.target.value })} placeholder="0" />
               </div>
               <div className="space-y-2">
                 <Label>Low Stock Alert</Label>
-                <Input
-                  type="number"
-                  value={newProductForm.lowStockThreshold}
-                  onChange={(e) =>
-                    setNewProductForm({
-                      ...newProductForm,
-                      lowStockThreshold: e.target.value,
-                    })
-                  }
-                  placeholder="10"
-                />
+                <Input type="number" value={newProductForm.lowStockThreshold} onChange={(e) => setNewProductForm({ ...newProductForm, lowStockThreshold: e.target.value })} placeholder="10" />
               </div>
               <div className="space-y-2">
                 <Label>Unit</Label>
-                <Select
-                  value={newProductForm.unit}
-                  onValueChange={(v) =>
-                    setNewProductForm({ ...newProductForm, unit: v })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={newProductForm.unit} onValueChange={(v) => setNewProductForm({ ...newProductForm, unit: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["piece", "kg", "liter", "meter", "box", "dozen"].map(
-                      (u) => (
-                        <SelectItem key={u} value={u}>
-                          {u}
-                        </SelectItem>
-                      ),
-                    )}
+                    {["piece", "kg", "liter", "meter", "box", "dozen"].map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setNewProductModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddNewProductSubmit}
-              disabled={newProductSaving}
-              className="min-w-24"
-            >
-              {newProductSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Create Product"
-              )}
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setNewProductModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+            <Button onClick={handleAddNewProductSubmit} disabled={newProductSaving} className="min-w-24 w-full sm:w-auto">
+              {newProductSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Product"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Supplier Modal */}
+      <SupplierModal
+        open={supplierModalOpen}
+        onOpenChange={setSupplierModalOpen}
+        onSuccess={reloadSuppliers}
+      />
     </div>
   );
 }

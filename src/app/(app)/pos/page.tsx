@@ -14,7 +14,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 
 export default function FastPOSPage() {
   const { sidebarCollapsed } = useThemeStore();
-  const { setActiveModal, getActiveBill, removeItem } = usePOSStore();
+  const { setActiveModal, getActiveBill, removeItem, addItem, selectRow } = usePOSStore();
   const [activeTab, setActiveTab] = useState<"cart" | "pay">("cart");
   const [isMobile, setIsMobile] = useState(false);
 
@@ -28,25 +28,36 @@ export default function FastPOSPage() {
   }, []);
 
   usePOSShortcuts({
-    onFocusCustomer: () => setActiveModal("qty"), // F2 maps to focusCustomer in shortcuts config, repurposing it for Change Quantity
-    onHoldSale: () => setActiveModal("itemDisc"), // F3 maps to holdSale, repurposing for Item Discount
-    onOpenPayment: () => { // F4 maps to openPayment, repurposing for Remove Item
+    onFocusSearch: () => { // F1 → Remove Item
       const bill = getActiveBill();
-      if (bill && bill.selectedRowIndex >= 0 && bill.items[bill.selectedRowIndex]) {
-        removeItem(bill.items[bill.selectedRowIndex].id);
-        toast.success("Item removed");
+      if (bill && bill.items.length > 0) {
+        const lastItem = bill.items[bill.items.length - 1];
+        removeItem(lastItem.id);
+        toast.success("Row removed");
       }
     },
-    onOpenCart: () => setActiveModal("unit"), // F6 maps to openCart, repurposing for Change Unit
-    onSelectCash: () => setActiveModal("addCharges"), // F8 maps to selectCash, repurposing for Add Charges
-    onSelectCard: () => setActiveModal("billDisc"), // F9 maps to selectCard, repurposing for Bill Discount
-    onSelectUPI: () => setActiveModal("loyalty"), // F10 maps to selectUPI, repurposing for Loyalty Points
-    onNewSale: () => setActiveModal("remarks"), // F12 maps to newSale, repurposing for Remarks
+    onFocusCustomer: () => { // F2 → Add New Row
+      const bill = getActiveBill();
+      if (bill) {
+        addItem({ itemName: "", customItem: true, unit: "Pcs" });
+        toast.success("New row added");
+      }
+    },
+    onHoldSale: () => setActiveModal("qty"), // F3 → Change Quantity
+    // F4 → No function
+    onCompleteSale: () => setActiveModal("itemDisc"), // F5 → Add Discount
+    onOpenCart: () => setActiveModal("unit"), // F6 → Change Unit
+    // F7 → No function
+    onSelectCash: () => setActiveModal("addCharges"), // F8 → Additional Charges
+    onSelectCard: () => setActiveModal("billDisc"), // F9 → Bill Discount
+    onSelectUPI: () => setActiveModal("loyalty"), // F10 → Loyalty Points
+    onNewSale: () => setActiveModal("remarks"), // F12 → Remarks
   });
 
   const bill = getActiveBill();
-  const totalQty = bill ? bill.items.reduce((s, i) => s + i.quantity, 0) : 0;
-  const grandTotal = bill ? bill.items.reduce((s, i) => s + i.total, 0) : 0;
+  const realItems = bill ? bill.items.filter(i => i.itemName !== "") : [];
+  const totalQty = realItems.reduce((s, i) => s + i.quantity, 0);
+  const grandTotal = realItems.reduce((s, i) => s + i.total, 0);
 
   return (
     <div
@@ -75,7 +86,7 @@ export default function FastPOSPage() {
         {/* Right — Billing Panel */}
         <div 
           className={cn(
-            "w-[320px] xl:w-[340px] shrink-0 border-l border-border/50 flex flex-col bg-card",
+            "w-[280px] xl:w-[300px] shrink-0 border-l border-border/50 flex flex-col bg-card",
             isMobile && (activeTab !== "pay" ? "hidden" : "w-full border-l-0")
           )}
         >

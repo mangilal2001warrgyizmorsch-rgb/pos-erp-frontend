@@ -1,54 +1,25 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, X, Plus, Search, Loader2, CornerDownLeft, PackagePlus, ScanBarcode } from "lucide-react";
-import { usePOSStore } from "@/store/posStore";
-import { productService } from "@/services/productService";
-import { useDebounce } from "@/hooks/useDebounce";
-import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
-import { formatCurrency, cn } from "@/lib/utils";
-import type { Product } from "@/types";
-import { toast } from "sonner";
-import { SimpleProductModal } from "@/components/shared/SimpleProductModal";
+import { ArrowLeft, X, Plus, Search, ChevronDown, Calendar, User } from "lucide-react";
+import { usePOSStore, WALK_IN_CUSTOMER } from "@/store/posStore";
+import { customerService } from "@/services/customerService";
+import { cn } from "@/lib/utils";
+import type { Customer } from "@/types";
+import { CustomerModal } from "@/components/shared/CustomerModal";
 
 export function POSTopBar() {
-  const { bills, activeBillId, setActiveBill, createNewBill, closeBill, addItem } = usePOSStore();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [hlIdx, setHlIdx] = useState(0);
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [scannedBarcode, setScannedBarcode] = useState("");
-  
-  const inputRef = useRef<HTMLInputElement>(null);
-  const ddRef = useRef<HTMLDivElement>(null);
-  const debouncedQ = useDebounce(query, 250);
+  const { bills, activeBillId, setActiveBill, createNewBill, closeBill, getActiveBill, setCustomer } = usePOSStore();
+  const bill = getActiveBill();
 
-  // Barcode scanner hook
-  useBarcodeScanner({
-    onScan: async (barcode) => {
-      try {
-        const { data } = await productService.getAll({ search: barcode, limit: 1 });
-        const match = data.find(p => p.barcode === barcode || p.sku === barcode);
-        if (match) {
-          handleAdd(match);
-          toast.success(`Scanned: ${match.name}`);
-        } else {
-          toast.error("Product not found for barcode: " + barcode);
-          setScannedBarcode(barcode);
-          setShowProductModal(true);
-        }
-      } catch {
-        toast.error("Failed to lookup barcode");
-      }
-    },
-    onError: (err) => toast.error(err)
-  });
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [custSearch, setCustSearch] = useState("");
+  const [showDD, setShowDD] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // F1 to focus search, auto-focus on mount
+  // Ctrl+T to new bill, Ctrl+W to close active bill
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === "F1") { e.preventDefault(); inputRef.current?.focus(); }
       if (e.ctrlKey && e.key === "t") { e.preventDefault(); createNewBill(); }
       if (e.ctrlKey && e.key === "w") {
         e.preventDefault();
@@ -56,75 +27,40 @@ export function POSTopBar() {
       }
     };
     window.addEventListener("keydown", h);
-    setTimeout(() => inputRef.current?.focus(), 200);
     return () => window.removeEventListener("keydown", h);
-  }, [activeBillId]);
+  }, [activeBillId, createNewBill, closeBill]);
 
-  // Click outside to close dropdown
+  // Load customers
   useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ddRef.current && !ddRef.current.contains(e.target as Node)) setIsOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
+    customerService.getAll({ limit: 200 }).then(r => {
+      setCustomers(r.data);
+    }).catch(() => {});
   }, []);
 
-  // Search products
+  // Click outside to close customer dropdown
   useEffect(() => {
-    if (!debouncedQ.trim()) { setResults([]); setIsOpen(false); return; }
-    (async () => {
-      setLoading(true);
-      try {
-        const { data } = await productService.getAll({ search: debouncedQ, limit: 8 });
-        setResults(data); setHlIdx(0); setIsOpen(true);
-        const exact = data.find(p => p.barcode === debouncedQ || p.sku === debouncedQ);
-        if (exact && data.length === 1) { handleAdd(exact); return; }
-      } catch {} finally { setLoading(false); }
-    })();
-  }, [debouncedQ]);
-
-  const handleAdd = async (product: Product) => {
-    let price = product.salesPrice || 0;
-    const tax = product.taxRate || 0;
-    const incl = (product as any).salesTaxType === "with";
-    try {
-      const p = await productService.getPricing(product._id);
-      addItem({
-        productId: product._id, product, itemCode: product.sku, itemName: product.name,
-        barcode: product.barcode, pricePerUnit: p.salesPrice ?? price,
-        purchasePrice: p.purchasePrice ?? 0, taxPercent: p.taxPercent ?? tax,
-        unit: product.unit || "Pcs", isInclusive: p.salesTaxType === "with",
-      });
-    } catch {
-      addItem({
-        productId: product._id, product, itemCode: product.sku, itemName: product.name,
-        barcode: product.barcode, pricePerUnit: price, purchasePrice: 0,
-        taxPercent: tax, unit: product.unit || "Pcs", isInclusive: incl,
-      });
-    }
-    setQuery(""); setIsOpen(false); inputRef.current?.focus();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen && e.key !== "Enter") return;
-    if (e.key === "ArrowDown") { e.preventDefault(); setHlIdx(p => Math.min(p + 1, results.length - 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setHlIdx(p => Math.max(p - 1, 0)); }
-    else if (e.key === "Enter") {
-      e.preventDefault();
-      if (results[hlIdx]) handleAdd(results[hlIdx]);
-      else if (query.trim()) {
-        addItem({ itemName: query, customItem: true, unit: "Pcs" });
-        toast.info("Blank row added"); setQuery(""); setIsOpen(false);
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowDD(false);
       }
-    } else if (e.key === "Escape") setIsOpen(false);
-  };
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const filtered = custSearch.trim()
+    ? customers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || (c.phone && c.phone.includes(custSearch)))
+    : customers;
+
+  const isWalkIn = !bill?.customer || bill.customer._id === "walk-in";
+  const customerDisplayName = isWalkIn ? "" : (bill?.customer?.name || "");
 
   return (
-    <div className="shrink-0 bg-card border-b border-border flex flex-col relative" ref={ddRef}>
-      {/* Row 1: Tabs + Search + Icons */}
-      <div className="flex flex-col lg:flex-row lg:items-center py-2 lg:py-0 px-3 gap-2 lg:h-14">
+    <div className="shrink-0 bg-card border-b border-border flex flex-col relative">
+      {/* Row 1: Tabs + Customer + Date */}
+      <div className="flex items-center py-2 lg:py-0 px-3 gap-2 h-14">
         {/* Bill Tabs */}
-        <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 lg:pb-0 scrollbar-none w-full lg:w-auto">
+        <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
           {/* Exit POS / Go to Dashboard */}
           <Link
             href="/dashboard"
@@ -133,12 +69,12 @@ export function POSTopBar() {
             <ArrowLeft className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Exit POS</span>
           </Link>
-          {bills.map((bill) => {
-            const active = bill.id === activeBillId;
+          {bills.map((b) => {
+            const active = b.id === activeBillId;
             return (
               <button
-                key={bill.id}
-                onClick={() => setActiveBill(bill.id)}
+                key={b.id}
+                onClick={() => setActiveBill(b.id)}
                 className={cn(
                   "group flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-bold transition-all shrink-0",
                   active
@@ -146,11 +82,11 @@ export function POSTopBar() {
                     : "text-muted-foreground hover:bg-muted"
                 )}
               >
-                <span>#{bill.billNo}</span>
+                <span>#{b.billNo}</span>
                 {active && <span className="text-[9px] opacity-70 font-mono hidden sm:inline">CTRL+W</span>}
                 {bills.length > 1 && (
                   <span
-                    onClick={(e) => { e.stopPropagation(); closeBill(bill.id); }}
+                    onClick={(e) => { e.stopPropagation(); closeBill(b.id); }}
                     className={cn(
                       "rounded-full p-0.5 transition-all",
                       active ? "hover:bg-white/20" : "opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20"
@@ -172,89 +108,89 @@ export function POSTopBar() {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="flex-1 w-full relative lg:ml-2">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground pointer-events-none" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => { if (query.trim() && results.length > 0) setIsOpen(true); }}
-            placeholder="Scan or search by item code, model no or item name"
-            className="w-full h-10 pl-11 pr-24 bg-muted/40 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all placeholder:text-muted-foreground/50"
-          />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Customer Section */}
+        <div className="relative shrink-0 hidden md:block" ref={wrapperRef}>
+          <div className="relative flex items-center">
+            <User className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
+            <input
+              value={isWalkIn ? custSearch : customerDisplayName}
+              onChange={(e) => { setCustSearch(e.target.value); setShowDD(true); if (!isWalkIn) setCustomer(WALK_IN_CUSTOMER); }}
+              onFocus={() => setShowDD(true)}
+              placeholder="Walk-in Customer"
+              className="w-[200px] xl:w-[220px] h-8 pl-8 pr-8 text-xs font-semibold bg-muted/30 border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/60"
+            />
+            {!isWalkIn ? (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setCustomer(WALK_IN_CUSTOMER); setCustSearch(""); setShowDD(true); }}
+                className="absolute right-2 p-0.5 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all z-10"
+              >
+                <X className="h-3 w-3" />
+              </button>
             ) : (
-              <ScanBarcode className="h-4 w-4 text-muted-foreground opacity-60" />
+              <ChevronDown className="absolute right-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             )}
-            <kbd className="h-5 px-1.5 rounded border border-border/60 bg-muted/60 font-mono text-[10px] font-bold text-muted-foreground hidden sm:inline-flex items-center">F1</kbd>
           </div>
-        </div>
 
-        {/* Right icons removed per request */}
-      </div>
-
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 mx-3 z-50 bg-card border border-border rounded-xl shadow-2xl shadow-black/20 overflow-hidden">
-          <div className="grid grid-cols-12 px-4 py-2.5 border-b border-border/50 bg-muted/40 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
-            <div className="col-span-3">Item Code</div>
-            <div className="col-span-4">Item Name</div>
-            <div className="col-span-2 text-center">Stock</div>
-            <div className="col-span-3 text-right">Sale Price (₹)</div>
-          </div>
-          <div className="max-h-[300px] overflow-y-auto">
-            {results.length > 0 ? results.map((p, i) => (
-              <div
-                key={p._id}
-                onClick={() => handleAdd(p)}
-                onMouseEnter={() => setHlIdx(i)}
+          {/* Customer dropdown */}
+          {showDD && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto z-50 flex flex-col min-w-[240px]">
+              <button 
+                onClick={() => { setShowCustomerModal(true); setShowDD(false); setCustSearch(""); }} 
+                className="px-3 py-2 text-left text-xs font-bold text-primary hover:bg-primary/10 border-b border-border/50 sticky top-0 bg-card z-10 flex items-center gap-2"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add New Customer
+              </button>
+              {/* Walk-in option always at top */}
+              <button
+                onClick={() => { setCustomer(WALK_IN_CUSTOMER); setShowDD(false); setCustSearch(""); }}
                 className={cn(
-                  "grid grid-cols-12 px-4 py-3 cursor-pointer items-center border-b border-border/10 last:border-0 transition-colors",
-                  i === hlIdx ? "bg-primary/10" : "hover:bg-muted/40"
+                  "w-full px-3 py-2 text-left text-xs hover:bg-muted/50 transition-colors flex justify-between border-b border-border/20",
+                  isWalkIn && "bg-primary/5"
                 )}
               >
-                <div className="col-span-3 text-sm font-mono font-semibold truncate">{p.barcode || p.sku}</div>
-                <div className="col-span-4 text-sm font-medium truncate">{p.name}</div>
-                <div className="col-span-2 text-center text-sm">
-                  <span className={cn("font-bold", (p.stock || 0) <= 0 ? "text-destructive" : "text-emerald-500")}>{p.stock || 0}</span>
-                  <span className="text-[10px] text-muted-foreground ml-1">{p.unit || "Pcs"}</span>
-                </div>
-                <div className="col-span-3 text-right text-sm font-bold">{formatCurrency(p.salesPrice || 0)}</div>
-              </div>
-            )) : (
-              <div className="p-5 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">No product found for "<strong>{query}</strong>"</p>
-                <div className="flex items-center justify-center gap-4">
-                  <button onClick={() => { addItem({ itemName: query, customItem: true, unit: "Pcs" }); toast.info("Blank row added"); setQuery(""); setIsOpen(false); }}
-                    className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                    <CornerDownLeft className="h-4 w-4" /> Add Blank Row
-                  </button>
-                  <span className="text-muted-foreground/30">|</span>
-                  <button onClick={() => { setScannedBarcode(query); setShowProductModal(true); setIsOpen(false); }} className="flex items-center gap-2 text-sm font-semibold text-emerald-500 hover:underline">
-                    <PackagePlus className="h-4 w-4" /> Add New Product
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+                <span className="font-medium text-muted-foreground">Walk-in Customer</span>
+                <span className="text-[10px] text-muted-foreground/50">Default</span>
+              </button>
+              {filtered.slice(0, 6).map(c => (
+                <button key={c._id} onClick={() => { setCustomer(c); setShowDD(false); setCustSearch(""); }}
+                  className="w-full px-3 py-2 text-left text-xs hover:bg-muted/50 transition-colors flex justify-between">
+                  <span className="font-medium">{c.name}</span>
+                  {c.phone && <span className="text-[10px] text-muted-foreground">{c.phone}</span>}
+                </button>
+              ))}
+              {filtered.length === 0 && <div className="p-3 text-center text-xs text-muted-foreground">No customer found</div>}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Product Modal */}
-      <SimpleProductModal 
-        open={showProductModal} 
-        onOpenChange={setShowProductModal}
-        initialBarcode={scannedBarcode}
-        initialSku={scannedBarcode.length > 5 ? `SKU-${scannedBarcode.slice(-4)}` : undefined}
-        onSuccess={(product) => {
-          handleAdd(product);
-          toast.success("Product created and added to cart!");
-        }}
-      />
+        {/* Date Picker */}
+        <div className="relative shrink-0 hidden md:block">
+          <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input 
+            type="date" 
+            defaultValue={new Date().toISOString().split("T")[0]}
+            className="h-8 pl-8 pr-2 text-xs font-semibold bg-muted/30 border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all w-[140px]" 
+          />
+        </div>
+      </div>
+
+      {/* Customer Modal */}
+      {showCustomerModal && (
+        <CustomerModal 
+          open={showCustomerModal} 
+          onOpenChange={setShowCustomerModal} 
+          onSuccess={(customer) => {
+            if (customer) {
+              setCustomers(prev => [...prev, customer]);
+              setCustomer(customer);
+            }
+            setShowCustomerModal(false);
+          }} 
+        />
+      )}
     </div>
   );
 }

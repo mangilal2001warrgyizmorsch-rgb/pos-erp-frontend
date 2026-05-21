@@ -13,10 +13,12 @@ export function POSProductSearch() {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIdx, setHighlightIdx] = useState(0);
+  const resultsRef = useRef<Product[]>([]);
+  const highlightIdxRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { addItem } = usePOSStore();
+  const { addItem, getActiveBill, updateItemProduct } = usePOSStore();
 
   const debouncedQuery = useDebounce(query, 250);
 
@@ -41,13 +43,15 @@ export function POSProductSearch() {
 
   // Search
   useEffect(() => {
-    if (!debouncedQuery.trim()) { setResults([]); setIsOpen(false); return; }
+    if (!debouncedQuery.trim()) { setResults([]); resultsRef.current = []; setIsOpen(false); return; }
     (async () => {
       setLoading(true);
       try {
         const { data } = await productService.getAll({ search: debouncedQuery, limit: 10 });
         setResults(data);
+        resultsRef.current = data;
         setHighlightIdx(0);
+        highlightIdxRef.current = 0;
         setIsOpen(true);
         // Exact barcode match → auto add
         const exact = data.find(p => p.barcode === debouncedQuery || p.sku === debouncedQuery);
@@ -60,42 +64,80 @@ export function POSProductSearch() {
     let price = product.salesPrice || 0;
     const taxRate = product.taxRate || 0;
     const isInclusive = (product as any).salesTaxType === "with";
+    const bill = getActiveBill();
+    let targetItemId: string | null = null;
+
+    const payloadTemplate = {
+      productId: product._id, product, itemCode: product.sku, itemName: product.name,
+      barcode: product.barcode, unit: product.unit || "Pcs", customItem: false
+    };
 
     try {
       const pricing = await productService.getPricing(product._id);
       price = pricing.salesPrice ?? price;
-      const batchTax = pricing.taxPercent ?? taxRate;
-      const batchInclusive = pricing.salesTaxType === "with";
-      addItem({
-        productId: product._id, product, itemCode: product.sku, itemName: product.name,
-        barcode: product.barcode, pricePerUnit: price, purchasePrice: pricing.purchasePrice ?? 0,
-        taxPercent: batchTax, unit: product.unit || "Pcs", isInclusive: batchInclusive,
-      });
+      const payload = {
+        ...payloadTemplate, pricePerUnit: price, purchasePrice: pricing.purchasePrice ?? 0,
+        taxPercent: pricing.taxPercent ?? taxRate, isInclusive: pricing.salesTaxType === "with"
+      };
+      
+      const placeholderItem = bill?.items.find(i => i.itemName === "");
+      if (placeholderItem) {
+        updateItemProduct(placeholderItem.id, payload);
+        targetItemId = placeholderItem.id;
+      } else {
+        addItem(payload);
+      }
     } catch {
-      addItem({
-        productId: product._id, product, itemCode: product.sku, itemName: product.name,
-        barcode: product.barcode, pricePerUnit: price, purchasePrice: (product as any).purchasePrice ?? 0,
-        taxPercent: taxRate, unit: product.unit || "Pcs", isInclusive,
-      });
+      const payload = {
+        ...payloadTemplate, pricePerUnit: price, purchasePrice: (product as any).purchasePrice ?? 0,
+        taxPercent: taxRate, isInclusive
+      };
+      const placeholderItem = bill?.items.find(i => i.itemName === "");
+      if (placeholderItem) {
+        updateItemProduct(placeholderItem.id, payload);
+        targetItemId = placeholderItem.id;
+      } else {
+        addItem(payload);
+      }
     }
     toast.success(`Added ${product.name}`);
-    setQuery(""); setIsOpen(false); inputRef.current?.focus();
+    setQuery(""); setIsOpen(false); setResults([]); resultsRef.current = [];
+    
+    // Focus the barcode input of the active placeholder
+    setTimeout(() => {
+      // It's handled by POSItemTable's useEffect automatically.
+      // Or we can manually blur this input so the other one takes focus.
+      inputRef.current?.blur();
+    }, 50);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen && e.key !== "Enter") return;
     switch (e.key) {
-      case "ArrowDown": e.preventDefault(); setHighlightIdx(p => Math.min(p + 1, results.length - 1)); break;
-      case "ArrowUp":   e.preventDefault(); setHighlightIdx(p => Math.max(p - 1, 0)); break;
+      case "ArrowDown": 
+        e.preventDefault(); 
+        e.stopPropagation();
+        setHighlightIdx(p => { const n = Math.min(p + 1, resultsRef.current.length - 1); highlightIdxRef.current = n; return n; }); 
+        break;
+      case "ArrowUp":   
+        e.preventDefault(); 
+        e.stopPropagation();
+        setHighlightIdx(p => { const n = Math.max(p - 1, 0); highlightIdxRef.current = n; return n; }); 
+        break;
       case "Enter":
         e.preventDefault();
-        if (results[highlightIdx]) handleAddProduct(results[highlightIdx]);
-        else if (query.trim()) {
+        e.stopPropagation();
+        const cur = resultsRef.current[highlightIdxRef.current];
+        if (cur) {
+          handleAddProduct(cur);
+        } else if (query.trim()) {
           addItem({ itemName: query, customItem: true, unit: "Pcs" });
           toast.info("Blank row added"); setQuery(""); setIsOpen(false);
         }
         break;
-      case "Escape": setIsOpen(false); break;
+      case "Escape": 
+        setIsOpen(false); 
+        break;
     }
   };
 
@@ -106,6 +148,7 @@ export function POSProductSearch() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
           <input
             ref={inputRef}
+            data-barcode-input="true"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -135,7 +178,7 @@ export function POSProductSearch() {
               <div
                 key={p._id}
                 onClick={() => handleAddProduct(p)}
-                onMouseEnter={() => setHighlightIdx(i)}
+                onMouseEnter={() => { setHighlightIdx(i); highlightIdxRef.current = i; }}
                 className={cn(
                   "grid grid-cols-12 px-4 py-3 cursor-pointer items-center border-b border-border/10 last:border-0 transition-colors",
                   i === highlightIdx ? "bg-primary/10 text-primary" : "hover:bg-muted/40"

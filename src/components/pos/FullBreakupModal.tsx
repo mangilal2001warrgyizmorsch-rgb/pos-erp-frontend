@@ -20,7 +20,9 @@ export function FullBreakupModal({ open, onClose }: Props) {
 
   if (!open || !bill) return null;
 
-  const subtotal = bill.items.reduce((s, i) => {
+  const realItems = bill.items.filter(i => i.itemName !== "");
+
+  const subtotal = realItems.reduce((s, i) => {
     const base = i.quantity * i.pricePerUnit;
     if (i.isInclusive && i.taxPercent > 0) {
       return s + base / (1 + i.taxPercent / 100);
@@ -28,13 +30,19 @@ export function FullBreakupModal({ open, onClose }: Props) {
     return s + base;
   }, 0);
 
-  const itemTax = bill.items.reduce((s, i) => s + i.taxAmount, 0);
-  const grandTotal = bill.items.reduce((s, i) => s + i.total, 0);
+  const discountTotal = realItems.reduce((s, i) => {
+    const base = i.quantity * i.pricePerUnit;
+    return s + base * (i.discount / 100);
+  }, 0);
+
+  const itemTax = realItems.reduce((s, i) => s + i.taxAmount, 0);
+  const grandTotal = realItems.reduce((s, i) => s + i.total, 0);
   const roundOff = Math.round(grandTotal) - grandTotal;
   const finalTotal = Math.round(grandTotal);
 
   const rows = [
     { label: "Sub Total", value: subtotal },
+    { label: "Discount", value: -discountTotal },
     { label: "Item Tax", value: itemTax },
     { label: "Round Off", value: roundOff },
   ];

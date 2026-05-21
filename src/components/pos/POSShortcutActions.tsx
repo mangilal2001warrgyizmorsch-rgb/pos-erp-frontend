@@ -1,23 +1,32 @@
-import { usePOSStore } from "@/store/posStore";
+import { usePOSStore, createPlaceholderItem } from "@/store/posStore";
 import { toast } from "sonner";
 import { ActionModals } from "./ActionModals";
 
 export function POSShortcutActions() {
-  const { getActiveBill, removeItem, activeModal, setActiveModal } = usePOSStore();
+  const { getActiveBill, removeItem, addItem, activeModal, setActiveModal, selectRow } = usePOSStore();
   const bill = getActiveBill();
 
   const handleRemove = () => {
-    if (!bill || bill.selectedRowIndex < 0 || !bill.items[bill.selectedRowIndex]) return;
-    removeItem(bill.items[bill.selectedRowIndex].id);
-    toast.success("Item removed");
+    if (!bill || bill.items.length === 0) return;
+    const lastItem = bill.items[bill.items.length - 1];
+    removeItem(lastItem.id);
+    toast.success("Row removed");
+  };
+
+  const handleAddRow = () => {
+    if (bill) {
+      addItem({ itemName: "", customItem: true, unit: "Pcs" });
+      toast.success("New row added");
+    }
   };
 
   const buttons = [
-    { label: "Change Quantity", key: "F2", action: () => setActiveModal("qty") },
-    { label: "Item Discount", key: "F3", action: () => setActiveModal("itemDisc") },
-    { label: "Remove Item", key: "F4", action: handleRemove, danger: true },
+    { label: "Remove Item", key: "F1", action: handleRemove, danger: true },
+    { label: "Add New Row", key: "F2", action: handleAddRow },
+    { label: "Change Qty", key: "F3", action: () => setActiveModal("qty") },
+    { label: "Add Discount", key: "F5", action: () => setActiveModal("itemDisc") },
     { label: "Change Unit", key: "F6", action: () => setActiveModal("unit") },
-    { label: "Additional Charges", key: "F8", action: () => setActiveModal("addCharges") },
+    { label: "Add Charges", key: "F8", action: () => setActiveModal("addCharges") },
     { label: "Bill Discount", key: "F9", action: () => setActiveModal("billDisc") },
     { label: "Loyalty Points", key: "F10", action: () => setActiveModal("loyalty") },
     { label: "Remarks", key: "F12", action: () => setActiveModal("remarks") },
@@ -41,7 +50,7 @@ export function POSShortcutActions() {
   return (
     <>
       <div className="shrink-0 px-3 py-2 bg-card border-t border-border/50">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {buttons.map(b => <Btn key={b.key} btn={b} />)}
         </div>
       </div>

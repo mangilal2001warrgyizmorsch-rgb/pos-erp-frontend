@@ -44,17 +44,22 @@ export function useGlobalKeyboardListener() {
         }
 
         // Check if key combo matches
-        if (!isKeyComboMatch(event, shortcut.keys)) {
+        const matches = isKeyComboMatch(event, shortcut.keys);
+        if (!matches) {
           continue;
         }
 
         // Check if we should allow shortcut in input field
         if (isInputElement(event.target as HTMLElement)) {
-          // Allow specific shortcuts in input fields
           const isFKey = /^F\d+$/.test(event.key);
-          const allowedKeys = ['Escape', 'Enter', 'Tab', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`)];
+          const allowedKeys = ['Escape', 'Tab', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`)];
           
-          if (!allowedKeys.includes(event.key) && !isFKey) {
+          // Allow Enter ONLY if the shortcut has modifiers (e.g. Ctrl+Enter)
+          // to prevent blocking native Enter/suggestion selection in text inputs.
+          const hasModifiers = !!(shortcut.keys.modifiers && shortcut.keys.modifiers.length > 0);
+          const isAllowedEnter = event.key === 'Enter' && hasModifiers;
+          
+          if (!allowedKeys.includes(event.key) && !isFKey && !isAllowedEnter) {
             continue;
           }
         }

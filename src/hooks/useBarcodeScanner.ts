@@ -41,6 +41,7 @@ export const useBarcodeScanner = (options: UseBarcodeOptions) => {
   const barcodeRef = useRef<string>('');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scanStartRef = useRef<number>(0);
+  const lastCharTimeRef = useRef<number>(0);
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
 
@@ -53,6 +54,7 @@ export const useBarcodeScanner = (options: UseBarcodeOptions) => {
   const resetBarcode = useCallback(() => {
     barcodeRef.current = '';
     scanStartRef.current = 0;
+    lastCharTimeRef.current = 0;
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -87,25 +89,33 @@ export const useBarcodeScanner = (options: UseBarcodeOptions) => {
         return;
       }
 
-      // Start scan timing on first character
-      if (barcodeRef.current === '') {
-        scanStartRef.current = Date.now();
+      // Ignore function keys (F1 - F12)
+      if (event.key.startsWith('F') && /^F\d+$/.test(event.key)) {
+        return;
       }
+
+      const currentTime = Date.now();
 
       // Check if this is an end key (usually Enter)
       if (endKeys.includes(event.key)) {
-        // Only treat as barcode if we have accumulated characters
-        if (barcodeRef.current.length > 0) {
+        // Only treat as barcode scan if we have accumulated characters and they were entered fast
+        const timeSinceLastChar = currentTime - lastCharTimeRef.current;
+        if (barcodeRef.current.length > 0 && timeSinceLastChar <= 50) {
           event.preventDefault();
           event.stopPropagation();
           completeScan();
+        } else {
+          resetBarcode();
         }
         return;
       }
 
-      // Check if we're in a text input field
+      // Check if we're in an input field
       const target = event.target as Element;
-      if (!isInputElement(target)) {
+      const isInput = isInputElement(target);
+
+      // If we are in an input element, only accumulate if it is explicitly designated as barcode input
+      if (isInput && target.getAttribute('data-barcode-input') !== 'true') {
         return;
       }
 
@@ -134,12 +144,21 @@ export const useBarcodeScanner = (options: UseBarcodeOptions) => {
         return;
       }
 
-      // Check if input is fast (typical barcode scanner behavior)
-      const currentTime = Date.now();
-      const timeSinceStart = currentTime - scanStartRef.current;
-      const timeSinceLastChar = currentTime - (timeoutRef.current ? currentTime : scanStartRef.current);
+      // Start scan timing on first character
+      if (barcodeRef.current === '') {
+        scanStartRef.current = currentTime;
+      } else {
+        // If the interval between characters is too long (> 50ms), it's probably manual input
+        const timeSinceLastChar = currentTime - lastCharTimeRef.current;
+        if (timeSinceLastChar > 50) {
+          resetBarcode();
+          scanStartRef.current = currentTime;
+        }
+      }
+      lastCharTimeRef.current = currentTime;
 
-      // If this is taking too long, it's probably manual input
+      // Check if input is taking too long overall
+      const timeSinceStart = currentTime - scanStartRef.current;
       if (timeSinceStart > 5000) {
         resetBarcode();
         return;

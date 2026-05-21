@@ -329,8 +329,8 @@ export const createShortcuts = (
     // POS Billing Shortcuts
     'pos.focusSearch': {
       id: 'pos.focusSearch',
-      name: 'Focus Product Search',
-      description: 'Focus product search field in POS',
+      name: 'Remove Item',
+      description: 'Remove the selected cart item',
       keys: { key: 'F1' },
       scope: 'pos',
       action: () => handlers['pos.focusSearch']?.(),
@@ -339,8 +339,8 @@ export const createShortcuts = (
     
     'pos.focusCustomer': {
       id: 'pos.focusCustomer',
-      name: 'Focus Customer Search',
-      description: 'Focus customer search field in POS',
+      name: 'Add New Row',
+      description: 'Add a new empty item row',
       keys: { key: 'F2' },
       scope: 'pos',
       action: () => handlers['pos.focusCustomer']?.(),
@@ -349,28 +349,18 @@ export const createShortcuts = (
     
     'pos.holdSale': {
       id: 'pos.holdSale',
-      name: 'Hold Sale',
-      description: 'Hold / Park current sale',
+      name: 'Change Quantity',
+      description: 'Change selected item quantity',
       keys: { key: 'F3' },
       scope: 'pos',
       action: () => handlers['pos.holdSale']?.(),
       preventDefault: true,
     },
     
-    'pos.openPayment': {
-      id: 'pos.openPayment',
-      name: 'Open Payment Section',
-      description: 'Open payment section',
-      keys: { key: 'F4' },
-      scope: 'pos',
-      action: () => handlers['pos.openPayment']?.(),
-      preventDefault: true,
-    },
-    
     'pos.completeSale': {
       id: 'pos.completeSale',
-      name: 'Complete Sale',
-      description: 'Complete the current sale',
+      name: 'Add Discount',
+      description: 'Apply flat or percentage discount to selected item',
       keys: { key: 'F5' },
       scope: 'pos',
       action: () => handlers['pos.completeSale']?.(),
@@ -379,28 +369,18 @@ export const createShortcuts = (
     
     'pos.openCart': {
       id: 'pos.openCart',
-      name: 'Open Cart Drawer',
-      description: 'Open or close cart drawer',
+      name: 'Change Unit',
+      description: 'Change selected item unit of measure',
       keys: { key: 'F6' },
       scope: 'pos',
       action: () => handlers['pos.openCart']?.(),
       preventDefault: true,
     },
     
-    'pos.applyDiscount': {
-      id: 'pos.applyDiscount',
-      name: 'Apply Discount',
-      description: 'Apply discount to cart',
-      keys: { key: 'F7' },
-      scope: 'pos',
-      action: () => handlers['pos.applyDiscount']?.(),
-      preventDefault: true,
-    },
-    
     'pos.selectCash': {
       id: 'pos.selectCash',
-      name: 'Select Cash Payment',
-      description: 'Select cash payment method',
+      name: 'Add Charges',
+      description: 'Add additional charges to the bill',
       keys: { key: 'F8' },
       scope: 'pos',
       action: () => handlers['pos.selectCash']?.(),
@@ -409,8 +389,8 @@ export const createShortcuts = (
     
     'pos.selectCard': {
       id: 'pos.selectCard',
-      name: 'Select Card Payment',
-      description: 'Select card payment method',
+      name: 'Bill Discount',
+      description: 'Apply discount to the entire bill',
       keys: { key: 'F9' },
       scope: 'pos',
       action: () => handlers['pos.selectCard']?.(),
@@ -419,8 +399,8 @@ export const createShortcuts = (
     
     'pos.selectUPI': {
       id: 'pos.selectUPI',
-      name: 'Select UPI Payment',
-      description: 'Select UPI payment method',
+      name: 'Loyalty Points',
+      description: 'Apply customer loyalty points discount',
       keys: { key: 'F10' },
       scope: 'pos',
       action: () => handlers['pos.selectUPI']?.(),
@@ -439,8 +419,8 @@ export const createShortcuts = (
     
     'pos.newSale': {
       id: 'pos.newSale',
-      name: 'New Sale',
-      description: 'Start new sale / Clear completed sale',
+      name: 'Remarks',
+      description: 'Add remarks or special notes to the bill',
       keys: { key: 'F12' },
       scope: 'pos',
       action: () => handlers['pos.newSale']?.(),

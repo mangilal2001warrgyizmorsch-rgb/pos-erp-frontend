@@ -105,7 +105,7 @@ export default function SalesPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Sales" description="View sales history" icon={ShoppingCart}>
-        <Link href="/sales/create">
+        <Link href="/pos">
           <Button className="gap-2">
             <Plus className="h-4 w-4" /> Create Sale
           </Button>
