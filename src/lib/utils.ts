@@ -10,6 +10,7 @@ export function formatCurrency(amount: number): string {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -19,6 +20,13 @@ export function formatCurrencyCompact(amount: number): string {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+export function formatNumberInputValue(value: number): string {
+  if (!Number.isFinite(value) || value === 0) return "";
+  return Number.isInteger(value)
+    ? value.toString()
+    : Number(value.toFixed(2)).toString();
 }
 
 export function formatDate(date: string | Date): string {

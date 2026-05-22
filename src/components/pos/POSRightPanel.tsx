@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, Receipt, Printer, Calendar, User, X, Plus } from "lucide-react";
 import { usePOSStore, WALK_IN_CUSTOMER } from "@/store/posStore";
+import { useThemeStore } from "@/store/themeStore";
 import { saleService } from "@/services/saleService";
 import { cashBankService } from "@/services/cashBankService";
 import { customerService } from "@/services/customerService";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatNumberInputValue, cn } from "@/lib/utils";
 import type { Sale } from "@/types";
 import { toast } from "sonner";
 import { FullBreakupModal } from "./FullBreakupModal";
@@ -14,6 +15,8 @@ import { CustomerModal } from "@/components/shared/CustomerModal";
 
 export function POSRightPanel() {
   const store = usePOSStore();
+  const { theme } = useThemeStore();
+  const isDark = theme === "dark";
   const bill = store.getActiveBill();
   const [saving, setSaving] = useState(false);
 
@@ -80,6 +83,9 @@ export function POSRightPanel() {
   const totalQty = realItems.reduce((s, i) => s + i.quantity, 0);
   const grandTotal = realItems.reduce((s, i) => s + i.total, 0);
   const change = Math.max(0, bill.amountReceived - grandTotal);
+  const remaining = Math.max(0, grandTotal - bill.amountReceived);
+  const paymentBalance = remaining > 0 ? remaining : change;
+  const paymentBalanceLabel = remaining > 0 ? "Remaining Amount:" : "Change to Return:";
 
   // Sync amount when total changes (if not manually edited)
   useEffect(() => {
@@ -91,17 +97,21 @@ export function POSRightPanel() {
   }, [grandTotal, isAmountEdited]);
 
   const handleSave = async () => {
-    if (realItems.length === 0) { toast.error("Add items first"); return; }
+    const activeBill = store.getActiveBill();
+    if (!activeBill) return;
+    const currentItems = activeBill.items.filter(i => i.itemName !== "");
+    const currentGrandTotal = currentItems.reduce((s, i) => s + i.total, 0);
+    if (currentItems.length === 0) { toast.error("Add items first"); return; }
     setSaving(true);
     try {
       // Use the customer from the bill; if walk-in, pass walk-in name but no DB id
-      const isWalkIn = !bill.customer || bill.customer._id === "walk-in";
-      const cId = isWalkIn ? undefined : bill.customer?._id;
-      const cName = isWalkIn ? "Walk-in Customer" : (bill.customer?.name || "Walk-in Customer");
+      const isWalkIn = !activeBill.customer || activeBill.customer._id === "walk-in";
+      const cId = isWalkIn ? undefined : activeBill.customer?._id;
+      const cName = isWalkIn ? "Walk-in Customer" : (activeBill.customer?.name || "Walk-in Customer");
       
-      const subtotal = realItems.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
-      const taxAmt = realItems.reduce((s, i) => s + i.taxAmount, 0);
-      const discountAmt = realItems.reduce((s, i) => {
+      const subtotal = currentItems.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
+      const taxAmt = currentItems.reduce((s, i) => s + i.taxAmount, 0);
+      const discountAmt = currentItems.reduce((s, i) => {
         const base = i.quantity * i.pricePerUnit;
         return s + base * (i.discount / 100);
       }, 0);
@@ -109,12 +119,20 @@ export function POSRightPanel() {
       // Use the selected date from mobile, or current date for desktop
       const dateToUse = saleDate ? new Date(saleDate).toISOString() : new Date().toISOString();
       
+      const receivedAmount = Math.min(activeBill.amountReceived || currentGrandTotal, currentGrandTotal);
+      const paidInFull = receivedAmount >= currentGrandTotal;
+      const paymentMethod = activeBill.paymentMode === "Partial"
+        ? "cash"
+        : activeBill.paymentMode === "Bank"
+          ? "upi"
+          : activeBill.paymentMode.toLowerCase();
+
       const savedSale = await saleService.create({
         customer: cId, customerName: cName, saleDate: dateToUse,
-        items: realItems.map(i => ({ product: i.productId || undefined, name: i.itemName, sku: i.itemCode, quantity: i.quantity, unitPrice: i.pricePerUnit, purchasePrice: i.purchasePrice, discount: i.discount, total: i.total })),
-        subtotal, taxAmount: taxAmt, discountAmount: discountAmt, totalAmount: grandTotal, amountPaid: bill.amountReceived || grandTotal,
-        status: "completed", paymentStatus: "paid", paymentMethod: bill.paymentMode.toLowerCase(), notes: bill.remarks,
-        cashBankAccountId: (bill.paymentMode !== "Cash" && bill.paymentMode !== "Wallet") ? bill.cashBankAccountId : undefined,
+        items: currentItems.map(i => ({ product: i.productId || undefined, name: i.itemName, sku: i.itemCode, quantity: i.quantity, unitPrice: i.pricePerUnit, purchasePrice: i.purchasePrice, discount: i.discount, total: i.total })),
+        subtotal, taxAmount: taxAmt, discountAmount: discountAmt, totalAmount: currentGrandTotal, amountPaid: receivedAmount,
+        status: "completed", paymentStatus: paidInFull ? "paid" : "partial", paymentMethod, notes: activeBill.remarks,
+        cashBankAccountId: (activeBill.paymentMode !== "Cash" && activeBill.paymentMode !== "Wallet" && activeBill.paymentMode !== "Partial") ? activeBill.cashBankAccountId : undefined,
       });
       toast.success("Sale saved!"); 
       setPrintSaleData(savedSale);
@@ -123,7 +141,7 @@ export function POSRightPanel() {
     finally { setSaving(false); }
   };
 
-  const modes = ["Cash", "UPI", "Card", "Bank", "Wallet"];
+  const modes = ["Cash", "UPI", "Card", "Bank", "Wallet", "Partial"];
   
   const isWalkIn = !bill?.customer || bill.customer._id === "walk-in";
   const filtered = custSearch.trim()
@@ -131,27 +149,39 @@ export function POSRightPanel() {
     : customers;
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div className="flex flex-col h-full bg-card dark:bg-card">
       {/* ═══ TOTAL BILL CARD ═══ */}
-      <div className="mx-3 mt-3 p-4 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 text-white shadow-xl">
-        <div className="flex items-center justify-between mb-3">
+      <div className={cn(
+        "mx-4 mt-4 px-5 py-4 rounded-2xl shadow-xl",
+        isDark 
+          ? "bg-gradient-to-br from-purple-100 via-indigo-100 to-purple-50 text-slate-900"
+          : "bg-gradient-to-br from-slate-700 via-slate-700 to-slate-800 text-white"
+      )}>
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 opacity-60" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Total Bill Amount</span>
+            <Receipt className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isDark ? "opacity-70" : "opacity-75")} />
+            <span className={cn("text-[10px] font-semibold uppercase tracking-normal leading-5", isDark ? "opacity-75" : "opacity-80")}>
+              Total Bill Amount
+            </span>
           </div>
           <button 
             onClick={() => setShowFullBreakup(true)}
-            className="text-[10px] font-bold text-blue-300 hover:text-blue-200 transition-colors"
+            className={cn(
+              "text-[10px] font-semibold leading-3 text-right transition-colors shrink-0",
+              isDark ? "text-indigo-600 hover:text-indigo-700" : "text-indigo-200 hover:text-white"
+            )}
           >
-            Full Breakup [CTRL+F]
+            Full Breakup<br />
+            <span className="font-bold">[CTRL+F]</span>
           </button>
         </div>
-        <p className="text-3xl font-black tracking-tight mb-3">
+        <p className={cn("mt-7 text-[24px] leading-none font-bold font-sans tracking-normal tabular-nums", isDark ? "text-slate-950" : "text-white")}>
           {formatCurrency(grandTotal)}
         </p>
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest opacity-60 font-bold">
-          <span>Items: {totalItems}</span>
-          <span>Quantity: {totalQty}</span>
+        <div className={cn("my-4 h-px", isDark ? "bg-slate-300/80" : "bg-white/10")} />
+        <div className={cn("flex items-center justify-between text-[12px] uppercase tracking-normal", isDark ? "text-slate-700" : "text-slate-300")}>
+          <span>Items: <b className={cn("font-black", isDark ? "text-slate-950" : "text-white")}>{totalItems}</b></span>
+          <span>Quantity: <b className={cn("font-black", isDark ? "text-slate-950" : "text-white")}>{totalQty}</b></span>
         </div>
       </div>
 
@@ -234,30 +264,35 @@ export function POSRightPanel() {
       </div>
 
       {/* Payment Mode + Amount */}
-      <div className="p-3 flex-1 space-y-3">
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground pl-0.5">Payment Mode</label>
+      <div className="p-4 flex-1 space-y-4 overflow-y-auto overflow-x-visible bg-background dark:bg-background">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Payment Mode</label>
             <div className="relative" ref={paymentRef}>
               <button
                 type="button"
                 onClick={() => setShowPaymentDD(!showPaymentDD)}
-                className="w-full h-10 pl-3 pr-7 text-sm font-semibold text-left bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer transition-all"
+                className="w-full h-11 pl-4 pr-8 text-sm font-semibold text-left bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-primary/30 cursor-pointer transition-all hover:border-border dark:hover:border-border/50"
               >
                 {bill.paymentMode}
               </button>
               <ChevronDown className={cn(
-                "absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none transition-transform",
+                "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-transform",
                 showPaymentDD && "rotate-180"
               )} />
               {showPaymentDD && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-1000 max-h-40 overflow-y-auto bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl">
                   {modes.map(m => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => {
                         store.setPaymentMode(m);
+                        if (m === "Partial") {
+                          setShowPaymentDD(false);
+                          setShowMultiPay(true);
+                          return;
+                        }
                         if (m !== "Cash" && m !== "Wallet") {
                           const defaultBank = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
                           if (defaultBank && !bill.cashBankAccountId) {
@@ -269,10 +304,10 @@ export function POSRightPanel() {
                         setShowPaymentDD(false);
                       }}
                       className={cn(
-                        "w-full px-3 py-2.5 text-left text-sm font-semibold transition-colors border-b border-border/10 last:border-0",
+                        "w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors border-b border-border/10 last:border-0",
                         bill.paymentMode === m
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-muted/50"
+                          ? "bg-primary/10 dark:bg-primary/15 text-primary"
+                          : "text-foreground hover:bg-muted/50 dark:hover:bg-muted/30"
                       )}
                     >
                       {m}
@@ -282,43 +317,44 @@ export function POSRightPanel() {
               )}
             </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground pl-0.5">Amount Received</label>
+          <div className="space-y-2">
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Amount Received</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
               <input 
                 type="number" 
-                value={bill.amountReceived === 0 && !isAmountEdited ? "" : bill.amountReceived || ""} 
+                step="0.01"
+                value={bill.amountReceived === 0 && !isAmountEdited ? "" : formatNumberInputValue(bill.amountReceived)} 
                 onChange={(e) => {
                   setIsAmountEdited(true);
                   store.setAmountReceived(e.target.value === "" ? 0 : Number(e.target.value));
                 }}
                 placeholder={grandTotal.toFixed(2)}
-                className="w-full h-10 pl-7 pr-2 text-sm text-right font-bold bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all" 
+                className="w-full h-11 pl-8 pr-3 text-sm text-right font-bold bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-primary/30 transition-all hover:border-border dark:hover:border-border/50 placeholder:text-muted-foreground/50" 
               />
             </div>
           </div>
         </div>
 
         {bill.paymentMode !== "Cash" && bill.paymentMode !== "Wallet" && bankAccounts.length > 0 && (
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground pl-0.5">Collect in Bank Account</label>
+          <div className="space-y-2">
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Collect in Bank Account</label>
             <div className="relative" ref={bankRef}>
               <button
                 type="button"
                 onClick={() => setShowBankDD(!showBankDD)}
-                className="w-full h-10 pl-3 pr-7 text-sm font-semibold text-left bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer transition-all truncate"
+                className="w-full h-11 pl-4 pr-8 text-sm font-semibold text-left bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-primary/30 cursor-pointer transition-all hover:border-border dark:hover:border-border/50 truncate"
               >
                 {bill.cashBankAccountId
                   ? (bankAccounts.find(a => a._id === bill.cashBankAccountId)?.accountName || "Select Bank Account")
                   : "Select Bank Account"}
               </button>
               <ChevronDown className={cn(
-                "absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none transition-transform",
+                "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-transform",
                 showBankDD && "rotate-180"
               )} />
               {showBankDD && (
-                <div className="absolute left-0 right-0 bottom-full mb-1 z-50 bg-card border border-border rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                <div className="absolute left-0 right-0 bottom-full mb-1.5 z-50 bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto">
                   {bankAccounts.map((account) => (
                     <button
                       key={account._id}
@@ -328,10 +364,10 @@ export function POSRightPanel() {
                         setShowBankDD(false);
                       }}
                       className={cn(
-                        "w-full px-3 py-2.5 text-left text-sm font-semibold transition-colors border-b border-border/10 last:border-0",
+                        "w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors border-b border-border/10 last:border-0",
                         bill.cashBankAccountId === account._id
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-muted/50"
+                          ? "bg-primary/10 dark:bg-primary/15 text-primary"
+                          : "text-foreground hover:bg-muted/50 dark:hover:bg-muted/30"
                       )}
                     >
                       <span className="block truncate">{account.accountName} {account.bankName ? `(${account.bankName})` : ""}</span>
@@ -346,27 +382,27 @@ export function POSRightPanel() {
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border/50 space-y-2.5 bg-card">
+      <div className="p-4 border-t border-border/50 dark:border-border/30 space-y-3 bg-card dark:bg-card">
         {/* Change */}
-        <div className="flex items-center justify-between px-1">
-          <span className="text-sm font-bold text-muted-foreground">Change to Return:</span>
-          <span className="text-xl font-black text-emerald-500 tabular-nums">{formatCurrency(change)}</span>
+        <div className="flex items-center justify-between px-2 py-2 bg-success/10 dark:bg-success/15 rounded-lg border border-success/20 dark:border-success/30">
+          <span className="text-xs font-bold text-foreground">{paymentBalanceLabel}</span>
+          <span className="text-lg font-black text-success tabular-nums">{formatCurrency(paymentBalance)}</span>
         </div>
 
         {/* Save */}
         <button
           onClick={handleSave}
           disabled={saving || realItems.length === 0}
-          className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.15em] rounded-xl shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          className="w-full h-12 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground font-bold text-xs uppercase tracking-[0.15em] rounded-lg shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >
           <Printer className="h-4 w-4" />
-          {saving ? "Saving..." : "Save & Print Bill [Ctrl+P]"}
+          {saving ? "Saving..." : "SAVE & PRINT BILL"}
         </button>
         <button 
           onClick={() => setShowMultiPay(true)}
-          className="w-full h-10 border border-border/50 bg-muted/20 hover:bg-muted/40 text-foreground font-bold text-[10px] uppercase tracking-[0.12em] rounded-xl transition-colors"
+          className="w-full h-10 border border-border/50 dark:border-border/30 bg-muted/20 dark:bg-muted/15 hover:bg-muted/40 dark:hover:bg-muted/25 text-foreground font-bold text-[10px] uppercase tracking-[0.12em] rounded-lg transition-colors"
         >
-          Other/Credit Payments [Ctrl+M]
+          Other/Credit Payments [CTRL+M]
         </button>
       </div>
 
