@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { usePOSStore, WALK_IN_CUSTOMER, type POSItem } from "@/store/posStore";
 import { formatCurrency, formatNumberInputValue, cn } from "@/lib/utils";
 import { Trash2, Loader2, PackagePlus, ScanBarcode, X, Plus, ChevronDown, Calendar, User, ReceiptText, MoreVertical, Pencil, Percent, Ruler } from "lucide-react";
-import { ModifyItemModal } from "./ModifyItemModal";
 import { productService } from "@/services/productService";
 import { customerService } from "@/services/customerService";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -228,9 +227,7 @@ export function POSItemTable() {
     }, 50);
   };
 
-
-
-  const { activeBillId, getActiveBill, updateItem, updateItemProduct, removeItem, selectRow, addItem, setActiveModal } = usePOSStore();
+  const { activeBillId, getActiveBill, updateItem, updateItemProduct, removeItem, selectRow, addItem, setActiveModal, activeModal } = usePOSStore();
   const bill = getActiveBill();
   const [editItem, setEditItem] = useState<POSItem | null>(null);
   const tableViewportRef = useRef<HTMLDivElement>(null);
@@ -887,6 +884,468 @@ export function POSItemTable() {
           toast.success("Product created and added to cart!");
         }}
       />
+
+      {/* Action Modals for keyboard shortcuts */}
+      <ActionModals
+        type={activeModal}
+        onClose={() => setActiveModal(null)}
+      />
+    </div>
+  );
+}
+
+// ═══ LOCAL MODAL COMPONENTS ═══
+
+interface ModifyItemModalProps {
+  item: POSItem | null;
+  onClose: () => void;
+}
+
+function ModifyItemModal({ item, onClose }: ModifyItemModalProps) {
+  const { updateItem } = usePOSStore();
+
+  const [qty, setQty] = useState(1);
+  const [unit, setUnit] = useState("Pcs");
+  const [discPercent, setDiscPercent] = useState(0);
+  const [discRupee, setDiscRupee] = useState(0);
+  const [newPrice, setNewPrice] = useState(0);
+  const [freeQty, setFreeQty] = useState(0);
+  const [updatePermanently, setUpdatePermanently] = useState(false);
+
+  const qtyRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!item) return;
+    setQty(item.quantity);
+    setUnit(item.unit);
+    setDiscPercent(item.discount || 0);
+    setDiscRupee(0);
+    setNewPrice(item.pricePerUnit);
+    setFreeQty(0);
+  }, [item]);
+
+  useEffect(() => {
+    if (item) setTimeout(() => qtyRef.current?.select(), 100);
+  }, [item]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  if (!item) return null;
+
+  const handleSave = () => {
+    updateItem(item.id, {
+      quantity: qty,
+      unit,
+      pricePerUnit: newPrice,
+      discount: discPercent,
+    });
+    toast.success(`Updated ${item.itemName}`);
+    onClose();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative bg-card border border-border rounded-2xl shadow-2xl shadow-black/30 w-full max-w-lg mx-4 animate-in zoom-in-95 fade-in duration-200"
+        onKeyDown={handleKeyDown}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+          <h2 className="text-lg font-black tracking-tight">Modify Item</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+              <span className="text-[10px] font-mono opacity-60">[Esc]</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Item Name:</span>
+              <span className="text-sm font-bold">{item.itemName}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Price/Unit:</span>
+              <span className="text-sm font-bold">{formatCurrency(item.pricePerUnit)}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">Quantity</label>
+              <input
+                ref={qtyRef}
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+                className="w-full h-11 px-3 text-sm font-bold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">Unit</label>
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="w-full h-11 px-3 text-sm font-semibold bg-muted/30 border border-border/50 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer transition-all"
+              >
+                <option value="Pcs">PIECES (Pcs)</option>
+                <option value="Kg">KILOGRAMS (Kg)</option>
+                <option value="Ltr">LITRES (Ltr)</option>
+                <option value="Mtr">METERS (Mtr)</option>
+                <option value="Box">BOX (Box)</option>
+                <option value="Dozen">DOZEN (Dzn)</option>
+                <option value="Pair">PAIR (Pr)</option>
+                <option value="Set">SET (Set)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-5 gap-3 items-end">
+            <div className="col-span-2 space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">Discount in %</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">%</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={discPercent || ""}
+                  onChange={(e) => { setDiscPercent(Number(e.target.value)); setDiscRupee(0); }}
+                  placeholder="0"
+                  className="w-full h-11 pl-8 pr-3 text-sm text-right font-medium bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-center pb-2">
+              <span className="text-xs font-bold text-muted-foreground">OR</span>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">Discount in ₹</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={discRupee || ""}
+                  onChange={(e) => { setDiscRupee(Number(e.target.value)); setDiscPercent(0); }}
+                  placeholder="0"
+                  className="w-full h-11 pl-8 pr-3 text-sm text-right font-medium bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">New Price/Unit</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(Number(e.target.value))}
+                  className="w-full h-11 pl-8 pr-3 text-sm font-medium bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">Free Quantity</label>
+              <input
+                type="number"
+                min={0}
+                value={freeQty || ""}
+                onChange={(e) => setFreeQty(Number(e.target.value))}
+                placeholder=""
+                className="w-full h-11 px-3 text-sm font-medium bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={updatePermanently}
+              onChange={(e) => setUpdatePermanently(e.target.checked)}
+              className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+            />
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              Update Item Price Permanently
+            </span>
+          </label>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border/50 flex gap-3">
+          <button
+            onClick={handleSave}
+            className="flex-1 h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
+          >
+            Save
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 h-11 bg-muted/50 hover:bg-muted border border-border/50 text-foreground font-bold text-sm rounded-xl transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ActionModalType = "qty" | "itemDisc" | "unit" | "addCharges" | "billDisc" | "loyalty" | "remarks" | null;
+
+interface ActionModalsProps {
+  type: ActionModalType;
+  onClose: () => void;
+}
+
+function ActionModals({ type, onClose }: ActionModalsProps) {
+  const { getActiveBill, updateItem, updateBillField } = usePOSStore();
+  const bill = getActiveBill();
+  
+  const [val, setVal] = useState<string>("");
+  const [val2, setVal2] = useState<string>(""); 
+  const inputRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(null);
+
+  const selectedItem = bill && bill.selectedRowIndex >= 0 ? bill.items[bill.selectedRowIndex] : null;
+
+  useEffect(() => {
+    if (!type || !bill) return;
+    
+    if (type === "qty" && selectedItem) setVal(selectedItem.quantity.toString());
+    if (type === "itemDisc" && selectedItem) {
+      setVal(selectedItem.discount.toString());
+      setVal2("0");
+    }
+    if (type === "unit" && selectedItem) setVal(selectedItem.unit);
+    if (type === "addCharges") setVal(bill.additionalCharges?.toString() || "0");
+    if (type === "billDisc") setVal(bill.discount?.toString() || "0");
+    if (type === "loyalty") setVal("0");
+    if (type === "remarks") setVal(bill.remarks || "");
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        if (inputRef.current instanceof HTMLInputElement || inputRef.current instanceof HTMLTextAreaElement) {
+          inputRef.current.select();
+        } else {
+          inputRef.current.focus();
+        }
+      }
+    }, 100);
+  }, [type, selectedItem, bill]);
+
+  useEffect(() => {
+    if (!type) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [type, onClose]);
+
+  if (!type || !bill) return null;
+
+  const handleSave = () => {
+    if (["qty", "itemDisc", "unit"].includes(type) && !selectedItem) {
+      onClose();
+      return;
+    }
+
+    if (type === "qty") {
+      updateItem(selectedItem!.id, { quantity: Math.max(1, Number(val)) });
+    } else if (type === "itemDisc") {
+      updateItem(selectedItem!.id, { discount: Number(val) });
+    } else if (type === "unit") {
+      updateItem(selectedItem!.id, { unit: val });
+    } else if (type === "addCharges") {
+      updateBillField("additionalCharges", Number(val));
+    } else if (type === "billDisc") {
+      updateBillField("discount", Number(val));
+    } else if (type === "loyalty") {
+      // updateBillField("loyaltyPoints", Number(val));
+    } else if (type === "remarks") {
+      updateBillField("remarks", val);
+    }
+
+    onClose();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
+  const renderContent = () => {
+    switch (type) {
+      case "qty":
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Item Name:</span>
+              <span className="text-sm font-bold">{selectedItem?.itemName}</span>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Enter New Quantity</label>
+              <input ref={inputRef as any} type="number" value={val} onChange={(e) => setVal(e.target.value)}
+                className="w-full h-11 px-3 text-sm font-bold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all" />
+            </div>
+          </div>
+        );
+      case "itemDisc":
+        return (
+          <div className="space-y-4">
+             <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Item Name:</span>
+              <span className="text-sm font-bold">{selectedItem?.itemName}</span>
+            </div>
+            <div className="grid grid-cols-5 gap-3 items-end">
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Discount in %</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">%</span>
+                  <input ref={inputRef as any} type="number" value={val} onChange={(e) => { setVal(e.target.value); setVal2("0"); }}
+                    className="w-full h-11 pl-8 pr-3 text-sm font-bold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all" />
+                </div>
+              </div>
+              <div className="flex items-center justify-center pb-2">
+                <span className="text-xs font-bold text-muted-foreground">OR</span>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Discount in ₹</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                  <input type="number" value={val2} onChange={(e) => { setVal2(e.target.value); setVal("0"); }}
+                    className="w-full h-11 pl-8 pr-3 text-sm font-bold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all" />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case "unit":
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Item Name:</span>
+              <span className="text-sm font-bold">{selectedItem?.itemName}</span>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Unit</label>
+              <select ref={inputRef as any} value={val} onChange={(e) => setVal(e.target.value)}
+                className="w-full h-11 px-3 text-sm font-semibold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all">
+                <option value="Pcs">PIECES (Pcs)</option>
+                <option value="Kg">KILOGRAMS (Kg)</option>
+                <option value="Ltr">LITRES (Ltr)</option>
+                <option value="Mtr">METERS (Mtr)</option>
+                <option value="Box">BOX (Box)</option>
+              </select>
+            </div>
+          </div>
+        );
+      case "addCharges":
+      case "billDisc":
+      case "loyalty":
+        return (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Enter Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                <input ref={inputRef as any} type="number" value={val} onChange={(e) => setVal(e.target.value)}
+                  className="w-full h-11 pl-8 pr-3 text-sm font-bold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all" />
+              </div>
+            </div>
+          </div>
+        );
+      case "remarks":
+        return (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Enter Remarks</label>
+              <textarea ref={inputRef as any} value={val} onChange={(e) => setVal(e.target.value)} rows={3}
+                className="w-full p-3 text-sm font-semibold bg-primary/5 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all" />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const titles = {
+    qty: "Change Quantity",
+    itemDisc: "Item Discount",
+    unit: "Change Unit",
+    addCharges: "Additional Charges",
+    billDisc: "Bill Discount",
+    loyalty: "Loyalty Points",
+    remarks: "Remarks"
+  };
+
+  const needSelection = ["qty", "itemDisc", "unit"].includes(type) && (!selectedItem || selectedItem.itemName === "");
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div 
+        className="relative bg-card border border-border rounded-xl shadow-2xl shadow-black/30 w-full max-w-sm mx-4 animate-in zoom-in-95 fade-in duration-200"
+        onKeyDown={handleKeyDown}
+      >
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50">
+          <h2 className="text-base font-black tracking-tight">{titles[type]}</h2>
+          <button onClick={onClose} className="flex items-center gap-1 px-1.5 py-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+            <span className="text-[10px] font-mono opacity-60">[Esc]</span>
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          {needSelection ? (
+            <div className="text-sm text-destructive font-semibold text-center py-4">
+              Please select an item first!
+            </div>
+          ) : (
+            renderContent()
+          )}
+        </div>
+
+        <div className="px-5 py-3.5 border-t border-border/50 flex gap-3">
+          <button
+            onClick={handleSave}
+            disabled={needSelection}
+            className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-sm rounded-lg shadow-md active:scale-[0.98] transition-all"
+          >
+            Save
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 h-10 bg-muted/50 hover:bg-muted border border-border/50 text-foreground font-bold text-sm rounded-lg transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
