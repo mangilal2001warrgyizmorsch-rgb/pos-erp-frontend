@@ -54,7 +54,7 @@ export default function ExpensesPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await expenseService.getAll({ search, limit: 50 });
+      const result = await expenseService.getAll({ search, limit: 500 });
       setExpenses(result.data);
     } catch { toast.error("Failed to load expenses"); }
     finally { setLoading(false); }
@@ -69,7 +69,7 @@ export default function ExpensesPage() {
           setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
         }
       })
-      .catch(err => console.error("Failed to load bank accounts:", err));
+      .catch(() => toast.error("Failed to load bank accounts"));
   }, []);
 
   const openCreate = () => {
@@ -107,12 +107,18 @@ export default function ExpensesPage() {
   };
 
   const handleSave = async () => {
+    const amount = Number(form.amount);
     if (!form.title || !form.amount) { toast.error("Title and amount are required"); return; }
+    if (!amount || amount <= 0) { toast.error("Amount must be greater than 0"); return; }
+    if (form.paymentMethod !== "cash" && !form.cashBankAccountId) {
+      toast.error("Please select a bank account for non-cash expense");
+      return;
+    }
     try {
       setSaving(true);
       const payload = {
         ...form,
-        amount: Number(form.amount),
+        amount,
         categoryName: form.category,
       };
       

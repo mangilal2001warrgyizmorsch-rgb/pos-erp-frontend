@@ -805,6 +805,15 @@ export default function CreatePurchasePage() {
       toast.error("Please enter a product name for all new items"); return;
     }
     if (validItems.some((i) => i.quantity <= 0)) { toast.error("Quantity must be > 0"); return; }
+    if (validItems.some((i) => i.purchaseRate < 0 || i.salesPrice < 0 || i.discount < 0 || i.taxRate < 0)) {
+      toast.error("Price, discount, and tax values cannot be negative"); return;
+    }
+    if (status === "confirmed" && paymentMethod !== "cash" && !cashBankAccountId) {
+      toast.error("Please select a bank account for non-cash payment"); return;
+    }
+    if (validItems.some((i) => !i.product) && categories.length === 0) {
+      toast.error("Please create at least one category before adding new products"); return;
+    }
 
     try {
       setSaving(true);

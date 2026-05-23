@@ -36,7 +36,8 @@ export default function ShiftsPage() {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [openingCash, setOpeningCash] = useState("0");
   const [closingCash, setClosingCash] = useState("");
-  const [notes, setNotes] = useState("");
+  const [openNotes, setOpenNotes] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const loadCurrentShift = useCallback(async () => {
@@ -56,11 +57,17 @@ export default function ShiftsPage() {
   }, [loadCurrentShift]);
 
   const handleOpenShift = async () => {
+    const amount = Number(openingCash);
+    if (Number.isNaN(amount) || amount < 0) {
+      toast.error("Opening cash cannot be negative");
+      return;
+    }
     try {
       setSubmitting(true);
-      await axios.post("/api/shifts/open", { openingCash: Number(openingCash), notes });
+      await axios.post("/api/shifts/open", { openingCash: amount, notes: openNotes });
       toast.success("Shift opened successfully");
       setOpenDialogOpen(false);
+      setOpenNotes("");
       loadCurrentShift();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to open shift");
@@ -74,11 +81,17 @@ export default function ShiftsPage() {
       toast.error("Please enter actual closing cash");
       return;
     }
+    const amount = Number(closingCash);
+    if (Number.isNaN(amount) || amount < 0) {
+      toast.error("Closing cash cannot be negative");
+      return;
+    }
     try {
       setSubmitting(true);
-      await axios.put("/api/shifts/close", { closingCash: Number(closingCash), notes });
+      await axios.put("/api/shifts/close", { closingCash: amount, notes: closeNotes });
       toast.success("Shift closed successfully");
       setCloseDialogOpen(false);
+      setCloseNotes("");
       loadCurrentShift();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to close shift");
@@ -198,7 +211,7 @@ export default function ShiftsPage() {
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Counter No, Cashier Name etc." />
+              <Input value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} placeholder="Counter No, Cashier Name etc." />
             </div>
           </div>
           <DialogFooter>
@@ -252,7 +265,7 @@ export default function ShiftsPage() {
 
             <div className="space-y-2">
               <Label>Closing Notes</Label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional closing notes..." />
+              <Input value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} placeholder="Optional closing notes..." />
             </div>
           </div>
           <DialogFooter>

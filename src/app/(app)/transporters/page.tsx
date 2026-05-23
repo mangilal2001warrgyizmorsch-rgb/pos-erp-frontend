@@ -37,7 +37,7 @@ export default function TransportersPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await transporterService.getAll({ search, limit: 50 });
+      const result = await transporterService.getAll({ search, limit: 500 });
       setTransporters(result.data);
     } catch { toast.error("Failed to load transporters"); }
     finally { setLoading(false); }

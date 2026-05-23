@@ -31,7 +31,7 @@ export default function SuppliersPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await supplierService.getAll({ search, limit: 50 });
+      const result = await supplierService.getAll({ search, limit: 500 });
       setSuppliers(result.data);
     } catch { 
       toast.error("Failed to load suppliers"); 
@@ -91,8 +91,10 @@ export default function SuppliersPage() {
             onChange={(e) => setSearch(e.target.value)} 
           />
         </div>
-        <Button variant="outline" size="icon" className="border-muted-foreground/20"><Filter className="h-4 w-4" /></Button>
-        <Button variant="outline" className="border-muted-foreground/20 ml-auto hidden sm:flex">
+        <Button variant="outline" size="icon" className="border-muted-foreground/20" onClick={() => toast.info("Supplier filters are coming soon")}>
+          <Filter className="h-4 w-4" />
+        </Button>
+        <Button variant="outline" className="border-muted-foreground/20 ml-auto hidden sm:flex" onClick={() => toast.info("Supplier export is coming soon")}>
           <FileDown className="h-4 w-4 mr-2" /> Export
         </Button>
       </div>

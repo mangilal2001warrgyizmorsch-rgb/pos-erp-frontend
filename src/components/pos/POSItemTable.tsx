@@ -372,8 +372,9 @@ export function POSItemTable() {
           }
         } else {
           toast.error("Product not found for barcode: " + barcode);
-          setScannedBarcode(barcode);
-          setShowProductModal(true);
+          // Don't automatically open the modal - let the user explicitly click "Add New Product"
+          // setScannedBarcode(barcode);
+          // setShowProductModal(true);
         }
       } catch {
         toast.error("Failed to lookup barcode");

@@ -518,6 +518,9 @@ export default function OpeningStockPage() {
       toast.error("Please enter a product name for all new items"); return;
     }
     if (validItems.some((i) => i.quantity <= 0)) { toast.error("Quantity must be > 0"); return; }
+    if (validItems.some((i) => i.purchaseRate < 0 || i.salesPrice < 0 || i.taxRate < 0)) {
+      toast.error("Price and tax values cannot be negative"); return;
+    }
 
     const hasNewProducts = validItems.some((i) => !i.product);
     if (hasNewProducts && categories.length === 0) {

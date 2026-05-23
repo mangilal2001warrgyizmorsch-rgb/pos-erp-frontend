@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Receipt, Search, Filter, MoreVertical, BadgeCheck, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,8 @@ export default function ChequesPage() {
   const [search, setSearch] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editCheque, setEditCheque] = useState<Cheque | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({
     type: "received",
     chequeNumber: "",
@@ -126,11 +129,13 @@ export default function ChequesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!deleteId) return;
     try {
-      const response = await chequeService.delete(id);
+      const response = await chequeService.delete(deleteId);
       if (response.success) {
         toast.success("Cheque entry deleted successfully");
+        setDeleteId(null);
         fetchCheques();
       }
     } catch (error: any) {
@@ -170,6 +175,16 @@ export default function ChequesPage() {
             <Plus className="mr-2 h-4 w-4" /> Add Cheque
           </Button>
         </div>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search cheques..."
+          className="pl-10"
+        />
       </div>
 
       {cheques.length === 0 ? (
@@ -283,7 +298,10 @@ export default function ChequesPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-500 font-semibold cursor-pointer rounded-lg focus:text-red-500 focus:bg-red-500/5"
-                            onClick={() => handleDelete(cheque._id)}
+                            onClick={() => {
+                              setDeleteId(cheque._id);
+                              setDeleteOpen(true);
+                            }}
                           >
                             <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Delete Cheque
                           </DropdownMenuItem>
@@ -422,6 +440,15 @@ export default function ChequesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Cheque"
+        description="This will permanently delete this cheque entry. This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

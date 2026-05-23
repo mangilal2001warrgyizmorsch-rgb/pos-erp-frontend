@@ -41,10 +41,12 @@ export default function BarcodeGeneratorPage() {
 
   const handleAdd = () => {
     if (!form.itemName || !form.itemCode) return;
+    const labelCount = parseInt(form.noOfLabels);
+    if (Number.isNaN(labelCount) || labelCount <= 0) return;
     setAddedItems(prev => [...prev, {
       id: Math.random().toString(36).substring(7),
       ...form,
-      noOfLabels: parseInt(form.noOfLabels) || 1,
+      noOfLabels: labelCount,
       selected: true
     }]);
     setForm({ ...form, itemCode: "", noOfLabels: "1" }); // keep settings but reset code

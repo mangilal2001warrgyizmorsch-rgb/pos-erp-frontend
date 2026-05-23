@@ -57,7 +57,7 @@ export default function SubcategoriesPage() {
       
       // Fetch products to compute counts
       try {
-        const prodData = await productService.getAll({ limit: 1000 });
+        const prodData = await productService.getAll({ limit: 10000 });
         const counts: Record<string, number> = {};
         prodData.data.forEach((p) => {
           if (p.subcategoryId) {
@@ -208,7 +208,9 @@ export default function SubcategoriesPage() {
                     <TableCell>
                       <Badge variant="outline" className="bg-muted/50 font-normal">
                         {subcat.parentCategoryId 
-                          ? (typeof subcat.parentCategoryId === 'string' ? 'Unknown' : (subcat.parentCategoryId as any).name)
+                          ? (typeof subcat.parentCategoryId === 'string'
+                            ? categories.find((c) => c._id === subcat.parentCategoryId)?.name || 'Unknown'
+                            : (subcat.parentCategoryId as any).name)
                           : 'No Parent'}
                       </Badge>
                     </TableCell>
@@ -218,8 +220,9 @@ export default function SubcategoriesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> Active
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md ${subcat.isActive ? "text-emerald-600 bg-emerald-500/10" : "text-muted-foreground bg-muted"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${subcat.isActive ? "bg-emerald-600" : "bg-muted-foreground"}`}></span>
+                        {subcat.isActive ? "Active" : "Inactive"}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">

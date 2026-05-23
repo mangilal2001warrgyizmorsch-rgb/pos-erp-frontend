@@ -232,6 +232,16 @@ export default function ProductsPage() {
       toast.error("Please fill all required fields");
       return;
     }
+    const stock = Number(form.stock);
+    const lowStockThreshold = Number(form.lowStockThreshold);
+    const salesPrice = Number(form.salesPrice);
+    const purchasePrice = Number(form.purchasePrice);
+    const taxRate = Number(form.taxRate);
+    const openingStockPrice = Number(form.openingStockPrice);
+    if ([stock, lowStockThreshold, salesPrice, purchasePrice, taxRate, openingStockPrice].some((value) => Number.isNaN(value) || value < 0)) {
+      toast.error("Stock, prices, and tax values cannot be negative");
+      return;
+    }
     try {
       setSaving(true);
       const payload: Partial<Product> = {
@@ -242,15 +252,17 @@ export default function ProductsPage() {
         category: form.category,
         subcategoryId: form.subcategoryId || undefined,
         hsnCode: form.hsnCode,
-        stock: Number(form.stock),
-        lowStockThreshold: Number(form.lowStockThreshold),
+        stock,
+        lowStockThreshold,
         unit: form.unit as "piece" | "kg" | "liter" | "meter" | "box" | "dozen",
         images: form.images,
         image: form.images.length > 0 ? form.images[0] : undefined,
-        salesPrice: Number(form.salesPrice),
-        purchasePrice: Number(form.purchasePrice),
-        taxRate: Number(form.taxRate),
-        openingStockPrice: Number(form.openingStockPrice),
+        salesPrice,
+        purchasePrice,
+        taxRate,
+        salesTaxType: form.salesTaxType as any,
+        purchaseTaxType: form.purchaseTaxType as any,
+        openingStockPrice,
         openingStockDate: form.openingStockDate,
       };
 

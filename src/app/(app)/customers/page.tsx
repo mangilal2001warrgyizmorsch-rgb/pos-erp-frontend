@@ -31,7 +31,7 @@ export default function CustomersPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await customerService.getAll({ search, limit: 50 });
+      const result = await customerService.getAll({ search, limit: 500 });
       setCustomers(result.data);
     } catch {
       toast.error("Failed to load");

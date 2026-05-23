@@ -23,6 +23,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
     try {
       setSaving(true);
       const res = await authService.updateProfile({ name, phone });

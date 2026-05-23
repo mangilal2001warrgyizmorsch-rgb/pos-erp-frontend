@@ -56,13 +56,20 @@ export default function LoanAccountsPage() {
         toast.error("Please fill all required fields");
         return;
       }
+      const totalAmount = Number(form.totalAmount);
+      const interestRate = Number(form.interestRate || 0);
+      if (!totalAmount || totalAmount <= 0) {
+        toast.error("Loan amount must be greater than 0");
+        return;
+      }
+      if (Number.isNaN(interestRate) || interestRate < 0) {
+        toast.error("Interest rate cannot be negative");
+        return;
+      }
       
       let response;
       if (editLoan) {
-        response = await loanService.update(editLoan._id, {
-          ...form,
-          currentBalance: editLoan.currentBalance - (editLoan.totalAmount - Number(form.totalAmount))
-        });
+        response = await loanService.update(editLoan._id, form);
       } else {
         response = await loanService.create(form);
       }
@@ -80,6 +87,7 @@ export default function LoanAccountsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this loan account?")) return;
     try {
       const response = await loanService.delete(id);
       if (response.success) {

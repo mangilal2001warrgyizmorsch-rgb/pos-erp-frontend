@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { PackageOpen, FileSpreadsheet, Database, ChevronLeft, Upload, CheckCircle2, ScanBarcode, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,6 +24,7 @@ const GLOBAL_LIBRARY = [
 ];
 
 export default function ImportExportPage() {
+  const router = useRouter();
   const [selectedMethod, setSelectedMethod] = useState("barcode");
   
   // Excel State
@@ -134,7 +136,7 @@ export default function ImportExportPage() {
 
       {/* Header */}
       <div className="flex items-center gap-4 border-b pb-4 mb-8">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground bg-muted/50 rounded-md">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground bg-muted/50 rounded-md" onClick={() => router.back()}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">

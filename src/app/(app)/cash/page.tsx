@@ -46,10 +46,47 @@ export default function CashPage() {
     loadData();
   }, [loadData]);
 
-  const handleSave = () => {
-    // Implement adjustment logic if needed
-    setIsAdjustModalOpen(false);
+  const handleSave = async () => {
+    const amount = Number(form.amount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount greater than 0");
+      return;
+    }
+
+    try {
+      await cashBankService.createCashEntry({
+        type: form.type === "add" ? "cash_entry_in" : "cash_entry_out",
+        amount,
+        date: form.date,
+        paymentMode: "Cash",
+        remarks: form.remarks,
+      });
+      toast.success("Cash adjustment saved");
+      setIsAdjustModalOpen(false);
+      setForm({
+        amount: "",
+        type: "add",
+        date: new Date().toISOString().split("T")[0],
+        remarks: "",
+      });
+      loadData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save cash adjustment");
+    }
   };
+
+  const filteredTransactions = transactions.filter((tx) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [
+      tx.type,
+      tx.receiptNo,
+      tx.transactionNo,
+      tx.partyName,
+      tx.amount?.toString(),
+      formatDate(tx.date),
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
 
 
   return (
@@ -136,14 +173,14 @@ export default function CashPage() {
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
                   </td>
                 </tr>
-              ) : transactions.length === 0 ? (
+              ) : filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center p-8 text-muted-foreground">
                     No transactions found.
                   </td>
                 </tr>
               ) : (
-                transactions.map((tx, i) => (
+                filteredTransactions.map((tx, i) => (
                   <motion.tr 
                     key={tx._id} 
                     initial={{ opacity: 0 }} 

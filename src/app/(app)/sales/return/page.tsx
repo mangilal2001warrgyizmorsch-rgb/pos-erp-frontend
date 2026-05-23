@@ -266,12 +266,20 @@ export default function SaleReturnPage() {
       toast.error("Please specify return quantity for at least one item");
       return;
     }
+    if (refundType === "refund_now" && paymentMode !== "Cash" && !cashBankAccountId) {
+      toast.error("Please select an account for non-cash refund");
+      return;
+    }
 
     // Verify quantities do not exceed returnable
     for (const item of activeItems) {
       const maxReturn = item.soldQty - item.alreadyReturnedQty;
       if (item.returnQty > maxReturn) {
         toast.error(`Return quantity for ${item.itemName} cannot exceed ${maxReturn}`);
+        return;
+      }
+      if (item.returnQty < 0) {
+        toast.error(`Return quantity for ${item.itemName} cannot be negative`);
         return;
       }
     }

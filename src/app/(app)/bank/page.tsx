@@ -116,6 +116,7 @@ export default function BankAccountsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this bank account?")) return;
     try {
       const response = await bankService.delete(id);
       if (response.success) {

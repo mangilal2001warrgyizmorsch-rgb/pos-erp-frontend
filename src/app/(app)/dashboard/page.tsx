@@ -30,6 +30,7 @@ import { CardSkeleton } from "@/components/shared/LoadingSkeleton";
 import { saleService } from "@/services/saleService";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { DashboardStats } from "@/types";
+import { toast } from "sonner";
 
 const monthNames = [
   "Jan",
@@ -60,6 +61,7 @@ export default function DashboardPage() {
       setStats(data);
     } catch (error) {
       console.error("Failed to load dashboard stats:", error);
+      toast.error("Failed to load dashboard stats");
     } finally {
       setLoading(false);
     }

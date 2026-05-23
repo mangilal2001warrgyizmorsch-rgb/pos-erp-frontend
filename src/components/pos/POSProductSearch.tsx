@@ -210,7 +210,19 @@ export function POSProductSearch() {
                     <CornerDownLeft className="h-4 w-4" /> Add Blank Row
                   </button>
                   <span className="text-muted-foreground/40">|</span>
-                  <button className="flex items-center gap-2 text-sm font-semibold text-emerald-500 hover:underline">
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Handle "Add New Product" - could open a modal or redirect
+                      // For now, just add a blank row with the search query as name
+                      addItem({ itemName: query || "New Product", customItem: true, unit: "Pcs" });
+                      toast.info("Blank row added"); 
+                      setQuery(""); 
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-2 text-sm font-semibold text-emerald-500 hover:underline"
+                  >
                     <PackagePlus className="h-4 w-4" /> Add New Product
                   </button>
                 </div>

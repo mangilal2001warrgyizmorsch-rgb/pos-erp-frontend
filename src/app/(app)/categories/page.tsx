@@ -44,7 +44,7 @@ export default function CategoriesPage() {
       
       // Fetch products to compute counts
       try {
-        const prodData = await productService.getAll({ limit: 1000 });
+        const prodData = await productService.getAll({ limit: 10000 });
         const counts: Record<string, number> = {};
         prodData.data.forEach((p) => {
           const catId = typeof p.category === 'string' ? p.category : p.category._id;
@@ -176,8 +176,9 @@ export default function CategoriesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> Active
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md ${cat.isActive ? "text-emerald-600 bg-emerald-500/10" : "text-muted-foreground bg-muted"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${cat.isActive ? "bg-emerald-600" : "bg-muted-foreground"}`}></span>
+                        {cat.isActive ? "Active" : "Inactive"}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">

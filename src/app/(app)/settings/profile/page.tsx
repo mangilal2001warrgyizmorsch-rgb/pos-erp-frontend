@@ -71,6 +71,18 @@ export default function BusinessProfilePage() {
   }, [storeProfile]);
 
   const handleSave = async () => {
+    if (!localProfile.businessName?.trim()) {
+      toast.error("Business name is required");
+      return;
+    }
+    if (localProfile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localProfile.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    if (localProfile.pincode && !/^\d{6}$/.test(localProfile.pincode)) {
+      toast.error("Please enter a valid 6-digit pincode");
+      return;
+    }
     try {
       setSaving(true);
       await updateProfile(localProfile);
