@@ -2,8 +2,11 @@ import api from "./api";
 import type { Subcategory, ApiResponse } from "@/types";
 
 export const subcategoryService = {
-  getAll: async (params?: { search?: string; parentCategoryId?: string }): Promise<Subcategory[]> => {
+  getAll: async (params?: { search?: string; parentCategoryId?: string; all?: string; page?: number; limit?: number }): Promise<any> => {
     const { data } = await api.get<ApiResponse<Subcategory[]>>("/subcategories", { params });
+    if (params?.page) {
+      return { data: data.data, pagination: data.pagination };
+    }
     return data.data;
   },
 

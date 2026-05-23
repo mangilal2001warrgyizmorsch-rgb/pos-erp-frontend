@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PackageOpen, FileSpreadsheet, Database, ChevronLeft, Upload, CheckCircle2, ScanBarcode, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-
-// Mock Global Library Items
-const GLOBAL_LIBRARY = [
-  { id: "1", barcode: "8901493000000", name: "Parle-G Original Gluco Biscuits", category: "Snacks", price: 10 },
-  { id: "2", barcode: "8901058862217", name: "Maggi 2-Minute Noodles", category: "Food", price: 14 },
-  { id: "3", barcode: "8901030310008", name: "Coca-Cola 750ml", category: "Beverages", price: 40 },
-  { id: "4", barcode: "8901262150172", name: "Amul Butter 100g", category: "Dairy", price: 54 },
-  { id: "5", barcode: "8901138210332", name: "Dabur Honey 250g", category: "Grocery", price: 99 },
-];
+import { productService } from "@/services/productService";
 
 export default function ImportExportPage() {
   const router = useRouter();
@@ -42,8 +33,9 @@ export default function ImportExportPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedLibraryItems, setSelectedLibraryItems] = useState<string[]>([]);
+  const [libraryItems, setLibraryItems] = useState<any[]>([]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedMethod === "excel") {
       fileInputRef.current?.click();
     } else if (selectedMethod === "barcode") {
@@ -54,6 +46,15 @@ export default function ImportExportPage() {
       setIsLibraryOpen(true);
       setLibrarySearch("");
       setSelectedLibraryItems([]);
+      try {
+        setIsImporting(true);
+        const res = await productService.getGlobalLibrary();
+        setLibraryItems(res || []);
+      } catch {
+        toast.error("Failed to load library items");
+      } finally {
+        setIsImporting(false);
+      }
     }
   };
 
@@ -86,48 +87,133 @@ export default function ImportExportPage() {
   };
 
   const handleImportToDatabase = async () => {
-    setIsImporting(true);
-    setTimeout(() => {
+    if (parsedData.length === 0) return;
+    try {
+      setIsImporting(true);
+      const mapped = parsedData.map(row => ({
+        name: row.Name || row.name || row["Product Name"] || "",
+        sku: row.SKU || row.sku || "",
+        barcode: String(row.Barcode || row.barcode || ""),
+        description: row.Description || row.description || "",
+        category: row.Category || row.category || "",
+        stock: Number(row.Stock || row.stock || row.Quantity || row.quantity || 0),
+        salesPrice: Number(row.SalesPrice || row.salesPrice || row["Sales Price"] || 0),
+        purchasePrice: Number(row.PurchasePrice || row.purchasePrice || row["Purchase Price"] || 0),
+        taxRate: Number(row.TaxRate || row.taxRate || row["Tax Rate"] || 0),
+        unit: row.Unit || row.unit || "piece"
+      }));
+
+      const res = await productService.bulkImport(mapped);
+      if (res.success) {
+        toast.success(`Successfully imported ${res.data?.length || mapped.length} items to your database!`);
+        setIsPreviewOpen(false);
+        setParsedData([]);
+      } else {
+        toast.error(res.message || "Import failed");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to import excel items");
+    } finally {
       setIsImporting(false);
-      setIsPreviewOpen(false);
-      toast.success(`Successfully imported ${parsedData.length} items to your database!`);
-      setParsedData([]);
-    }, 1500);
+    }
   };
 
-  const handleBarcodeSearch = () => {
+  const handleBarcodeSearch = async () => {
     if (!scannedBarcode) return;
-    setIsImporting(true);
-    setTimeout(() => {
-      setIsImporting(false);
-      const found = GLOBAL_LIBRARY.find(item => item.barcode === scannedBarcode);
-      if (found) {
-        setScannedResult(found);
+    try {
+      setIsImporting(true);
+      const data = await productService.getGlobalLibrary({ barcode: scannedBarcode });
+      if (data && data.length > 0) {
+        setScannedResult(data[0]);
       } else {
         toast.error("Item not found in the global library.");
         setScannedResult(null);
       }
-    }, 800);
-  };
-
-  const handleSaveBarcodeItem = () => {
-    toast.success(`${scannedResult.name} imported successfully!`);
-    setIsBarcodeOpen(false);
-  };
-
-  const handleImportLibraryItems = () => {
-    setIsImporting(true);
-    setTimeout(() => {
+    } catch {
+      toast.error("Failed to search barcode in library");
+      setScannedResult(null);
+    } finally {
       setIsImporting(false);
-      setIsLibraryOpen(false);
-      toast.success(`Successfully imported ${selectedLibraryItems.length} items from the library!`);
-    }, 1000);
+    }
   };
 
-  const filteredLibrary = GLOBAL_LIBRARY.filter(i => 
-    i.name.toLowerCase().includes(librarySearch.toLowerCase()) || 
-    i.barcode.includes(librarySearch)
-  );
+  const handleSaveBarcodeItem = async () => {
+    if (!scannedResult) return;
+    try {
+      setIsImporting(true);
+      const payload = {
+        products: [
+          {
+            name: scannedResult.name,
+            barcode: scannedResult.barcode,
+            category: scannedResult.category,
+            salesPrice: scannedResult.price || 0,
+            purchasePrice: scannedResult.price || 0,
+            stock: 0,
+            unit: "piece",
+            taxRate: scannedResult.taxRate || 0,
+          }
+        ]
+      };
+      const res = await productService.bulkImport(payload.products);
+      if (res.success) {
+        toast.success(`${scannedResult.name} imported successfully!`);
+        setIsBarcodeOpen(false);
+      } else {
+        toast.error(res.message || "Failed to import item");
+      }
+    } catch {
+      toast.error("Failed to import item");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImportLibraryItems = async () => {
+    if (selectedLibraryItems.length === 0) return;
+    try {
+      setIsImporting(true);
+      const itemsToImport = libraryItems.filter(item => selectedLibraryItems.includes(item.barcode)).map(item => ({
+        name: item.name,
+        barcode: item.barcode,
+        category: item.category,
+        salesPrice: item.price || 0,
+        purchasePrice: item.price || 0,
+        stock: 0,
+        unit: "piece",
+        taxRate: item.taxRate || 0
+      }));
+      
+      const res = await productService.bulkImport(itemsToImport);
+      if (res.success) {
+        toast.success(`Successfully imported ${itemsToImport.length} items from the library!`);
+        setIsLibraryOpen(false);
+      } else {
+        toast.error(res.message || "Import failed");
+      }
+    } catch {
+      toast.error("Failed to import library items");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Debounced search for library
+  useEffect(() => {
+    if (!isLibraryOpen) return;
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        setIsImporting(true);
+        const res = await productService.getGlobalLibrary({ search: librarySearch });
+        setLibraryItems(res || []);
+      } catch {
+        toast.error("Failed to load library items");
+      } finally {
+        setIsImporting(false);
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [librarySearch, isLibraryOpen]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
@@ -178,7 +264,7 @@ export default function ImportExportPage() {
                 </div>
                 <h3 className="text-lg font-bold mb-3">Import From Barcode</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Import item details by scanning barcodes. The system uses a library of 100 Mn+ standard barcodes to fetch all details of your items in seconds.
+                  Import item details by scanning barcodes. The system uses a verified library of standard barcodes to fetch all details of your items in seconds.
                 </p>
               </div>
             </Card>
@@ -259,7 +345,7 @@ export default function ImportExportPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b sticky top-0">
-                  <th className="p-3 text-left font-semibold w-12">#</th>
+                  <th className="p-3 text-left w-12">#</th>
                   {parsedData.length > 0 && Object.keys(parsedData[0]).map((key, i) => <th key={i} className="p-3 text-left font-semibold whitespace-nowrap">{key}</th>)}
                 </tr>
               </thead>
@@ -275,7 +361,9 @@ export default function ImportExportPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPreviewOpen(false)} disabled={isImporting}>Cancel</Button>
-            <Button onClick={handleImportToDatabase} disabled={isImporting} className="gap-2"><Upload className="h-4 w-4" /> {isImporting ? "Importing..." : `Import ${parsedData.length} Items`}</Button>
+            <Button onClick={handleImportToDatabase} disabled={isImporting} className="gap-2">
+              {isImporting ? "Importing..." : <><Upload className="h-4 w-4" /> Import {parsedData.length} Items</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -306,7 +394,7 @@ export default function ImportExportPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsBarcodeOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveBarcodeItem} disabled={!scannedResult}>Import Item</Button>
+            <Button onClick={handleSaveBarcodeItem} disabled={!scannedResult || isImporting}>Import Item</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -329,7 +417,12 @@ export default function ImportExportPage() {
               <thead>
                 <tr className="bg-muted/50 border-b sticky top-0">
                   <th className="p-3 text-left w-12">
-                    <input type="checkbox" onChange={(e) => setSelectedLibraryItems(e.target.checked ? filteredLibrary.map(i => i.id) : [])} checked={selectedLibraryItems.length === filteredLibrary.length && filteredLibrary.length > 0} className="rounded border-border text-primary focus:ring-primary" />
+                    <input 
+                      type="checkbox" 
+                      onChange={(e) => setSelectedLibraryItems(e.target.checked ? libraryItems.map(i => i.barcode) : [])} 
+                      checked={selectedLibraryItems.length === libraryItems.length && libraryItems.length > 0} 
+                      className="rounded border-border text-primary focus:ring-primary" 
+                    />
                   </th>
                   <th className="p-3 text-left font-semibold">Product Name</th>
                   <th className="p-3 text-left font-semibold">Barcode</th>
@@ -338,16 +431,16 @@ export default function ImportExportPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLibrary.length === 0 ? (
+                {libraryItems.length === 0 ? (
                   <tr><td colSpan={5} className="text-center p-8 text-muted-foreground">No items found matching your search.</td></tr>
                 ) : (
-                  filteredLibrary.map((item) => (
-                    <tr key={item.id} className="border-b last:border-0 hover:bg-muted/20 cursor-pointer" onClick={() => {
-                      if (selectedLibraryItems.includes(item.id)) setSelectedLibraryItems(selectedLibraryItems.filter(id => id !== item.id));
-                      else setSelectedLibraryItems([...selectedLibraryItems, item.id]);
+                  libraryItems.map((item) => (
+                    <tr key={item.barcode} className="border-b last:border-0 hover:bg-muted/20 cursor-pointer" onClick={() => {
+                      if (selectedLibraryItems.includes(item.barcode)) setSelectedLibraryItems(selectedLibraryItems.filter(id => id !== item.barcode));
+                      else setSelectedLibraryItems([...selectedLibraryItems, item.barcode]);
                     }}>
                       <td className="p-3">
-                        <input type="checkbox" checked={selectedLibraryItems.includes(item.id)} readOnly className="rounded border-border text-primary focus:ring-primary" />
+                        <input type="checkbox" checked={selectedLibraryItems.includes(item.barcode)} readOnly className="rounded border-border text-primary focus:ring-primary" />
                       </td>
                       <td className="p-3 font-medium">{item.name}</td>
                       <td className="p-3 text-muted-foreground">{item.barcode}</td>
@@ -363,7 +456,7 @@ export default function ImportExportPage() {
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setIsLibraryOpen(false)} disabled={isImporting}>Cancel</Button>
             <Button onClick={handleImportLibraryItems} disabled={isImporting || selectedLibraryItems.length === 0} className="gap-2">
-              <Upload className="h-4 w-4" /> {isImporting ? "Importing..." : `Import ${selectedLibraryItems.length} Selected Items`}
+              {isImporting ? "Importing..." : <><Upload className="h-4 w-4" /> Import {selectedLibraryItems.length} Selected Items</>}
             </Button>
           </DialogFooter>
         </DialogContent>

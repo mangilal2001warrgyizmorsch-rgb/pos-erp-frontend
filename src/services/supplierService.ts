@@ -6,6 +6,7 @@ export const supplierService = {
     page?: number;
     limit?: number;
     search?: string;
+    hasBalance?: string;
   }): Promise<{ data: Supplier[]; pagination: Pagination }> => {
     const { data } = await api.get<ApiResponse<Supplier[]>>("/suppliers", { params });
     return { data: data.data, pagination: data.pagination! };

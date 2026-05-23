@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Receipt, Printer, FileDown, ShieldCheck, Mail, Phone, MapPin,
-  Calendar, User, CreditCard, Package, Loader2, FileText
+  ArrowLeft, Receipt, Printer, ShieldCheck, Phone, MapPin, Package, FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -155,8 +154,43 @@ export default function PurchaseDetailsPage() {
             </tbody>
           </table>
           <div className="p-6 border-t bg-muted/20">
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex justify-between w-full max-w-xs text-sm font-bold text-lg text-primary border-t pt-2"><span>Grand Total</span><span>{formatCurrency(purchase.totalAmount)}</span></div>
+            <div className="flex flex-col items-end gap-2 text-sm">
+              <div className="flex justify-between w-full max-w-xs">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatCurrency(purchase.subtotal || 0)}</span>
+              </div>
+              {purchase.discountAmount > 0 && (
+                <div className="flex justify-between w-full max-w-xs text-rose-500">
+                  <span>Discount</span>
+                  <span>-{formatCurrency(purchase.discountAmount)}</span>
+                </div>
+              )}
+              {purchase.shippingCharges > 0 && (
+                <div className="flex justify-between w-full max-w-xs text-muted-foreground">
+                  <span>Shipping Charges</span>
+                  <span>+{formatCurrency(purchase.shippingCharges)}</span>
+                </div>
+              )}
+              {purchase.taxAmount > 0 && (
+                <div className="flex justify-between w-full max-w-xs text-muted-foreground">
+                  <span>GST Tax</span>
+                  <span>+{formatCurrency(purchase.taxAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between w-full max-w-xs text-lg font-bold text-primary border-t pt-2 mt-1">
+                <span>Grand Total</span>
+                <span>{formatCurrency(purchase.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between w-full max-w-xs text-muted-foreground pt-1">
+                <span>Amount Paid</span>
+                <span className="font-semibold text-foreground">{formatCurrency(purchase.amountPaid || 0)}</span>
+              </div>
+              {purchase.dueAmount > 0.01 && (
+                <div className="flex justify-between w-full max-w-xs text-rose-600 font-semibold pt-1 border-t border-dashed">
+                  <span>Due Amount</span>
+                  <span>{formatCurrency(purchase.dueAmount)}</span>
+                </div>
+              )}
             </div>
           </div>
         </Card>

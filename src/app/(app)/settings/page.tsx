@@ -14,6 +14,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 import { authService } from "@/services/authService";
 import { KeyboardShortcutsSettings } from "@/components/settings/KeyboardShortcutsSettings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
@@ -21,10 +23,19 @@ export default function SettingsPage() {
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [saving, setSaving] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changing, setChanging] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) {
       toast.error("Name is required");
+      return;
+    }
+    if (phone && !/^[6-9]\d{9}$/.test(phone)) {
+      toast.error("Please enter a valid 10-digit Indian phone number");
       return;
     }
     try {
@@ -36,6 +47,34 @@ export default function SettingsPage() {
       toast.error("Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("All fields are required");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+    try {
+      setChanging(true);
+      await authService.changePassword({ currentPassword, newPassword });
+      toast.success("Password changed successfully");
+      setChangePasswordOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to change password");
+    } finally {
+      setChanging(false);
     }
   };
 
@@ -51,7 +90,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4 pb-4 border-b">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 aspect-square">
+              <div className="h-16 w-16 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-2xl font-bold shrink-0 aspect-square">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
               <div>
@@ -115,7 +154,7 @@ export default function SettingsPage() {
                 <p className="font-medium">Change Password</p>
                 <p className="text-sm text-muted-foreground">Update your account password</p>
               </div>
-              <Button variant="outline" onClick={() => toast.info("Coming soon")}>Change</Button>
+              <Button variant="outline" onClick={() => setChangePasswordOpen(true)}>Change</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -131,6 +170,37 @@ export default function SettingsPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <KeyboardShortcutsSettings />
       </motion.div>
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>Enter your current password and a new secure password.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 text-sm">
+            <div className="space-y-2">
+              <Label>Current Password *</Label>
+              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+            <div className="space-y-2">
+              <Label>New Password *</Label>
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirm New Password *</Label>
+              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangePasswordOpen(false)}>Cancel</Button>
+            <Button onClick={handleChangePassword} disabled={changing}>
+              {changing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {changing ? "Updating..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

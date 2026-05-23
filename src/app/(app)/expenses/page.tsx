@@ -43,6 +43,8 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editItem, setEditItem] = useState<Expense | null>(null);
@@ -54,19 +56,31 @@ export default function ExpensesPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await expenseService.getAll({ search, limit: 500 });
+      const result = await expenseService.getAll({ search, page, limit: 15 });
       setExpenses(result.data);
+      setTotalPages(result.pagination?.pages || 1);
     } catch { toast.error("Failed to load expenses"); }
     finally { setLoading(false); }
-  }, [search]);
+  }, [search, page]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      load();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, page, load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   useEffect(() => {
     cashBankService.getAccounts()
       .then(res => {
         if (res.success && res.data) {
           setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
+        } else {
+          toast.error(res.message || "Failed to load bank accounts");
         }
       })
       .catch(() => toast.error("Failed to load bank accounts"));
@@ -217,6 +231,32 @@ export default function ExpensesPage() {
               </tbody>
             </table>
           </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

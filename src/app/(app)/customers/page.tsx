@@ -23,6 +23,8 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editCust, setEditCust] = useState<Customer | null>(null);
@@ -31,18 +33,26 @@ export default function CustomersPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await customerService.getAll({ search, limit: 500 });
+      const result = await customerService.getAll({ search, page, limit: 15 });
       setCustomers(result.data);
+      setTotalPages(result.pagination?.pages || 1);
     } catch {
       toast.error("Failed to load");
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, page]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    const delayDebounceFn = setTimeout(() => {
+      load();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const openCreate = () => {
     setEditCust(null);
@@ -140,7 +150,7 @@ export default function CustomersPage() {
                         href={`/customers/${c._id}`}
                         className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity"
                       >
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0 aspect-square">
+                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-sm font-bold shadow-sm shrink-0 aspect-square">
                           {c.name.charAt(0)}
                         </div>
                         <div>
@@ -194,6 +204,32 @@ export default function CustomersPage() {
               </tbody>
             </table>
           </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

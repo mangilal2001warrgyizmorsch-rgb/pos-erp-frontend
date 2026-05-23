@@ -25,12 +25,12 @@ import {
 import { categoryService } from "@/services/categoryService";
 import { subcategoryService } from "@/services/subcategoryService";
 import { productService } from "@/services/productService";
+import { Switch } from "@/components/ui/switch";
 import type { Category, Subcategory } from "@/types";
 
 export default function SubcategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -39,42 +39,30 @@ export default function SubcategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [filterParentId, setFilterParentId] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
-  const [form, setForm] = useState({ name: "", description: "", image: "", parentCategoryId: "" });
+  const [form, setForm] = useState({ name: "", description: "", image: "", parentCategoryId: "", isActive: true });
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const cats = await categoryService.getAll();
+      const cats = await categoryService.getAll({ all: "true" });
       setCategories(cats);
 
-      const params: Record<string, string> = {};
+      const params: Record<string, any> = { all: "true", page, limit: 15 };
       if (search) params.search = search;
       if (filterParentId && filterParentId !== "all") params.parentCategoryId = filterParentId;
 
-      const subcats = await subcategoryService.getAll(params);
-      setSubcategories(subcats);
-      
-      // Fetch products to compute counts
-      try {
-        const prodData = await productService.getAll({ limit: 10000 });
-        const counts: Record<string, number> = {};
-        prodData.data.forEach((p) => {
-          if (p.subcategoryId) {
-            const subId = typeof p.subcategoryId === 'string' ? p.subcategoryId : (p.subcategoryId as any)._id;
-            if (subId) counts[subId] = (counts[subId] || 0) + 1;
-          }
-        });
-        setProductCounts(counts);
-      } catch {
-        // ignore products fetch fail
-      }
+      const result = await subcategoryService.getAll(params);
+      setSubcategories(result.data);
+      setTotalPages(result.pagination?.pages || 1);
     } catch {
       toast.error("Failed to load subcategories");
     } finally {
       setLoading(false);
     }
-  }, [search, filterParentId]);
+  }, [search, filterParentId, page]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -83,9 +71,13 @@ export default function SubcategoriesPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [search, filterParentId, loadData]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterParentId]);
+
   const openCreate = () => {
     setEditSubcat(null);
-    setForm({ name: "", description: "", image: "", parentCategoryId: "" });
+    setForm({ name: "", description: "", image: "", parentCategoryId: "", isActive: true });
     setDialogOpen(true);
   };
 
@@ -95,7 +87,8 @@ export default function SubcategoriesPage() {
       name: subcat.name, 
       description: subcat.description || "", 
       image: subcat.image || "", 
-      parentCategoryId: subcat.parentCategoryId ? (typeof subcat.parentCategoryId === 'string' ? subcat.parentCategoryId : (subcat.parentCategoryId as Category)._id) : "" 
+      parentCategoryId: subcat.parentCategoryId ? (typeof subcat.parentCategoryId === 'string' ? subcat.parentCategoryId : (subcat.parentCategoryId as Category)._id) : "",
+      isActive: subcat.isActive
     });
     setDialogOpen(true);
   };
@@ -208,15 +201,18 @@ export default function SubcategoriesPage() {
                     <TableCell>
                       <Badge variant="outline" className="bg-muted/50 font-normal">
                         {subcat.parentCategoryId 
-                          ? (typeof subcat.parentCategoryId === 'string'
-                            ? categories.find((c) => c._id === subcat.parentCategoryId)?.name || 'Unknown'
-                            : (subcat.parentCategoryId as any).name)
+                          ? (() => {
+                              const parentId = typeof subcat.parentCategoryId === 'string' ? subcat.parentCategoryId : (subcat.parentCategoryId as any)?._id;
+                              return typeof subcat.parentCategoryId === 'object' && subcat.parentCategoryId !== null
+                                ? (subcat.parentCategoryId as any).name
+                                : categories.find((c) => c._id === parentId)?.name || 'Unknown';
+                            })()
                           : 'No Parent'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="inline-flex items-center justify-center h-6 px-2.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                        {productCounts[subcat._id] || 0} items
+                        {subcat.productCount || 0} items
                       </div>
                     </TableCell>
                     <TableCell>
@@ -239,6 +235,33 @@ export default function SubcategoriesPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -280,6 +303,13 @@ export default function SubcategoriesPage() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea placeholder="Brief description..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <div className="space-y-0.5">
+                <Label>Active Status</Label>
+                <p className="text-xs text-muted-foreground">Visible in POS and product catalog</p>
+              </div>
+              <Switch checked={form.isActive} onCheckedChange={(val) => setForm({ ...form, isActive: val })} />
             </div>
           </div>
           <DialogFooter>

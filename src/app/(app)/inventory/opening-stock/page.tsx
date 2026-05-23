@@ -394,6 +394,21 @@ export default function OpeningStockPage() {
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
       if (newProductModalOpen) return;
+
+      const activeEl = document.activeElement;
+      if (activeEl) {
+        const tagName = activeEl.tagName.toLowerCase();
+        if (
+          tagName === "input" ||
+          tagName === "textarea" ||
+          activeEl.getAttribute("role") === "combobox" ||
+          activeEl.hasAttribute("contenteditable")
+        ) {
+          if (["F1", "F2", "F3", "F9", "F12"].includes(e.key)) {
+            return;
+          }
+        }
+      }
       switch (e.key) {
         case "F1": {
           e.preventDefault();
@@ -540,11 +555,6 @@ export default function OpeningStockPage() {
           if (item.product) {
             return productService.update(item.product._id, {
               stock: (item.product.stock || 0) + item.quantity,
-              purchasePrice,
-              salesPrice,
-              taxRate: item.taxRate,
-              unit: item.unit,
-              openingStockPrice: purchasePrice,
               openingStockDate,
             });
           } else {
@@ -588,9 +598,8 @@ export default function OpeningStockPage() {
     return s + (base * i.taxRate) / 100;
   }, 0);
 
-  //  Render 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] -m-4 bg-background overflow-hidden relative">
+    <div className="flex flex-col h-[calc(100vh-120px)] -m-4 bg-background overflow-hidden relative">
 
       {/*  Top Header / Action Bar  */}
       <div className="shrink-0 px-3 sm:px-4 py-2 border-b bg-card flex items-center justify-between z-20 shadow-sm gap-2">
@@ -653,15 +662,13 @@ export default function OpeningStockPage() {
                   <span className="text-[10px] text-muted-foreground font-medium">Total Qty</span>
                   <span className="text-sm font-bold tabular-nums">{totalQuantity}</span>
                 </div>
-                {totalTax > 0 && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-muted-foreground font-medium">Tax Amount</span>
-                    <span className="text-sm font-bold tabular-nums">{formatCurrency(totalTax)}</span>
-                  </div>
-                )}
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Valuation</span>
-                  <span className="text-sm font-black text-primary tabular-nums">{formatCurrency(totalValuation)}</span>
+                  <span className="text-[10px] text-muted-foreground font-medium">Net Valuation</span>
+                  <span className="text-sm font-bold tabular-nums">{formatCurrency(totalValuation)}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-muted-foreground font-medium">Inc. Valuation</span>
+                  <span className="text-sm font-black text-primary tabular-nums">{formatCurrency(totalValuation + totalTax)}</span>
                 </div>
               </div>
             </div>
@@ -927,6 +934,10 @@ export default function OpeningStockPage() {
                   <span className="text-muted-foreground">Total Qty</span>
                   <span className="tabular-nums font-bold">{totalQuantity}</span>
                 </div>
+                <div className="flex justify-between text-xs font-medium">
+                  <span className="text-muted-foreground">Net Valuation</span>
+                  <span className="tabular-nums font-bold">{formatCurrency(totalValuation)}</span>
+                </div>
                 {totalTax > 0 && (
                   <div className="flex justify-between text-xs font-medium">
                     <span className="text-muted-foreground">Tax Amount</span>
@@ -934,8 +945,8 @@ export default function OpeningStockPage() {
                   </div>
                 )}
                 <div className="border-t border-border/50 pt-3 flex justify-between text-base font-black">
-                  <span>Valuation</span>
-                  <span className="text-primary tabular-nums tracking-tight">{formatCurrency(totalValuation)}</span>
+                  <span>Inc. Valuation</span>
+                  <span className="text-primary tabular-nums tracking-tight">{formatCurrency(totalValuation + totalTax)}</span>
                 </div>
               </div>
             </div>

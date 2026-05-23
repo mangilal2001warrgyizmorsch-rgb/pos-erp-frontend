@@ -56,4 +56,14 @@ export const productService = {
     const { data } = await api.get<ApiResponse<any>>(`/products/${id}/pricing`, { params: { strategy } });
     return data.data;
   },
+
+  bulkImport: async (products: any[]): Promise<any> => {
+    const { data } = await api.post<ApiResponse<any>>("/products/bulk-import", { products });
+    return data;
+  },
+
+  getGlobalLibrary: async (params?: { search?: string; barcode?: string }): Promise<any[]> => {
+    const { data } = await api.get<ApiResponse<any[]>>("/products/global-library", { params });
+    return data.data;
+  },
 };

@@ -31,19 +31,31 @@ export default function TransportersPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editItem, setEditItem] = useState<Transporter | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await transporterService.getAll({ search, limit: 500 });
+      const result = await transporterService.getAll({ search, page, limit: 15 });
       setTransporters(result.data);
+      setTotalPages(result.pagination?.pages || 1);
     } catch { toast.error("Failed to load transporters"); }
     finally { setLoading(false); }
-  }, [search]);
+  }, [search, page]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      load();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, page, load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -62,6 +74,11 @@ export default function TransportersPage() {
 
   const handleSave = async () => {
     if (!form.name || !form.phone) { toast.error("Name and phone are required"); return; }
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(form.phone)) {
+      toast.error("Please enter a valid 10-digit Indian mobile number");
+      return;
+    }
     try {
       setSaving(true);
       if (editItem) {
@@ -159,6 +176,32 @@ export default function TransportersPage() {
               </tbody>
             </table>
           </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

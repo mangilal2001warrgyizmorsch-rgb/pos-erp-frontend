@@ -18,6 +18,7 @@ export interface Category {
   image?: string;
   isActive: boolean;
   createdAt: string;
+  productCount?: number;
 }
 
 export interface Subcategory {
@@ -29,6 +30,7 @@ export interface Subcategory {
   parentCategoryId: Category | string;
   isActive: boolean;
   createdAt: string;
+  productCount?: number;
 }
 
 export interface Product {

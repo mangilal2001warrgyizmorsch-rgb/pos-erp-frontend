@@ -21,11 +21,11 @@ import {
 } from "@/components/ui/table";
 import { categoryService } from "@/services/categoryService";
 import { productService } from "@/services/productService";
+import { Switch } from "@/components/ui/switch";
 import type { Category, Product } from "@/types";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -33,33 +33,23 @@ export default function CategoriesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
-  const [form, setForm] = useState({ name: "", description: "", image: "" });
+  const [form, setForm] = useState({ name: "", description: "", image: "", isActive: true });
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await categoryService.getAll({ search });
-      setCategories(data);
-      
-      // Fetch products to compute counts
-      try {
-        const prodData = await productService.getAll({ limit: 10000 });
-        const counts: Record<string, number> = {};
-        prodData.data.forEach((p) => {
-          const catId = typeof p.category === 'string' ? p.category : p.category._id;
-          counts[catId] = (counts[catId] || 0) + 1;
-        });
-        setProductCounts(counts);
-      } catch {
-        // ignore products fetch fail
-      }
+      const result = await categoryService.getAll({ search, all: "true", page, limit: 15 });
+      setCategories(result.data);
+      setTotalPages(result.pagination?.pages || 1);
     } catch {
       toast.error("Failed to load categories");
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, page]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -68,15 +58,19 @@ export default function CategoriesPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [search, load]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const openCreate = () => {
     setEditCat(null);
-    setForm({ name: "", description: "", image: "" });
+    setForm({ name: "", description: "", image: "", isActive: true });
     setDialogOpen(true);
   };
 
   const openEdit = (cat: Category) => {
     setEditCat(cat);
-    setForm({ name: cat.name, description: cat.description || "", image: cat.image || "" });
+    setForm({ name: cat.name, description: cat.description || "", image: cat.image || "", isActive: cat.isActive });
     setDialogOpen(true);
   };
 
@@ -172,7 +166,7 @@ export default function CategoriesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="inline-flex items-center justify-center h-6 px-2.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                        {productCounts[cat._id] || 0} items
+                        {cat.productCount || 0} items
                       </div>
                     </TableCell>
                     <TableCell>
@@ -195,6 +189,33 @@ export default function CategoriesPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -221,6 +242,13 @@ export default function CategoriesPage() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea placeholder="Brief description of this category..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <div className="space-y-0.5">
+                <Label>Active Status</Label>
+                <p className="text-xs text-muted-foreground">Visible in POS and product catalog</p>
+              </div>
+              <Switch checked={form.isActive} onCheckedChange={(val) => setForm({ ...form, isActive: val })} />
             </div>
           </div>
           <DialogFooter>

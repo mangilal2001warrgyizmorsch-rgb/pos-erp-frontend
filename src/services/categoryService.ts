@@ -2,8 +2,11 @@ import api from "./api";
 import type { Category, ApiResponse } from "@/types";
 
 export const categoryService = {
-  getAll: async (params?: { search?: string }): Promise<Category[]> => {
+  getAll: async (params?: { search?: string; all?: string; page?: number; limit?: number }): Promise<any> => {
     const { data } = await api.get<ApiResponse<Category[]>>("/categories", { params });
+    if (params?.page) {
+      return { data: data.data, pagination: data.pagination };
+    }
     return data.data;
   },
 

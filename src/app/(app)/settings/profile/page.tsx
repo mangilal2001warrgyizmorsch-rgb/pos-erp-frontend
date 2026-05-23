@@ -94,9 +94,55 @@ export default function BusinessProfilePage() {
     }
   };
 
+  const handleDiscard = () => {
+    if (storeProfile) {
+      setLocalProfile({
+        businessName: storeProfile.businessName || "",
+        tagline: storeProfile.tagline || "",
+        phone: storeProfile.phone || "",
+        email: storeProfile.email || "",
+        gstin: storeProfile.gstin || "",
+        address: storeProfile.address || "",
+        businessType: storeProfile.businessType || "",
+        category: storeProfile.category || "",
+        state: storeProfile.state || "",
+        pincode: storeProfile.pincode || "",
+        logo: storeProfile.logo || "",
+        signature: storeProfile.signature || "",
+        beginningDate: storeProfile.beginningDate,
+      });
+    } else {
+      setLocalProfile({
+        businessName: "",
+        tagline: "",
+        phone: "",
+        email: "",
+        gstin: "",
+        address: "",
+        businessType: "",
+        category: "",
+        state: "",
+        pincode: "",
+        logo: "",
+        signature: "",
+      });
+    }
+    toast.info("Changes discarded");
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'signature') => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File size must be less than 2MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
 
     try {
       if (field === 'logo') setLogoUploading(true);
@@ -130,16 +176,16 @@ export default function BusinessProfilePage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
+          <div className="page-icon-tile bg-gradient-to-br from-indigo-500 to-purple-600">
             <Building2 className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Business Profile</h1>
-            <p className="text-muted-foreground text-sm">Manage your store's identity and branding</p>
+            <h1 className="page-title">Business Profile</h1>
+            <p className="page-description">Manage your store's identity and branding</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setLocalProfile(storeProfile || {})} className="h-10 px-4">
+          <Button variant="outline" onClick={handleDiscard} className="h-10 px-4">
             Discard Changes
           </Button>
           <Button onClick={handleSave} disabled={saving} className="h-10 px-6 gap-2">

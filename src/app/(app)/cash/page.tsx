@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee, Loader2, History, Eye } from "lucide-react";
+import { Search, Filter, MoreVertical, Settings2, SlidersHorizontal, IndianRupee, Loader2, History, Eye, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,19 +22,35 @@ export default function CashPage() {
   const [balance, setBalance] = useState(0);
   const [search, setSearch] = useState("");
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [form, setForm] = useState({
     amount: "", type: "add", date: new Date().toISOString().split('T')[0], remarks: ""
+  });
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [transferForm, setTransferForm] = useState({
+    transferType: "deposit" as "deposit" | "withdraw",
+    bankAccountId: "",
+    amount: "",
+    date: new Date().toISOString().split("T")[0],
+    notes: "",
   });
   
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [summaryRes, transRes] = await Promise.all([
+      const [summaryRes, transRes, accountsRes] = await Promise.all([
         cashBankService.getSummary(),
-        cashBankService.getTransactions({ accountType: 'cash' })
+        cashBankService.getTransactions({ accountType: 'cash' }),
+        cashBankService.getAccounts()
       ]);
       setBalance(summaryRes.data.cashBalance);
       setTransactions(transRes.data);
+      
+      const banks = accountsRes.data.filter((acc: any) => acc.accountType === "bank" && acc.status !== "inactive");
+      setBankAccounts(banks);
+      if (banks.length > 0) {
+        setTransferForm(prev => ({ ...prev, bankAccountId: banks[0]._id }));
+      }
     } catch (error) {
       toast.error("Failed to load cash data");
     } finally {
@@ -55,11 +71,10 @@ export default function CashPage() {
 
     try {
       await cashBankService.createCashEntry({
-        type: form.type === "add" ? "cash_entry_in" : "cash_entry_out",
+        entryType: form.type === "add" ? "in" : "out",
         amount,
         date: form.date,
-        paymentMode: "Cash",
-        remarks: form.remarks,
+        notes: form.remarks,
       });
       toast.success("Cash adjustment saved");
       setIsAdjustModalOpen(false);
@@ -72,6 +87,40 @@ export default function CashPage() {
       loadData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to save cash adjustment");
+    }
+  };
+
+  const handleTransferSave = async () => {
+    const amount = Number(transferForm.amount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount greater than 0");
+      return;
+    }
+    if (!transferForm.bankAccountId) {
+      toast.error("Please select a bank account");
+      return;
+    }
+
+    try {
+      const payload = {
+        fromAccountId: transferForm.transferType === "deposit" ? "cash" : transferForm.bankAccountId,
+        toAccountId: transferForm.transferType === "deposit" ? transferForm.bankAccountId : "cash",
+        amount,
+        date: transferForm.date,
+        notes: transferForm.notes,
+      };
+
+      await cashBankService.createBankTransfer(payload);
+      toast.success("Bank transfer processed successfully");
+      setIsTransferModalOpen(false);
+      setTransferForm(prev => ({
+        ...prev,
+        amount: "",
+        notes: "",
+      }));
+      loadData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to process bank transfer");
     }
   };
 
@@ -116,6 +165,13 @@ export default function CashPage() {
             onClick={() => router.push("/cash-bank/transaction-history?accountId=cash")}
           >
             <History className="h-4 w-4 text-primary shrink-0" /> View History
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 sm:flex-none rounded-full h-10 px-4 flex items-center gap-2 border-border/50 bg-card hover:bg-muted text-xs sm:text-sm shadow-sm"
+            onClick={() => setIsTransferModalOpen(true)}
+          >
+            <ArrowRightLeft className="h-4 w-4 text-emerald-500 shrink-0" /> Bank Transfer
           </Button>
           <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-primary-foreground rounded-full shadow-md text-xs sm:text-sm font-semibold h-10 px-5" onClick={() => setIsAdjustModalOpen(true)}>
             <SlidersHorizontal className="mr-1.5 h-4 w-4 shrink-0" /> Adjust Cash
@@ -259,6 +315,75 @@ export default function CashPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAdjustModalOpen(false)}>Cancel</Button>
             <Button onClick={handleSave}>Save Adjustment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bank Transfer Modal */}
+      <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5 text-emerald-500" /> Bank Transfer
+            </DialogTitle>
+            <DialogDescription>
+              Deposit cash into a bank account, or withdraw cash from a bank account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="transferType">Transfer Direction</Label>
+              <Select 
+                value={transferForm.transferType} 
+                onValueChange={(v: "deposit" | "withdraw") => setTransferForm({...transferForm, transferType: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select direction" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deposit">Deposit to Bank (Cash → Bank)</SelectItem>
+                  <SelectItem value="withdraw">Withdraw from Bank (Bank → Cash)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bankAcc">Bank Account</Label>
+              <Select 
+                value={transferForm.bankAccountId} 
+                onValueChange={(v) => setTransferForm({...transferForm, bankAccountId: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select bank account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankAccounts.length === 0 ? (
+                    <SelectItem value="none" disabled>No active bank accounts found</SelectItem>
+                  ) : (
+                    bankAccounts.map((acc) => (
+                      <SelectItem key={acc._id} value={acc._id}>
+                        {acc.accountName} {acc.bankName ? `(${acc.bankName})` : ''}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="transferAmt">Amount</Label>
+              <Input id="transferAmt" type="number" placeholder="₹ 0.00" value={transferForm.amount} onChange={(e) => setTransferForm({...transferForm, amount: e.target.value})} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="transferDate">Date</Label>
+              <Input id="transferDate" type="date" value={transferForm.date} onChange={(e) => setTransferForm({...transferForm, date: e.target.value})} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="transferNotes">Notes / Remarks</Label>
+              <Input id="transferNotes" placeholder="e.g. Self deposit, ATM withdrawal" value={transferForm.notes} onChange={(e) => setTransferForm({...transferForm, notes: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTransferModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleTransferSave}>Process Transfer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

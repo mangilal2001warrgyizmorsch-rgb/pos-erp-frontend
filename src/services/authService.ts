@@ -34,4 +34,9 @@ export const authService = {
     const { data } = await api.put("/auth/profile", payload);
     return data;
   },
+
+  changePassword: async (payload: { currentPassword?: string; newPassword?: string }) => {
+    const { data } = await api.put("/auth/change-password", payload);
+    return data;
+  },
 };

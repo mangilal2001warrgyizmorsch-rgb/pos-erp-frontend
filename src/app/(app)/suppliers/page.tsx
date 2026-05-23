@@ -23,6 +23,9 @@ export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filterBalance, setFilterBalance] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editItem, setEditItem] = useState<Supplier | null>(null);
@@ -31,18 +34,61 @@ export default function SuppliersPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await supplierService.getAll({ search, limit: 500 });
+      const result = await supplierService.getAll({ 
+        search, 
+        page, 
+        limit: 15,
+        hasBalance: filterBalance ? "true" : undefined 
+      });
       setSuppliers(result.data);
+      setTotalPages(result.pagination?.pages || 1);
     } catch { 
       toast.error("Failed to load suppliers"); 
     } finally { 
       setLoading(false); 
     }
-  }, [search]);
+  }, [search, page, filterBalance]);
 
-  useEffect(() => { 
-    load(); 
-  }, [load]);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      load();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, filterBalance, page, load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterBalance]);
+
+  const exportToExcel = () => {
+    if (suppliers.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const headers = ["Name", "Phone", "Email", "GST Number", "Total Purchases", "Outstanding Balance"];
+    const csvRows = [
+      headers.join(","),
+      ...suppliers.map(s => [
+        `"${s.name.replace(/"/g, '""')}"`,
+        `"${(s.phone || "").replace(/"/g, '""')}"`,
+        `"${(s.email || "").replace(/"/g, '""')}"`,
+        `"${(s.gstNumber || "").replace(/"/g, '""')}"`,
+        s.totalPurchases || 0,
+        s.outstandingBalance || 0
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvRows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `suppliers_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Suppliers exported successfully");
+  };
 
   const openCreate = () => {
     setEditItem(null);
@@ -91,10 +137,16 @@ export default function SuppliersPage() {
             onChange={(e) => setSearch(e.target.value)} 
           />
         </div>
-        <Button variant="outline" size="icon" className="border-muted-foreground/20" onClick={() => toast.info("Supplier filters are coming soon")}>
+        <Button 
+          variant={filterBalance ? "default" : "outline"} 
+          size="icon" 
+          className="border-muted-foreground/20" 
+          onClick={() => setFilterBalance(prev => !prev)}
+          title="Filter by outstanding balance"
+        >
           <Filter className="h-4 w-4" />
         </Button>
-        <Button variant="outline" className="border-muted-foreground/20 ml-auto hidden sm:flex" onClick={() => toast.info("Supplier export is coming soon")}>
+        <Button variant="outline" className="border-muted-foreground/20 ml-auto hidden sm:flex" onClick={exportToExcel}>
           <FileDown className="h-4 w-4 mr-2" /> Export
         </Button>
       </div>
@@ -164,7 +216,7 @@ export default function SuppliersPage() {
                     </td>
 
                     <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <Button 
                           variant="ghost" 
                           size="icon-sm" 
@@ -188,6 +240,32 @@ export default function SuppliersPage() {
               </tbody>
             </table>
           </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

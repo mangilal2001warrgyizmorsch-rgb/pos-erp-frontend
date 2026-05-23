@@ -185,7 +185,6 @@ function TransactionHistoryContent() {
     };
   }, [fetchSummary, fetchTransactions, addLiveTransaction, updateLiveBalance, setLiveConnected]);
 
-  // Submit manual cash entry
   const handleSaveCashEntry = async () => {
     try {
       if (!cashForm.amount || parseFloat(cashForm.amount) <= 0) {
@@ -193,8 +192,11 @@ function TransactionHistoryContent() {
         return;
       }
       const res = await cashBankService.createCashEntry({
-        ...cashForm,
-        amount: parseFloat(cashForm.amount)
+        entryType: cashForm.type === "cash_entry_in" ? "in" : "out",
+        amount: parseFloat(cashForm.amount),
+        date: cashForm.date,
+        paymentMode: cashForm.paymentMode,
+        notes: cashForm.remarks
       });
       if (res.success) {
         toast.success("Cash adjustment entry saved successfully");

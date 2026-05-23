@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Plus, Settings, ScanBarcode, Maximize2, Trash2, Printer } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Settings, ScanBarcode, Trash2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import Barcode from "react-barcode";
 import { useReactToPrint } from "react-to-print";
+import { productService } from "@/services/productService";
+import type { Product } from "@/types";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type BarcodeItem = {
   id: string;
@@ -31,18 +35,34 @@ export default function BarcodeGeneratorPage() {
     line1: "", line2: "", line3: "", line4: ""
   });
   
+  const [products, setProducts] = useState<Product[]>([]);
   const [addedItems, setAddedItems] = useState<BarcodeItem[]>([]);
   const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [labelSize, setLabelSize] = useState("50x25");
+  const [printerType, setPrinterType] = useState("label");
   const printRef = useRef(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
   });
 
+  useEffect(() => {
+    productService.getAll({ limit: 1000 }).then(res => {
+      setProducts(res.data || []);
+    }).catch(() => {});
+  }, []);
+
   const handleAdd = () => {
-    if (!form.itemName || !form.itemCode) return;
+    if (!form.itemName || !form.itemCode) {
+      toast.error("Item name and code are required");
+      return;
+    }
     const labelCount = parseInt(form.noOfLabels);
-    if (Number.isNaN(labelCount) || labelCount <= 0) return;
+    if (Number.isNaN(labelCount) || labelCount <= 0) {
+      toast.error("Number of labels must be greater than 0");
+      return;
+    }
     setAddedItems(prev => [...prev, {
       id: Math.random().toString(36).substring(7),
       ...form,
@@ -72,6 +92,9 @@ export default function BarcodeGeneratorPage() {
     .filter(item => item.selected)
     .flatMap(item => Array.from({ length: item.noOfLabels }, () => item));
 
+  // Static seed pattern for mock barcode width
+  const mockBarcodeWidths = [1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 2, 4, 1, 3, 1, 2, 4, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
@@ -86,13 +109,13 @@ export default function BarcodeGeneratorPage() {
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Printer</span>
-            <span className="font-medium">Label Printer</span>
+            <span className="font-medium capitalize">{printerType.replace("_", " ")}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Size</span>
-            <span className="font-medium">50×25mm</span>
+            <span className="font-medium">{labelSize}mm</span>
           </div>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
+          <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-5 w-5" />
           </Button>
         </div>
@@ -101,7 +124,37 @@ export default function BarcodeGeneratorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 p-6 bg-card shadow-sm border-0">
           <h2 className="text-base font-semibold mb-6">Enter item details to add for barcode</h2>
+          
           <div className="space-y-6">
+            {/* Auto-fill Lookup dropdown */}
+            <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-2">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Existing Product (Auto-fill)</Label>
+              <Select onValueChange={(val) => {
+                const prod = products.find(p => p._id === val);
+                if (prod) {
+                  setForm(prev => ({
+                    ...prev,
+                    itemName: prod.name,
+                    itemCode: prod.barcode || prod.sku,
+                    line1: prod.sku,
+                    line2: `Price: INR ${prod.salesPrice || 0}`
+                  }));
+                  toast.info(`Auto-filled details for ${prod.name}`);
+                }
+              }}>
+                <SelectTrigger className="bg-card">
+                  <SelectValue placeholder="Search or select a product to auto-fill..." />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {products.map((p) => (
+                    <SelectItem key={p._id} value={p._id}>
+                      {p.name} ({p.barcode || p.sku})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Item Name<span className="text-red-500">*</span></Label>
@@ -158,8 +211,8 @@ export default function BarcodeGeneratorPage() {
               <Barcode value={form.itemCode} format="CODE128" width={1.5} height={40} displayValue={true} fontSize={12} background="transparent" />
             ) : (
               <div className="w-full h-12 flex justify-center items-end gap-[2px] mb-1 opacity-20">
-                {[...Array(30)].map((_, i) => (
-                  <div key={i} className="bg-foreground h-full" style={{ width: `${Math.max(1, Math.random() * 4)}px` }}></div>
+                {mockBarcodeWidths.map((w, i) => (
+                  <div key={i} className="bg-foreground h-full" style={{ width: `${w}px` }}></div>
                 ))}
               </div>
             )}
@@ -247,11 +300,49 @@ export default function BarcodeGeneratorPage() {
         </div>
       </Card>
 
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Barcode Label Settings</DialogTitle>
+            <Description className="hidden">Change printer type and size dimensions for barcode sheet templates</Description>
+          </DialogHeader>
+          <div className="space-y-4 py-4 text-sm">
+            <div className="space-y-2">
+              <Label>Printer Type</Label>
+              <Select value={printerType} onValueChange={setPrinterType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="label">Thermal Label Printer</SelectItem>
+                  <SelectItem value="a4_30">A4 Sheet (30 labels/page)</SelectItem>
+                  <SelectItem value="a4_24">A4 Sheet (24 labels/page)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Label Size</Label>
+              <Select value={labelSize} onValueChange={setLabelSize}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50x25">50mm × 25mm</SelectItem>
+                  <SelectItem value="38x25">38mm × 25mm</SelectItem>
+                  <SelectItem value="100x50">100mm × 50mm</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button onClick={() => setSettingsOpen(false)}>Save Settings</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Print Modal */}
       <Dialog open={printModalOpen} onOpenChange={setPrintModalOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Print Barcodes</DialogTitle>
+            <DialogDescription>Review labels layout before executing system print callback.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end mb-4">
             <Button onClick={handlePrint} className="gap-2">
@@ -273,4 +364,9 @@ export default function BarcodeGeneratorPage() {
       </Dialog>
     </div>
   );
+}
+
+// Simple fallback for Description component when next.js triggers lint warning for Dialog/DialogTitle
+function Description({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
 }

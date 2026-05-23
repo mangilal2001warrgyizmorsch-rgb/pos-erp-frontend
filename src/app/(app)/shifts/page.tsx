@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Clock, Play, StopCircle, IndianRupee, AlertCircle, CheckCircle2, History } from "lucide-react";
+import { Clock, Play, StopCircle, IndianRupee, AlertCircle, CheckCircle2, History, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import axios from "axios";
+import api from "@/services/api";
+import { useRouter } from "next/navigation";
 
 interface Shift {
   _id: string;
@@ -30,6 +31,7 @@ interface Shift {
 }
 
 export default function ShiftsPage() {
+  const router = useRouter();
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialogOpen, setOpenDialogOpen] = useState(false);
@@ -43,7 +45,7 @@ export default function ShiftsPage() {
   const loadCurrentShift = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/shifts/current");
+      const res = await api.get("/shifts/current");
       setCurrentShift(res.data.data);
     } catch {
       toast.error("Failed to load shift info");
@@ -64,16 +66,67 @@ export default function ShiftsPage() {
     }
     try {
       setSubmitting(true);
-      await axios.post("/api/shifts/open", { openingCash: amount, notes: openNotes });
+      await api.post("/shifts/open", { openingCash: amount, notes: openNotes });
       toast.success("Shift opened successfully");
       setOpenDialogOpen(false);
       setOpenNotes("");
-      loadCurrentShift();
+      await loadCurrentShift();
+      router.push("/pos");
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to open shift");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const printReport = (shift: Shift) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Popup blocker blocked printing the shift summary");
+      return;
+    }
+    const html = `
+      <html>
+        <head>
+          <title>Shift Summary Receipt</title>
+          <style>
+            body { font-family: monospace; padding: 20px; color: #000; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .header h2 { margin: 0; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+            .divider { border-top: 1px dashed #000; margin: 10px 0; }
+            .total { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>SHIFT SUMMARY</h2>
+            <p>Status: CLOSED</p>
+          </div>
+          <div class="row"><span>Opened:</span> <span>${new Date(shift.openingTime).toLocaleString("en-IN")}</span></div>
+          <div class="row"><span>Closed:</span> <span>${shift.closingTime ? new Date(shift.closingTime).toLocaleString("en-IN") : new Date().toLocaleString("en-IN")}</span></div>
+          <div class="divider"></div>
+          <div class="row"><span>Opening Cash:</span> <span>${formatCurrency(shift.openingCash)}</span></div>
+          <div class="row"><span>Cash Sales:</span> <span>${formatCurrency(shift.totalSalesCash || 0)}</span></div>
+          <div class="row"><span>Card Sales:</span> <span>${formatCurrency(shift.totalSalesCard || 0)}</span></div>
+          <div class="row"><span>UPI Sales:</span> <span>${formatCurrency(shift.totalSalesUpi || 0)}</span></div>
+          <div class="row font-bold"><span>Total Sales:</span> <span>${formatCurrency(shift.totalSales || 0)}</span></div>
+          <div class="divider"></div>
+          <div class="row"><span>Expected Cash:</span> <span>${formatCurrency(shift.expectedCash || 0)}</span></div>
+          <div class="row"><span>Actual Cash:</span> <span>${formatCurrency(shift.actualCash || 0)}</span></div>
+          <div class="row total"><span>Difference:</span> <span>${formatCurrency(shift.difference || 0)}</span></div>
+          ${shift.notes ? `<div class="divider"></div><div class="row"><span>Notes:</span> <span>${shift.notes}</span></div>` : ""}
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const handleCloseShift = async () => {
@@ -88,10 +141,13 @@ export default function ShiftsPage() {
     }
     try {
       setSubmitting(true);
-      await axios.put("/api/shifts/close", { closingCash: amount, notes: closeNotes });
+      const res = await api.put("/shifts/close", { closingCash: amount, notes: closeNotes });
       toast.success("Shift closed successfully");
       setCloseDialogOpen(false);
       setCloseNotes("");
+      if (res.data && res.data.data) {
+        printReport(res.data.data);
+      }
       loadCurrentShift();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to close shift");
@@ -124,9 +180,14 @@ export default function ShiftsPage() {
                 </div>
                 <p className="text-muted-foreground">Opened at: {new Date(currentShift.openingTime).toLocaleString()}</p>
               </div>
-              <Button size="lg" variant="destructive" onClick={() => setCloseDialogOpen(true)} className="h-14 px-8 text-lg font-bold">
-                <StopCircle className="mr-2 h-6 w-6" /> End Shift
-              </Button>
+              <div className="flex flex-wrap gap-4">
+                <Button size="lg" onClick={() => router.push("/pos")} className="h-14 px-8 text-lg font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 border-0 transition-all duration-300 transform hover:scale-[1.02]">
+                  <Monitor className="mr-2 h-6 w-6" /> Go to POS
+                </Button>
+                <Button size="lg" variant="destructive" onClick={() => setCloseDialogOpen(true)} className="h-14 px-8 text-lg font-bold transition-all duration-300 transform hover:scale-[1.02]">
+                  <StopCircle className="mr-2 h-6 w-6" /> End Shift
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12">
@@ -247,21 +308,26 @@ export default function ShiftsPage() {
               </div>
             </div>
 
-            {closingCash && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl flex items-center gap-3 border ${Number(closingCash) === currentShift?.expectedCash ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-amber-500/10 border-amber-500/20 text-amber-600"}`}>
-                {Number(closingCash) === currentShift?.expectedCash ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 shrink-0" />
-                )}
-                <div>
-                  <p className="text-sm font-bold">
-                    {Number(closingCash) === currentShift?.expectedCash ? "Drawer Balanced" : `Difference: ${formatCurrency(Number(closingCash) - (currentShift?.expectedCash || 0))}`}
-                  </p>
-                  <p className="text-[10px] opacity-80">Final reconcile for today's session</p>
-                </div>
-              </motion.div>
-            )}
+            {closingCash && (() => {
+              const actual = Number(closingCash);
+              const expected = currentShift?.expectedCash || 0;
+              const isBalanced = Math.abs(actual - expected) < 0.01;
+              return (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl flex items-center gap-3 border ${isBalanced ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-amber-500/10 border-amber-500/20 text-amber-600"}`}>
+                  {isBalanced ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                  )}
+                  <div>
+                    <p className="text-sm font-bold">
+                      {isBalanced ? "Drawer Balanced" : `Difference: ${formatCurrency(actual - expected)}`}
+                    </p>
+                    <p className="text-[10px] opacity-80">Final reconcile for today's session</p>
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             <div className="space-y-2">
               <Label>Closing Notes</Label>
