@@ -228,9 +228,10 @@ export function POSItemTable() {
 
 
 
-  const { getActiveBill, updateItem, updateItemProduct, removeItem, selectRow, addItem } = usePOSStore();
+  const { activeBillId, getActiveBill, updateItem, updateItemProduct, removeItem, selectRow, addItem } = usePOSStore();
   const bill = getActiveBill();
   const [editItem, setEditItem] = useState<POSItem | null>(null);
+  const tableViewportRef = useRef<HTMLDivElement>(null);
 
   // Barcode editing state
   const [editingBarcodeId, setEditingBarcodeId] = useState<string | null>(null);
@@ -412,9 +413,15 @@ export function POSItemTable() {
   // Auto-focus barcode input when editingBarcodeId changes
   useEffect(() => {
     if (editingBarcodeId) {
-      setTimeout(() => barcodeInputRef.current?.focus(), 50);
+      setTimeout(() => barcodeInputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [editingBarcodeId]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      tableViewportRef.current?.scrollTo({ top: 0, left: 0 });
+    });
+  }, [activeBillId]);
 
   // Auto-focus selected placeholder row, or clear editing state for non-placeholders
   useEffect(() => {
@@ -557,7 +564,7 @@ export function POSItemTable() {
       </div>
 
       {/* Desktop Table View */}
-      <div className="flex flex-col flex-1 overflow-auto bg-background">
+      <div ref={tableViewportRef} className="flex flex-col flex-1 min-h-0 overflow-auto no-scrollbar bg-background">
         <table className="w-full border-collapse min-w-[680px]">
           <thead className="sticky top-0 z-10">
             <tr className="bg-muted/40 dark:bg-muted/30 backdrop-blur-md border-b-2 border-border/50 dark:border-border/60 whitespace-nowrap">
@@ -639,7 +646,6 @@ export function POSItemTable() {
                           onFocus={() => { if (barcodeQuery.trim() && barcodeResults.length > 0) setBarcodeDropdownOpen(true); }}
                           placeholder="Scan/Type..."
                           className="w-full h-6 px-2 text-xs font-mono font-semibold bg-primary/5 transition-all placeholder:text-muted-foreground/40"
-                          autoFocus
                         />
                         <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
                           {barcodeLoading ? (
