@@ -134,10 +134,10 @@ export default function BankAccountsPage() {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+          <h1 className="page-title text-2xl sm:text-3xl">
             Bank Accounts
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+          <p className="page-description text-xs sm:text-sm mt-1">
             Configure register nodes, check balances, print invoice coordinates, and monitor transactional assets.
           </p>
         </div>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { usePOSStore, WALK_IN_CUSTOMER, type POSItem } from "@/store/posStore";
 import { formatCurrency, formatNumberInputValue, cn } from "@/lib/utils";
-import { Trash2, Loader2, CornerDownLeft, PackagePlus, ScanBarcode, X, Plus, ChevronDown, Calendar, User } from "lucide-react";
+import { Trash2, Loader2, PackagePlus, ScanBarcode, X, Plus, ChevronDown, Calendar, User, ReceiptText, MoreVertical, Pencil, Percent, Ruler } from "lucide-react";
 import { ModifyItemModal } from "./ModifyItemModal";
 import { productService } from "@/services/productService";
 import { customerService } from "@/services/customerService";
@@ -18,7 +18,7 @@ const TableCellInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttribu
     <input
       ref={ref}
       className={cn(
-        "w-full bg-transparent border-none outline-none ring-0 shadow-none px-1 py-1 text-center font-bold tabular-nums",
+        "w-full bg-transparent border-none outline-none ring-0 shadow-none px-2 py-1 text-center font-semibold tabular-nums",
         "focus:outline-none focus:ring-0 focus:border-none focus-visible:ring-0 focus-visible:outline-none",
         className
       )}
@@ -77,9 +77,11 @@ function POSBillTopBar() {
   const customerDisplayName = isWalkIn ? "" : (bill?.customer?.name || "");
 
   return (
-    <div className="shrink-0 bg-card border-b border-border flex flex-col relative">
-      <div className="flex items-center py-2 lg:py-0 px-3 gap-2 h-14">
-        <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+    <div className="relative flex shrink-0 flex-col border-b border-border/70 bg-card">
+      <div className="flex h-12 items-center gap-2 px-3 py-1.5">
+        
+
+        <div className="flex shrink-0 items-center gap-1 overflow-x-auto pb-1 no-scrollbar lg:pb-0">
           {bills.map((b) => {
             const active = b.id === activeBillId;
             return (
@@ -87,7 +89,7 @@ function POSBillTopBar() {
                 key={b.id}
                 onClick={() => setActiveBill(b.id)}
                 className={cn(
-                  "group flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-bold transition-all shrink-0",
+                  "group flex h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-xs font-bold transition-all",
                   active
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
                     : "text-muted-foreground hover:bg-muted"
@@ -111,7 +113,7 @@ function POSBillTopBar() {
           })}
           <button
             onClick={createNewBill}
-            className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm shrink-0"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             <Plus className="h-3.5 w-3.5" />
             New Bill
@@ -119,7 +121,7 @@ function POSBillTopBar() {
           </button>
         </div>
 
-        <div className="mx-14" />
+        <div className="flex-1" />
 
         <div className="relative shrink-0 hidden md:block" ref={wrapperRef}>
           <div className="relative flex items-center">
@@ -129,7 +131,7 @@ function POSBillTopBar() {
               onChange={(e) => { setCustSearch(e.target.value); setShowDD(true); if (!isWalkIn) setCustomer(WALK_IN_CUSTOMER); }}
               onFocus={() => setShowDD(true)}
               placeholder="Walk-in Customer"
-              className="w-[200px] xl:w-[220px] h-8 pl-8 pr-8 text-xs font-semibold bg-muted/30 border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/60"
+            className="h-8 w-[190px] rounded-md border border-border/60 bg-muted/25 pl-8 pr-7 text-xs font-semibold transition-all placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 xl:w-[210px]"
             />
             {!isWalkIn ? (
               <button
@@ -181,7 +183,7 @@ function POSBillTopBar() {
           <input
             type="date"
             defaultValue={new Date().toISOString().split("T")[0]}
-            className="h-8 pl-8 pr-2 text-xs font-semibold bg-muted/30 border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all w-[140px]"
+            className="h-8 w-[135px] rounded-md border border-border/60 bg-muted/25 pl-8 pr-2 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
@@ -228,7 +230,7 @@ export function POSItemTable() {
 
 
 
-  const { activeBillId, getActiveBill, updateItem, updateItemProduct, removeItem, selectRow, addItem } = usePOSStore();
+  const { activeBillId, getActiveBill, updateItem, updateItemProduct, removeItem, selectRow, addItem, setActiveModal } = usePOSStore();
   const bill = getActiveBill();
   const [editItem, setEditItem] = useState<POSItem | null>(null);
   const tableViewportRef = useRef<HTMLDivElement>(null);
@@ -487,7 +489,7 @@ export function POSItemTable() {
       <POSBillTopBar />
 
       {/* Mobile Card-based Cart List */}
-      <div className="hidden">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-background p-3 lg:hidden">
         {bill.items.filter(i => i.itemName !== "").map((item, idx) => {
           const actualIdx = bill.items.indexOf(item);
           const sel = bill.selectedRowIndex === actualIdx;
@@ -496,7 +498,7 @@ export function POSItemTable() {
               key={item.id}
               onClick={() => handleRowClick(item, actualIdx)}
               className={cn(
-                "p-4 rounded-xl border transition-all cursor-pointer space-y-3 relative",
+                "relative cursor-pointer space-y-3 rounded-lg border p-4 transition-all",
                 sel 
                   ? "bg-primary/[0.06] border-primary/40 shadow-sm" 
                   : "bg-card border-border/50 hover:bg-muted/10"
@@ -555,38 +557,39 @@ export function POSItemTable() {
           );
         })}
         {realItems.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/60 space-y-2">
-            <ScanBarcode className="h-8 w-8 opacity-40" />
-            <p className="text-sm font-medium">Cart is empty</p>
-            <p className="text-xs text-center px-4 text-muted-foreground/45">Scan barcode to add items</p>
+          <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-card px-6 py-12 text-center text-muted-foreground">
+            <ScanBarcode className="h-9 w-9 opacity-45" />
+            <p className="mt-3 text-sm font-bold text-foreground">Start billing</p>
+            <p className="mt-1 text-xs">Scan barcode or search product to add items</p>
           </div>
         )}
       </div>
 
       {/* Desktop Table View */}
-      <div ref={tableViewportRef} className="flex flex-col flex-1 min-h-0 overflow-auto no-scrollbar bg-background">
-        <table className="w-full border-collapse min-w-[680px]">
+      <div ref={tableViewportRef} className="hidden flex-1 min-h-0 overflow-hidden bg-background lg:block">
+        <table className="w-full table-fixed border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-muted/40 dark:bg-muted/30 backdrop-blur-md border-b-2 border-border/50 dark:border-border/60 whitespace-nowrap">
-              <th className="w-[32px] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">#</th>
-              <th className="min-w-[100px] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">
+            <tr className="whitespace-nowrap border-b border-border/80 bg-muted/60 backdrop-blur-md dark:bg-muted/35">
+              <th className="w-[34px] border-r border-border/70 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wider text-muted-foreground">#</th>
+              <th className="w-[12%] border-r border-border/70 px-2 py-2 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                 Barcode
               </th>
-              <th className="w-full min-w-[120px] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">Item Name</th>
-              <th className="min-w-[60px] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">Qty</th>
-              <th className="min-w-[45px] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">Unit</th>
-              <th className="min-w-[80px] px-3 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">
+              <th className="w-[25%] border-r border-border/70 px-2 py-2 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground">Item Name</th>
+              <th className="w-[7%] border-r border-border/70 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wider text-muted-foreground">Qty</th>
+              <th className="w-[6%] border-r border-border/70 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wider text-muted-foreground">Unit</th>
+              <th className="w-[10%] border-r border-border/70 px-2 py-2 text-right text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                 Price(₹)
               </th>
-              <th className="min-w-[50px] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">
+              <th className="w-[7%] border-r border-border/70 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                 Disc%
               </th>
-              <th className="min-w-[80px] px-3 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 dark:border-border/40">
+              <th className="w-[10%] border-r border-border/70 px-2 py-2 text-right text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                 Tax(₹)
               </th>
-              <th className="min-w-[100px] px-3 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <th className="w-[11%] border-r border-border/70 px-2 py-2 text-right text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                 Total(₹)
               </th>
+              <th className="w-[44px] px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wider text-muted-foreground">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -606,16 +609,16 @@ export function POSItemTable() {
                     }
                   }}
                   className={cn(
-                    "border-b border-border/50 dark:border-border/40 transition-all duration-150 cursor-pointer group",
+                    "group h-9 cursor-pointer border-b border-border/70 transition-all duration-150",
                     "hover:bg-muted/20 dark:hover:bg-muted/15",
-                    sel && "bg-primary/10 dark:bg-primary/15 border-b-2 border-primary/60",
-                    isPlaceholder && "bg-muted/8 dark:bg-muted/5"
+                    sel && "bg-primary/10 dark:bg-primary/15",
+                    isPlaceholder && "bg-muted/5 dark:bg-muted/5"
                   )}
                 >
                   {/* # */}
-                  <td className="px-3 py-2 text-center border-r border-border/30 dark:border-border/20">
+                  <td className="border-r border-border/60 px-1.5 py-1 text-center">
                     <span className={cn(
-                      "inline-flex items-center justify-center h-6 w-6 rounded-full text-[9px] font-bold transition-colors",
+                      "inline-flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-bold transition-colors",
                       sel ? "bg-primary text-primary-foreground" : "bg-muted/60 dark:bg-muted/50 text-muted-foreground"
                     )}>
                       {idx + 1}
@@ -623,7 +626,7 @@ export function POSItemTable() {
                   </td>
 
                   {/* Barcode — Editable */}
-                  <td className="px-1.5 py-1 border-r border-border/20 relative" onClick={(e) => {
+                  <td className="relative border-r border-border/60 px-1.5 py-1" onClick={(e) => {
                     e.stopPropagation();
                     selectRow(idx);
                     setEditingBarcodeId(item.id);
@@ -645,7 +648,7 @@ export function POSItemTable() {
                           }}
                           onFocus={() => { if (barcodeQuery.trim() && barcodeResults.length > 0) setBarcodeDropdownOpen(true); }}
                           placeholder="Scan/Type..."
-                          className="w-full h-6 px-2 text-xs font-mono font-semibold bg-primary/5 transition-all placeholder:text-muted-foreground/40"
+                          className="h-6 w-full rounded bg-primary/5 px-1.5 text-[11px] font-mono font-semibold transition-all placeholder:text-muted-foreground/40"
                         />
                         <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
                           {barcodeLoading ? (
@@ -657,8 +660,8 @@ export function POSItemTable() {
 
                         {/* Suggestions dropdown */}
                         {barcodeDropdownOpen && (
-                          <div className="absolute top-full left-0 w-[500px] mt-1 z-50 bg-card border border-border rounded-xl shadow-2xl shadow-black/45 overflow-hidden">
-                            <div className="grid grid-cols-12 px-3 py-2 border-b border-border/50 bg-muted/40 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                          <div className="absolute left-0 top-full z-50 mt-1 w-[520px] overflow-hidden rounded-lg border border-border bg-card shadow-2xl shadow-black/25">
+                            <div className="grid grid-cols-12 border-b border-border/50 bg-muted/50 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
                               <div className="col-span-3">Barcode</div>
                               <div className="col-span-5">Item Name</div>
                               <div className="col-span-2 text-center">Stock</div>
@@ -671,7 +674,7 @@ export function POSItemTable() {
                                   onClick={(e) => { e.stopPropagation(); handleAddProduct(p, item.id); }}
                                   onMouseEnter={() => { setBarcodeHlIdx(i); barcodeHlIdxRef.current = i; }}
                                   className={cn(
-                                    "grid grid-cols-12 px-3 py-2 cursor-pointer items-center border-b border-border/10 last:border-0 transition-colors",
+                                    "grid cursor-pointer grid-cols-12 items-center border-b border-border/10 px-3 py-2 transition-colors last:border-0",
                                     i === barcodeHlIdx ? "bg-primary/10" : "hover:bg-muted/40"
                                   )}
                                 >
@@ -684,8 +687,9 @@ export function POSItemTable() {
                                   <div className="col-span-2 text-right text-xs font-bold">{formatCurrency(p.salesPrice || 0)}</div>
                                 </div>
                               )) : (
-                                <div className="p-3 text-center space-y-2">
-                                  <p className="text-[10px] text-muted-foreground">No product found for "<strong>{barcodeQuery}</strong>"</p>
+                                <div className="space-y-2 p-4 text-center">
+                                  <p className="text-xs font-semibold text-foreground">No product found</p>
+                                  <p className="text-[10px] text-muted-foreground">No match for "<strong>{barcodeQuery}</strong>"</p>
                                   <div className="flex items-center justify-center gap-3">
                                     <button onClick={(e) => { 
                                       e.stopPropagation();
@@ -706,7 +710,7 @@ export function POSItemTable() {
                       </div>
                     ) : (
                       <span className={cn(
-                        "text-xs font-mono font-semibold block truncate",
+                        "block truncate text-[11px] font-mono font-semibold",
                         isPlaceholder ? "text-muted-foreground/40 italic" : ""
                       )}>
                         {isPlaceholder ? "Click to scan..." : (item.barcode || item.itemCode || "—")}
@@ -715,9 +719,9 @@ export function POSItemTable() {
                   </td>
 
                   {/* Item Name */}
-                  <td className="px-2 py-1 border-r border-border/20" title={isPlaceholder ? "" : (item.itemName || "—")}>
+                  <td className="border-r border-border/60 px-2 py-1" title={isPlaceholder ? "" : (item.itemName || "—")}>
                     <span className={cn(
-                      "text-[13px] font-medium whitespace-normal",
+                      "block truncate text-[12px] font-semibold leading-tight text-foreground",
                       isPlaceholder ? "text-muted-foreground/30 italic" : ""
                     )}>
                       {isPlaceholder ? "" : (item.itemName || "—")}
@@ -725,7 +729,7 @@ export function POSItemTable() {
                   </td>
 
                   {/* Qty */}
-                  <td className="px-1 py-1 text-center border-r border-border/20" onClick={(e) => e.stopPropagation()}>
+                  <td className="border-r border-border/60 px-1 py-1 text-center" onClick={(e) => e.stopPropagation()}>
                     {!isPlaceholder ? (
                       <TableCellInput
                         id={`qty-${item.id}`}
@@ -736,18 +740,18 @@ export function POSItemTable() {
                         step="any"
                         value={item.quantity || ""}
                         onChange={(e) => updateItem(item.id, { quantity: Math.max(0.01, Number(e.target.value)) })}
-                        className="h-6 text-[13px]"
+                        className="h-6 rounded bg-muted/20 text-[12px]"
                       />
                     ) : null}
                   </td>
 
                   {/* Unit */}
-                  <td className="px-1.5 py-1 text-center border-r border-border/20 text-xs text-muted-foreground">
+                  <td className="border-r border-border/60 px-1 py-1 text-center text-[11px] font-semibold text-muted-foreground">
                     {isPlaceholder ? "" : item.unit}
                   </td>
 
                   {/* Price */}
-                  <td className="px-1 py-1 text-right border-r border-border/20" onClick={(e) => e.stopPropagation()}>
+                  <td className="border-r border-border/60 px-1 py-1 text-right" onClick={(e) => e.stopPropagation()}>
                     {!isPlaceholder ? (
                       <TableCellInput
                         type="number"
@@ -757,13 +761,13 @@ export function POSItemTable() {
                         ref={(el) => { if (el) priceRefs.current[item.id] = el; }}
                         onKeyDown={(e) => handleCustomTab(e, item.id, "price", bill.items.indexOf(item))}
                         onChange={(e) => updateItem(item.id, { pricePerUnit: Math.max(0, Number(e.target.value)) })}
-                        className="h-6 text-[13px] text-right font-semibold"
+                        className="h-6 rounded bg-muted/20 text-right text-[12px] font-semibold"
                       />
                     ) : null}
                   </td>
 
                   {/* Discount % — Editable for real items */}
-                  <td className="px-1 py-1 text-center border-r border-border/20" onClick={(e) => e.stopPropagation()}>
+                  <td className="border-r border-border/60 px-1 py-1 text-center" onClick={(e) => e.stopPropagation()}>
                     {!isPlaceholder ? (
                       <TableCellInput
                         type="number"
@@ -775,34 +779,53 @@ export function POSItemTable() {
                         onKeyDown={(e) => handleCustomTab(e, item.id, "discount", bill.items.indexOf(item))}
                         onChange={(e) => handleDiscountChange(item.id, e.target.value)}
                         placeholder="0"
-                        className="h-6 text-[11px]"
+                        className="h-6 rounded bg-muted/20 text-[12px]"
                       />
                     ) : null}
                   </td>
 
                   {/* Tax */}
-                  <td className="px-2 py-1 text-right border-r border-border/20">
+                  <td className="border-r border-border/60 px-1.5 py-1 text-right">
                     {!isPlaceholder && (
                       <>
-                        <span className="text-[13px] tabular-nums">{formatCurrency(item.taxAmount)}</span>
+                        <span className="text-[12px] tabular-nums">{formatCurrency(item.taxAmount)}</span>
                         {item.taxPercent > 0 && (
-                          <span className="block text-[10px] text-muted-foreground">{item.taxPercent}% GST</span>
+                          <span className="block text-[9px] text-muted-foreground">{item.taxPercent}% GST</span>
                         )}
                       </>
                     )}
                   </td>
 
                   {/* Total */}
-                  <td className="px-2 py-1 text-right">
+                  <td className="border-r border-border/60 px-1.5 py-1 text-right">
                     {!isPlaceholder && (
-                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                        <span className="text-sm font-black tabular-nums tracking-tight">{formatCurrency(item.total)}</span>
+                      <span className="whitespace-nowrap text-[12px] font-black tabular-nums tracking-tight">{formatCurrency(item.total)}</span>
+                    )}
+                  </td>
+                  <td className="px-1 py-1 text-center">
+                    {!isPlaceholder && (
+                      <div className="relative inline-flex group/actions">
                         <button
-                          onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
-                          className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-all"
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <MoreVertical className="h-3.5 w-3.5" />
                         </button>
+                        <div className="invisible absolute right-0 top-full z-40 mt-1 min-w-[150px] overflow-hidden rounded-md border border-border bg-card p-1 text-left opacity-0 shadow-xl transition-all group-hover/actions:visible group-hover/actions:opacity-100">
+                          <button onClick={(e) => { e.stopPropagation(); setEditItem(item); }} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-xs font-semibold hover:bg-muted">
+                            <Pencil className="h-3.5 w-3.5" /> Edit item
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); selectRow(idx); setActiveModal("itemDisc"); }} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-xs font-semibold hover:bg-muted">
+                            <Percent className="h-3.5 w-3.5" /> Add discount
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); selectRow(idx); setActiveModal("unit"); }} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-xs font-semibold hover:bg-muted">
+                            <Ruler className="h-3.5 w-3.5" /> Change unit
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); removeItem(item.id); }} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-3.5 w-3.5" /> Remove item
+                          </button>
+                        </div>
                       </div>
                     )}
                   </td>
@@ -812,15 +835,16 @@ export function POSItemTable() {
 
             {/* Empty filler rows */}
             {Array.from({ length: EMPTY_ROWS }).map((_, i) => (
-              <tr key={`e-${i}`} className="border-b border-border/10 h-[34px]">
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
-                <td className="border-r border-border/10" />
+              <tr key={`e-${i}`} className="h-9 border-b border-border/30">
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
+                <td className="border-r border-border/30" />
                 <td />
               </tr>
             ))}

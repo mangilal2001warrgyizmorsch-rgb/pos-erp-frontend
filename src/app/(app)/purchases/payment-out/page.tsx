@@ -98,7 +98,7 @@ export default function PaymentOutPage() {
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
                     <td className="p-4">
-                      <p className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200 tracking-tight">{p.receiptNo}</p>
+                      <p className="receipt-code text-sm">{p.receiptNo}</p>
                     </td>
                     <td className="p-4 text-sm font-medium">{p.partyName}</td>
                     <td className="p-4 text-sm text-muted-foreground text-center">{formatDate(p.date)}</td>

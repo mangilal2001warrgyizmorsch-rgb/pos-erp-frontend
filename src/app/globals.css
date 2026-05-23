@@ -42,14 +42,14 @@
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
-  --muted: #b3b3b3;
-  --muted-foreground: #64748b;
+  --muted: #f3f5f8;
+  --muted-foreground: #5f6f86;
   --accent: #f1f5f9;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #d0d0d0;
-  --input: #e2e8f0;
+  --border: #d6dbe3;
+  --input: #d9dee7;
   --ring: #6366f1;
   --success: #22c55e;
   --warning: #f59e0b;
@@ -92,6 +92,41 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--foreground);
+  letter-spacing: 0;
+}
+
+.page-title {
+  color: var(--foreground);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.page-description {
+  color: var(--muted-foreground);
+  font-weight: 500;
+  line-height: 1.65;
+}
+
+.table-heading {
+  color: var(--muted-foreground);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.receipt-code {
+  color: var(--foreground);
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -128,6 +163,13 @@ body {
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .gradient-text {
+  background: linear-gradient(135deg, #a5b4fc, #c4b5fd, #ddd6fe);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

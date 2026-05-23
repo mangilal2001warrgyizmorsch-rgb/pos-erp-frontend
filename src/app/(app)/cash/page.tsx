@@ -57,7 +57,7 @@ export default function CashPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-5">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+          <h1 className="page-title text-2xl sm:text-3xl">
             Cash
           </h1>
           <span className={cn(
@@ -147,7 +147,7 @@ export default function CashPage() {
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors group"
                   >
                     <td className="p-4 font-medium capitalize">{tx.type.replace('_', ' ')}</td>
-                    <td className="p-4">{tx.receiptNo || "—"}</td>
+                    <td className="p-4 receipt-code text-sm">{tx.receiptNo || "—"}</td>
                     <td className="p-4">{formatDate(tx.date)}</td>
                     <td className="p-4 text-right">
                       <span className={cn(

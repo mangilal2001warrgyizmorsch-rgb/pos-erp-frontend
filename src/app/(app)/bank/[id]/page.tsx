@@ -163,7 +163,7 @@ export default function BankAccountDetailPage() {
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Back to Bank Accounts
           </Button>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+          <h1 className="page-title text-2xl sm:text-3xl">
             {bank.accountName}
           </h1>
         </div>
@@ -298,7 +298,7 @@ export default function BankAccountDetailPage() {
                         {/* Txn ID */}
                         <td className="p-4">
                           <div className="flex flex-col">
-                            <span className="font-mono font-bold text-xs sm:text-sm text-foreground tracking-tight">
+                            <span className="receipt-code text-xs sm:text-sm">
                               {tx.transactionNo}
                             </span>
                             <span className="text-[10px] text-muted-foreground sm:hidden font-mono mt-0.5 whitespace-nowrap">

@@ -152,12 +152,12 @@ export function POSRightPanel() {
     <div className="flex flex-col h-full bg-card dark:bg-card">
       {/* ═══ TOTAL BILL CARD ═══ */}
       <div className={cn(
-        "mx-4 mt-4 px-5 py-4 rounded-2xl shadow-xl",
+        "mx-4 mt-4 px-3.5 py-3 rounded-2xl shadow-xl",
         isDark 
           ? "bg-gradient-to-br from-purple-100 via-indigo-100 to-purple-50 text-slate-900"
           : "bg-gradient-to-br from-slate-700 via-slate-700 to-slate-800 text-white"
       )}>
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-1.5">
           <div className="flex items-center gap-2">
             <Receipt className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isDark ? "opacity-70" : "opacity-75")} />
             <span className={cn("text-[10px] font-semibold uppercase tracking-normal leading-5", isDark ? "opacity-75" : "opacity-80")}>
@@ -175,7 +175,7 @@ export function POSRightPanel() {
             <span className="font-bold">[CTRL+F]</span>
           </button>
         </div>
-        <p className={cn("mt-7 text-[24px] leading-none font-bold font-sans tracking-normal tabular-nums", isDark ? "text-slate-950" : "text-white")}>
+        <p className={cn("mt-4 text-[24px] leading-none font-bold font-sans tracking-normal tabular-nums", isDark ? "text-slate-950" : "text-white")}>
           {formatCurrency(grandTotal)}
         </p>
         <div className={cn("my-4 h-px", isDark ? "bg-slate-300/80" : "bg-white/10")} />
@@ -231,7 +231,7 @@ export function POSRightPanel() {
 
             {/* Customer dropdown */}
             {showCustomerDD && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto z-50 flex flex-col min-w-full">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto no-scrollbar z-50 flex flex-col min-w-full">
                 <button 
                   onClick={() => { setShowCustomerModal(true); setShowCustomerDD(false); setCustSearch(""); }} 
                   className="px-3 py-2 text-left text-xs font-bold text-primary hover:bg-primary/10 border-b border-border/50 sticky top-0 bg-card z-10 flex items-center gap-2"
@@ -264,7 +264,7 @@ export function POSRightPanel() {
       </div>
 
       {/* Payment Mode + Amount */}
-      <div className="p-4 flex-1 space-y-4 overflow-y-auto overflow-x-visible bg-background dark:bg-background">
+      <div className="p-4 flex-1 space-y-4 overflow-y-auto overflow-x-visible no-scrollbar bg-background dark:bg-background">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Payment Mode</label>
@@ -281,7 +281,7 @@ export function POSRightPanel() {
                 showPaymentDD && "rotate-180"
               )} />
               {showPaymentDD && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-1000 max-h-40 overflow-y-auto bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-1000 max-h-40 overflow-y-auto no-scrollbar bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl">
                   {modes.map(m => (
                     <button
                       key={m}
@@ -354,7 +354,7 @@ export function POSRightPanel() {
                 showBankDD && "rotate-180"
               )} />
               {showBankDD && (
-                <div className="absolute left-0 right-0 bottom-full mb-1.5 z-50 bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                <div className="absolute left-0 right-0 bottom-full mb-1.5 z-50 bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto no-scrollbar">
                   {bankAccounts.map((account) => (
                     <button
                       key={account._id}

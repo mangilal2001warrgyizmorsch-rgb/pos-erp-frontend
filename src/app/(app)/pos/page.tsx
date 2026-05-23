@@ -77,7 +77,7 @@ export default function FastPOSPage() {
 
   return (
     <div
-      className="fixed bottom-0 right-0 z-20 flex flex-col bg-background overflow-hidden"
+      className="fixed bottom-0 right-0 z-10 flex flex-col overflow-hidden bg-muted/20 dark:bg-background"
       style={{
         top: 64,
         left: isMobile ? 0 : (sidebarCollapsed ? 72 : 256),
@@ -85,11 +85,11 @@ export default function FastPOSPage() {
       }}
     >
       {/* ═══ Main Body ═══ */}
-      <div className="flex flex-1 overflow-hidden bg-background">
-        {/* Left — Table + Shortcuts */}
+      <div className="flex min-h-0 flex-1 gap-3 overflow-hidden bg-muted/20 p-3 dark:bg-background">
+        {/* Left — Scan + Items */}
         <div 
           className={cn(
-            "flex flex-col flex-1 min-w-0 bg-background",
+            "flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm",
             isMobile && activeTab !== "cart" && "hidden"
           )}
         >
@@ -99,9 +99,8 @@ export default function FastPOSPage() {
         {/* Right — Billing Panel */}
         <div 
           className={cn(
-            "w-[300px] xl:w-[320px] shrink-0 flex flex-col bg-card shadow-2xl",
-            "border-l border-border/40 dark:border-border/60",
-            isMobile && (activeTab !== "pay" ? "hidden" : "w-full border-l-0 shadow-lg")
+            "w-[280px] xl:w-[280px] shrink-0 flex flex-col overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm",
+            isMobile && (activeTab !== "pay" ? "hidden" : "w-full")
           )}
         >
           <POSRightPanel />

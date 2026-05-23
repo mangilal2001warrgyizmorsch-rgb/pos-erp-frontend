@@ -321,7 +321,7 @@ function TransactionHistoryContent() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/40 pb-5">
         <div>
           <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+            <h1 className="page-title text-2xl sm:text-3xl">
               Transaction History
             </h1>
             <div className="flex items-center gap-1.5 bg-muted/65 backdrop-blur-md px-2.5 py-1 rounded-full border border-border/50">
@@ -336,7 +336,7 @@ function TransactionHistoryContent() {
               </span>
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
+          <p className="page-description text-xs sm:text-sm mt-1.5 max-w-2xl">
             Real-time financial ledger tracking balance adjustments, return credits, sales, purchases, and inter-bank account transfers securely.
           </p>
         </div>
@@ -643,7 +643,7 @@ function TransactionHistoryContent() {
                       {/* Txn ID (On mobile, stacks date underneath) */}
                       <td className="p-4 whitespace-nowrap">
                         <div className="flex flex-col whitespace-nowrap">
-                          <span className="font-mono font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100 tracking-tight whitespace-nowrap">
+                          <span className="receipt-code text-xs sm:text-sm whitespace-nowrap">
                             {tx.transactionNo}
                           </span>
                           <span className="text-[10px] text-muted-foreground md:hidden font-mono mt-0.5 whitespace-nowrap">

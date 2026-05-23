@@ -142,8 +142,9 @@ export function POSProductSearch() {
   };
 
   return (
-    <div className="relative shrink-0" ref={containerRef}>
-      <div className="p-3 bg-background border-b border-border/50">
+    <div className="relative z-20 shrink-0 border-b border-border/70 bg-card" ref={containerRef}>
+      <div className="space-y-2 p-4">
+        <h2 className="text-base font-medium text-foreground">POS Billing</h2>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
           <input
@@ -153,8 +154,8 @@ export function POSProductSearch() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => { if (query.trim() && results.length > 0) setIsOpen(true); }}
-            placeholder="Scan or search by item code, model no or item name"
-            className="w-full h-12 pl-12 pr-20 bg-muted/40 border border-border/60 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all placeholder:text-muted-foreground/60"
+            placeholder="Scan barcode or search product name"
+            className="h-14 w-full rounded-lg border border-border/70 bg-background pl-12 pr-20 text-base font-semibold text-foreground shadow-sm transition-all placeholder:text-muted-foreground/55 focus:border-primary/70 focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -165,13 +166,13 @@ export function POSProductSearch() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute left-3 right-3 top-full z-50 bg-card border border-border rounded-xl shadow-2xl shadow-black/20 overflow-hidden">
+        <div className="absolute left-4 right-4 top-full z-50 overflow-hidden rounded-lg border border-border bg-card shadow-2xl shadow-black/20">
           {/* Header row */}
-          <div className="grid grid-cols-12 px-4 py-2.5 border-b border-border/50 bg-muted/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-            <div className="col-span-3">Item Code</div>
-            <div className="col-span-4">Item Name</div>
+          <div className="grid grid-cols-12 border-b border-border/60 bg-muted/50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <div className="col-span-3">Barcode / SKU</div>
+            <div className="col-span-4">Product Name</div>
             <div className="col-span-2 text-center">Stock</div>
-            <div className="col-span-3 text-right">Sale Price (₹)</div>
+            <div className="col-span-3 text-right">Sale Price</div>
           </div>
           <div className="max-h-[320px] overflow-y-auto">
             {results.length > 0 ? results.map((p, i) => (
@@ -180,7 +181,7 @@ export function POSProductSearch() {
                 onClick={() => handleAddProduct(p)}
                 onMouseEnter={() => { setHighlightIdx(i); highlightIdxRef.current = i; }}
                 className={cn(
-                  "grid grid-cols-12 px-4 py-3 cursor-pointer items-center border-b border-border/10 last:border-0 transition-colors",
+                  "grid cursor-pointer grid-cols-12 items-center border-b border-border/20 px-4 py-3 transition-colors last:border-0",
                   i === highlightIdx ? "bg-primary/10 text-primary" : "hover:bg-muted/40"
                 )}
               >
@@ -195,8 +196,9 @@ export function POSProductSearch() {
                 <div className="col-span-3 text-right text-sm font-bold">{formatCurrency(p.salesPrice || 0)}</div>
               </div>
             )) : (
-              <div className="p-6 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">No product found for "<strong>{query}</strong>"</p>
+              <div className="space-y-3 p-6 text-center">
+                <p className="text-sm font-semibold text-foreground">No product found</p>
+                <p className="text-xs text-muted-foreground">No match for "<strong>{query}</strong>"</p>
                 <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={() => {
