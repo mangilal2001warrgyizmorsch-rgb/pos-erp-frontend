@@ -94,8 +94,11 @@ export default function LoanAccountsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Loan Accounts</h1>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <Building2 />
+          </div>
+          <h1 className="page-title">Loan Accounts</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => { setEditLoan(null); setForm({ loanName: "", lenderName: "", totalAmount: "", interestRate: "" }); setIsAddModalOpen(true); }}>

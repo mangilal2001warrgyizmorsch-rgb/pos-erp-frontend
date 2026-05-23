@@ -163,9 +163,14 @@ export default function BankAccountDetailPage() {
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Back to Bank Accounts
           </Button>
-          <h1 className="page-title text-2xl sm:text-3xl">
-            {bank.accountName}
-          </h1>
+          <div className="flex items-center gap-3">
+            <div className="page-icon-tile">
+              <Building2 />
+            </div>
+            <h1 className="page-title">
+              {bank.accountName}
+            </h1>
+          </div>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
@@ -188,21 +193,21 @@ export default function BankAccountDetailPage() {
       {/* Account Info and Callout Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Card: Account Metadata */}
-        <Card className="lg:col-span-2 p-5 sm:p-6 border border-border/40 shadow-sm bg-card rounded-2xl relative overflow-hidden group">
+        <Card className="app-card lg:col-span-2 p-5 sm:p-6 relative overflow-hidden group">
           <div className="absolute right-4.5 top-4.5 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform duration-200">
             <Building2 className="h-6 w-6" />
           </div>
           <div className="space-y-4">
             <div>
               <Label className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider">Account Number</Label>
-              <div className="text-base sm:text-lg font-mono font-bold mt-1 text-foreground select-all">
+              <div className="receipt-code text-base sm:text-lg mt-1 select-all">
                 {bank.accountNumber}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider">IFSC Code</Label>
-                <div className="text-sm font-semibold uppercase mt-1 text-foreground">
+                <div className="receipt-code text-sm uppercase mt-1">
                   {bank.ifscCode}
                 </div>
               </div>
@@ -215,7 +220,7 @@ export default function BankAccountDetailPage() {
             </div>
             <div className="border-t border-border/40 pt-4.5">
               <Label className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider">Current Balance</Label>
-              <div className="text-2xl sm:text-3xl font-black text-primary font-mono tracking-tight mt-1">
+              <div className="amount-positive text-2xl sm:text-3xl mt-1">
                 {formatCurrency(bank.currentBalance)}
               </div>
             </div>
@@ -255,11 +260,11 @@ export default function BankAccountDetailPage() {
           </span>
         </div>
         
-        <Card className="border border-border/40 shadow-sm bg-card overflow-hidden rounded-2xl">
+        <Card className="app-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse">
               <thead>
-                <tr className="border-b bg-muted/30 text-muted-foreground font-bold uppercase tracking-wider text-[10px] sm:text-xs">
+                <tr className="app-table-head border-b">
                   <th className="p-4 hidden sm:table-cell">Date & Time</th>
                   <th className="p-4">Txn ID</th>
                   <th className="p-4">Type</th>
@@ -320,11 +325,11 @@ export default function BankAccountDetailPage() {
                         {/* Directional Amount */}
                         <td className="p-4 text-right font-mono font-bold whitespace-nowrap">
                           {tx.direction === "in" ? (
-                            <span className="text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
+                            <span className="amount-positive bg-emerald-500/10 dark:bg-emerald-500/15 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
                               +{formatCurrency(tx.amount)}
                             </span>
                           ) : (
-                            <span className="text-rose-500 bg-rose-500/10 dark:bg-rose-500/15 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
+                            <span className="amount-negative bg-rose-500/10 dark:bg-rose-500/15 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
                               -{formatCurrency(tx.amount)}
                             </span>
                           )}

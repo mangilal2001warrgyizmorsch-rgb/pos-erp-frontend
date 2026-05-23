@@ -108,9 +108,14 @@ export default function CheckoutPage() {
         <Button variant="ghost" size="icon" onClick={() => router.push("/pos")} className="h-10 w-10 bg-card border shadow-sm">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
-          <p className="text-muted-foreground text-sm">Review your cart and process payment</p>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <ShoppingCart />
+          </div>
+          <div>
+            <h1 className="page-title">Checkout</h1>
+            <p className="page-description mt-1">Review your cart and process payment</p>
+          </div>
         </div>
       </div>
 

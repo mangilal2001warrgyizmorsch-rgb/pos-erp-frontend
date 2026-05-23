@@ -319,26 +319,31 @@ function TransactionHistoryContent() {
     <div className="space-y-6 px-1 sm:px-2 md:px-0">
       {/* Header bar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/40 pb-5">
-        <div>
-          <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
-            <h1 className="page-title text-2xl sm:text-3xl">
-              Transaction History
-            </h1>
-            <div className="flex items-center gap-1.5 bg-muted/65 backdrop-blur-md px-2.5 py-1 rounded-full border border-border/50">
-              <span
-                className={cn(
-                  "h-2 w-2 rounded-full inline-block animate-pulse",
-                  liveConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
-                )}
-              />
-              <span className="text-[10px] text-muted-foreground font-mono font-bold uppercase tracking-wider">
-                {liveConnected ? "Live Connected" : "Connection Down"}
-              </span>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <History />
           </div>
-          <p className="page-description text-xs sm:text-sm mt-1.5 max-w-2xl">
-            Real-time financial ledger tracking balance adjustments, return credits, sales, purchases, and inter-bank account transfers securely.
-          </p>
+          <div>
+            <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
+              <h1 className="page-title">
+                Transaction History
+              </h1>
+              <div className="flex items-center gap-1.5 bg-muted/65 backdrop-blur-md px-2.5 py-1 rounded-full border border-border/50">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full inline-block animate-pulse",
+                    liveConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
+                  )}
+                />
+                <span className="text-[10px] text-muted-foreground font-mono font-bold uppercase tracking-wider">
+                  {liveConnected ? "Live Connected" : "Connection Down"}
+                </span>
+              </div>
+            </div>
+            <p className="page-description mt-1.5 max-w-2xl">
+              Real-time financial ledger tracking balance adjustments, return credits, sales, purchases, and inter-bank account transfers securely.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto sm:flex-nowrap justify-end">
@@ -368,7 +373,7 @@ function TransactionHistoryContent() {
       {/* Summary Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-5 gap-3.5 sm:gap-4">
         {/* Card 1: Cash Balance */}
-        <Card className="p-3.5 sm:p-4.5 border border-border/40 shadow-sm bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden rounded-2xl">
+        <Card className="app-card p-3.5 sm:p-4.5 hover:shadow-md transition-all duration-200 group relative overflow-hidden">
           <div className="flex items-start justify-between gap-2">
             <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">
               Cash Balance
@@ -384,7 +389,7 @@ function TransactionHistoryContent() {
         </Card>
 
         {/* Card 2: Bank Balance */}
-        <Card className="p-3.5 sm:p-4.5 border border-border/40 shadow-sm bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden rounded-2xl">
+        <Card className="app-card p-3.5 sm:p-4.5 hover:shadow-md transition-all duration-200 group relative overflow-hidden">
           <div className="flex items-start justify-between gap-2">
             <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">
               Bank Balance
@@ -400,7 +405,7 @@ function TransactionHistoryContent() {
         </Card>
 
         {/* Card 3: Today Inflow */}
-        <Card className="p-3.5 sm:p-4.5 border border-border/40 shadow-sm bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden rounded-2xl col-span-1">
+        <Card className="app-card p-3.5 sm:p-4.5 hover:shadow-md transition-all duration-200 group relative overflow-hidden col-span-1">
           <div className="flex items-start justify-between gap-2">
             <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">
               Today's Inflow
@@ -416,7 +421,7 @@ function TransactionHistoryContent() {
         </Card>
 
         {/* Card 4: Today Outflow */}
-        <Card className="p-3.5 sm:p-4.5 border border-border/40 shadow-sm bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden rounded-2xl col-span-1">
+        <Card className="app-card p-3.5 sm:p-4.5 hover:shadow-md transition-all duration-200 group relative overflow-hidden col-span-1">
           <div className="flex items-start justify-between gap-2">
             <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">
               Today's Outflow
@@ -432,16 +437,16 @@ function TransactionHistoryContent() {
         </Card>
 
         {/* Card 5: Net Balance */}
-        <Card className="p-3.5 sm:p-4.5 border border-border/40 shadow-sm bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden rounded-2xl col-span-1 sm:col-span-2 lg:col-span-1 2xl:col-span-1">
+        <Card className="app-card p-3.5 sm:p-4.5 hover:shadow-md transition-all duration-200 group relative overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1 2xl:col-span-1">
           <div className="flex items-start justify-between gap-2">
             <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">
               Total Net Balance
             </div>
-            <div className="h-7 w-7 rounded-full bg-slate-500/10 flex items-center justify-center text-slate-700 dark:text-slate-200 shrink-0 group-hover:scale-105 transition-transform duration-200">
+            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:scale-105 transition-transform duration-200">
               <IndianRupee className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl font-black mt-3 sm:mt-4 text-slate-800 dark:text-slate-100 font-mono tracking-tight whitespace-nowrap">
+          <div className="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl font-black mt-3 sm:mt-4 text-foreground font-mono tracking-tight whitespace-nowrap">
             {formatCurrencyCompact((summary.cashBalance || 0) + (summary.totalBankBalance || 0))}
           </div>
           <div className="text-[9px] sm:text-[10px] text-muted-foreground/80 mt-1 truncate">Total active cash & bank funds</div>
@@ -587,11 +592,11 @@ function TransactionHistoryContent() {
       </Card>
 
       {/* Transactions Data Table */}
-      <Card className="border border-border/40 shadow-sm bg-card overflow-hidden rounded-2xl">
+      <Card className="app-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left border-collapse">
             <thead>
-              <tr className="border-b bg-muted/30 text-muted-foreground font-bold uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">
+              <tr className="app-table-head border-b whitespace-nowrap">
                 <th className="p-4 hidden md:table-cell whitespace-nowrap">Date & Time</th>
                 <th className="p-4 whitespace-nowrap">Txn ID</th>
                 <th className="p-4 whitespace-nowrap">Type</th>
@@ -655,7 +660,7 @@ function TransactionHistoryContent() {
                       {/* Type (On mobile, stacks payment mode underneath) */}
                       <td className="p-4 font-medium whitespace-nowrap">
                         <div className="flex flex-col whitespace-nowrap">
-                          <span className="capitalize text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          <span className="capitalize text-xs sm:text-sm text-foreground whitespace-nowrap">
                             {tx.type.replace(/_/g, " ")}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-bold sm:hidden mt-0.5 flex items-center gap-1 whitespace-nowrap">
@@ -666,24 +671,24 @@ function TransactionHistoryContent() {
                       </td>
 
                       {/* Party (Medium screens & up) */}
-                      <td className="p-4 font-semibold text-slate-700 dark:text-slate-300 hidden md:table-cell truncate max-w-[130px] whitespace-nowrap" title={tx.partyName || "N/A"}>
+                      <td className="p-4 font-semibold text-foreground hidden md:table-cell truncate max-w-[130px] whitespace-nowrap" title={tx.partyName || "N/A"}>
                         {tx.partyName || "—"}
                       </td>
 
                       {/* Reference (Large screens only) */}
                       <td className="p-4 hidden lg:table-cell whitespace-nowrap">
                         <div className="flex flex-col text-xs whitespace-nowrap">
-                          <span className="font-bold text-slate-700 dark:text-slate-300 capitalize whitespace-nowrap">
+                          <span className="font-bold text-foreground capitalize whitespace-nowrap">
                             {tx.referenceModule?.replace(/_/g, " ")}
                           </span>
-                          <span className="text-[11px] text-muted-foreground font-mono truncate max-w-[110px] whitespace-nowrap">
+                          <span className="receipt-code text-[11px] truncate max-w-[110px] whitespace-nowrap">
                             {tx.referenceNo || "—"}
                           </span>
                         </div>
                       </td>
 
                       {/* Account (Small screens & up) */}
-                      <td className="p-4 text-xs font-semibold text-slate-700 dark:text-slate-300 hidden sm:table-cell whitespace-nowrap">
+                      <td className="p-4 text-xs font-semibold text-foreground hidden sm:table-cell whitespace-nowrap">
                         {tx.accountId?.accountName || (tx.accountType === "cash" ? "Cash" : "—")}
                       </td>
 
@@ -720,7 +725,7 @@ function TransactionHistoryContent() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8.5 w-8.5 rounded-lg hover:bg-muted-foreground/10 text-muted-foreground hover:text-slate-800 dark:hover:text-white shrink-0"
+                            className="h-8.5 w-8.5 rounded-lg hover:bg-muted-foreground/10 text-muted-foreground hover:text-foreground shrink-0"
                             onClick={() => {
                               setSelectedTx(tx);
                               setIsDetailsModalOpen(true);
@@ -758,14 +763,14 @@ function TransactionHistoryContent() {
       <Dialog open={isCashModalOpen} onOpenChange={setIsCashModalOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-2xl border-0 shadow-lg p-5">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
               <IndianRupee className="h-5 w-5 text-primary" /> Cash Balance Adjustment
             </DialogTitle>
             <DialogDescription className="text-xs">
               Manually adjust Cash balances to sync capital deposits, petty cash adjustments, or virtual withdrawals.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4.5 text-slate-700 dark:text-slate-300">
+          <div className="grid gap-4 py-4.5 text-foreground">
             <div className="grid gap-2">
               <Label htmlFor="type" className="text-xs font-semibold">Adjustment Category</Label>
               <Select
@@ -832,14 +837,14 @@ function TransactionHistoryContent() {
       <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-2xl border-0 shadow-lg p-5">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
               <ArrowLeftRight className="h-5 w-5 text-primary" /> Account Funds Transfer
             </DialogTitle>
             <DialogDescription className="text-xs">
               Move money safely between registers and bank accounts in real time.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4.5 text-slate-700 dark:text-slate-300">
+          <div className="grid gap-4 py-4.5 text-foreground">
             <div className="grid gap-2">
               <Label htmlFor="from" className="text-xs font-semibold">Source Account (Debit)</Label>
               <Select
@@ -925,14 +930,14 @@ function TransactionHistoryContent() {
             </DialogDescription>
           </DialogHeader>
           {selectedTx && (
-            <div className="bg-muted/40 p-3.5 rounded-xl space-y-2 text-xs border border-border/40 font-semibold text-slate-700 dark:text-slate-300">
+            <div className="bg-muted/40 p-3.5 rounded-xl space-y-2 text-xs border border-border/40 font-semibold text-foreground">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Txn ID:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">{selectedTx.transactionNo}</span>
+                <span className="receipt-code text-xs">{selectedTx.transactionNo}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
-                <span className="font-black text-slate-900 dark:text-white font-mono">
+                <span className="font-black text-foreground font-mono">
                   {formatCurrency(selectedTx.amount)}
                 </span>
               </div>
@@ -943,7 +948,7 @@ function TransactionHistoryContent() {
             </div>
           )}
           <div className="grid gap-2 py-1.5">
-            <Label htmlFor="revReason" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <Label htmlFor="revReason" className="text-xs font-semibold text-foreground">
               Reason for Reversal
             </Label>
             <Input
@@ -969,17 +974,17 @@ function TransactionHistoryContent() {
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-[480px] rounded-2xl border-0 shadow-2xl p-5 overflow-y-auto max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 border-b pb-3.5 text-slate-800 dark:text-slate-100">
+            <DialogTitle className="flex items-center gap-2 border-b pb-3.5 text-foreground">
               <History className="h-5 w-5 text-primary" /> Full Transaction Details
             </DialogTitle>
           </DialogHeader>
           {selectedTx && (
-            <div className="space-y-4 py-2 text-slate-700 dark:text-slate-300">
+            <div className="space-y-4 py-2 text-foreground">
               {/* Row 1 */}
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Transaction ID</div>
-                  <div className="font-mono font-black text-xs sm:text-base text-primary mt-1 select-all">
+                  <div className="receipt-code text-xs sm:text-base mt-1 select-all">
                     {selectedTx.transactionNo}
                   </div>
                 </div>
@@ -1004,7 +1009,7 @@ function TransactionHistoryContent() {
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm border-t border-border/40 pt-3">
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Direction</div>
-                  <div className="font-bold mt-1 capitalize flex items-center gap-1 text-slate-800 dark:text-slate-200">
+                  <div className="font-bold mt-1 capitalize flex items-center gap-1 text-foreground">
                     {selectedTx.direction === "in" ? (
                       <>
                         <ArrowUpRight className="h-4 w-4 text-emerald-500" />
@@ -1020,7 +1025,7 @@ function TransactionHistoryContent() {
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Amount</div>
-                  <div className="font-mono font-black text-xs sm:text-base text-slate-900 dark:text-white mt-1">
+                  <div className="font-mono font-black text-xs sm:text-base text-foreground mt-1">
                     {formatCurrency(selectedTx.amount)}
                   </div>
                 </div>
@@ -1030,13 +1035,13 @@ function TransactionHistoryContent() {
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm border-t border-border/40 pt-3">
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Ledger Category</div>
-                  <div className="font-bold capitalize mt-1 text-slate-800 dark:text-slate-200">
+                  <div className="font-bold capitalize mt-1 text-foreground">
                     {selectedTx.type?.replace(/_/g, " ")}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Payment Mode</div>
-                  <div className="font-bold mt-1 text-slate-800 dark:text-slate-200">{selectedTx.paymentMode}</div>
+                  <div className="font-bold mt-1 text-foreground">{selectedTx.paymentMode}</div>
                 </div>
               </div>
 
@@ -1044,13 +1049,13 @@ function TransactionHistoryContent() {
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm border-t border-border/40 pt-3">
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Reference Module</div>
-                  <div className="font-bold capitalize mt-1 text-slate-800 dark:text-slate-200">
+                  <div className="font-bold capitalize mt-1 text-foreground">
                     {selectedTx.referenceModule || "Manual Adjustment"}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Reference Doc No</div>
-                  <div className="font-mono font-bold mt-1 text-slate-800 dark:text-slate-200">
+                  <div className="receipt-code text-xs sm:text-sm mt-1">
                     {selectedTx.referenceNo || selectedTx.receiptNo || "—"}
                   </div>
                 </div>
@@ -1060,11 +1065,11 @@ function TransactionHistoryContent() {
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm border-t border-border/40 pt-3">
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Associated Party</div>
-                  <div className="font-bold mt-1 text-slate-800 dark:text-slate-200">{selectedTx.partyName || "—"}</div>
+                  <div className="font-bold mt-1 text-foreground">{selectedTx.partyName || "—"}</div>
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Party Role</div>
-                  <div className="font-bold mt-1 capitalize text-slate-800 dark:text-slate-200">{selectedTx.partyType || "—"}</div>
+                  <div className="font-bold mt-1 capitalize text-foreground">{selectedTx.partyType || "—"}</div>
                 </div>
               </div>
 
@@ -1072,7 +1077,7 @@ function TransactionHistoryContent() {
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm border-t border-border/40 pt-3">
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Date Logged</div>
-                  <div className="font-bold mt-1 text-slate-800 dark:text-slate-200">{formatDate(selectedTx.date)}</div>
+                  <div className="font-bold mt-1 text-foreground">{formatDate(selectedTx.date)}</div>
                 </div>
                 <div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Balance After Txn</div>
@@ -1086,7 +1091,7 @@ function TransactionHistoryContent() {
               {selectedTx.notes && (
                 <div className="border-t border-border/40 pt-3 text-xs sm:text-sm">
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Remarks / Notes</div>
-                  <div className="bg-muted/40 p-3 rounded-xl mt-1.5 italic text-slate-700 dark:text-slate-300 text-xs">
+                  <div className="bg-muted/40 p-3 rounded-xl mt-1.5 italic text-foreground text-xs">
                     "{selectedTx.notes}"
                   </div>
                 </div>

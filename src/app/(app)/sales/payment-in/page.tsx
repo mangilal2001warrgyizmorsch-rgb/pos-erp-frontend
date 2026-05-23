@@ -54,7 +54,7 @@ export default function PaymentInPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Payment-In" description="Money received from customers" icon={Wallet}>
-        <Button onClick={() => setAddModalOpen(true)} className="gap-2 rounded-xl h-11 px-6 shadow-lg shadow-primary/20">
+        <Button onClick={() => setAddModalOpen(true)} className="gap-2 h-11 px-6">
           <Plus className="h-4 w-4" /> Add Payment-In
         </Button>
       </PageHeader>
@@ -76,17 +76,17 @@ export default function PaymentInPage() {
           action={{ label: "Add Payment-In", onClick: () => setAddModalOpen(true) }}
         />
       ) : (
-        <Card className="overflow-hidden border-0 shadow-xl shadow-black/5 rounded-2xl">
+        <Card className="app-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Receipt</th>
-                  <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Party Name</th>
-                  <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Date</th>
-                  <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Mode</th>
-                  <th className="text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount</th>
-                  <th className="text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Actions</th>
+                <tr className="app-table-head border-b">
+                  <th className="text-left p-4">Receipt</th>
+                  <th className="text-left p-4">Party Name</th>
+                  <th className="text-center p-4">Date</th>
+                  <th className="text-center p-4">Mode</th>
+                  <th className="text-right p-4">Amount</th>
+                  <th className="text-right p-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -105,7 +105,7 @@ export default function PaymentInPage() {
                     <td className="p-4 text-center">
                       <Badge variant="outline" className="rounded-full px-3">{p.paymentMode}</Badge>
                     </td>
-                    <td className="p-4 text-sm text-right font-bold text-emerald-500 dark:text-emerald-400 tabular-nums">
+                    <td className="p-4 text-sm text-right amount-positive tabular-nums">
                       {formatCurrency(p.amountReceived)}
                     </td>
                     <td className="p-4 text-right">

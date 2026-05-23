@@ -33,14 +33,14 @@ export function PageHeader({
     >
       <div className="flex items-center gap-3">
         {Icon && (
-          <div className="rounded-xl bg-primary/10 p-2.5">
-            <Icon className="h-6 w-6 text-primary" />
+          <div className="page-icon-tile">
+            <Icon />
           </div>
         )}
         <div>
-          <h1 className="page-title text-2xl">{title}</h1>
+          <h1 className="page-title">{title}</h1>
           {description && (
-            <p className="page-description text-sm mt-1">{description}</p>
+            <p className="page-description mt-1">{description}</p>
           )}
         </div>
       </div>

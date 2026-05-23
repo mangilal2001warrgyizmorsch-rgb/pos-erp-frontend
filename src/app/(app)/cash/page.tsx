@@ -56,16 +56,21 @@ export default function CashPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-5">
-        <div className="flex items-center gap-4">
-          <h1 className="page-title text-2xl sm:text-3xl">
-            Cash
-          </h1>
-          <span className={cn(
-            "text-xl sm:text-2xl font-black font-mono tracking-tight",
-            balance >= 0 ? "text-emerald-500" : "text-red-500"
-          )}>
-            {formatCurrency(balance)}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <IndianRupee />
+          </div>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h1 className="page-title">
+              Cash
+            </h1>
+            <span className={cn(
+              "text-lg sm:text-xl font-black font-mono tracking-tight",
+              balance >= 0 ? "text-emerald-500" : "text-red-500"
+            )}>
+              {formatCurrency(balance)}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
@@ -81,15 +86,15 @@ export default function CashPage() {
         </div>
       </div>
 
-      <Card className="border-0 shadow-sm bg-card overflow-hidden">
+      <Card className="app-card overflow-hidden">
         {/* Table Toolbar */}
         <div className="flex items-center justify-between p-4 border-b">
-          <div className="font-semibold text-sm">Transactions</div>
+          <div className="section-title">Transactions</div>
           <div className="relative">
             <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search..." 
-              className="w-64 pr-10 bg-muted/30 border-transparent focus-visible:ring-1 focus-visible:ring-primary"
+              className="w-64 pr-10"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -100,23 +105,23 @@ export default function CashPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="text-left p-4 font-medium text-muted-foreground">
+              <tr className="app-table-head border-b">
+                <th className="text-left p-4">
                   <div className="flex items-center justify-between">
                     Type <Filter className="h-3 w-3" />
                   </div>
                 </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">
+                <th className="text-left p-4">
                   <div className="flex items-center justify-between">
                     Name <Filter className="h-3 w-3" />
                   </div>
                 </th>
-                <th className="text-left p-4 font-medium text-muted-foreground">
+                <th className="text-left p-4">
                   <div className="flex items-center justify-between">
                     Date <Settings2 className="h-3 w-3" />
                   </div>
                 </th>
-                <th className="text-right p-4 font-medium text-muted-foreground">
+                <th className="text-right p-4">
                   <div className="flex items-center justify-end gap-2">
                     <Filter className="h-3 w-3" /> Amount
                   </div>

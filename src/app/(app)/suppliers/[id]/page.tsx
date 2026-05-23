@@ -213,7 +213,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                       )}
                     >
                       <td className="p-4 text-sm font-medium capitalize whitespace-nowrap">{t.type.replace('_', ' ')}</td>
-                      <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{t.receiptNo || "—"}</td>
+                      <td className="p-4 receipt-code text-sm whitespace-nowrap">{t.receiptNo || "—"}</td>
                       <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
                         {t.date ? format(new Date(t.date), "dd/MM/yyyy") : "—"}
                       </td>

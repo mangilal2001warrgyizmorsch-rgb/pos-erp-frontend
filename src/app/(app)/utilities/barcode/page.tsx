@@ -73,8 +73,11 @@ export default function BarcodeGeneratorPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <ScanBarcode />
+          </div>
+          <h1 className="page-title flex items-center gap-2">
             Barcode Generator <span className="text-muted-foreground text-sm font-normal border rounded-full px-2">i</span>
           </h1>
         </div>

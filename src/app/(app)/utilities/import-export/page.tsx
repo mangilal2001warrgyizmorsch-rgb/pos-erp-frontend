@@ -137,7 +137,12 @@ export default function ImportExportPage() {
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground bg-muted/50 rounded-md">
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Import Items</h1>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <PackageOpen />
+          </div>
+          <h1 className="page-title">Import Items</h1>
+        </div>
       </div>
 
       {/* Content */}

@@ -1,16 +1,21 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Construction } from "lucide-react";
+import { CloudUpload, Construction } from "lucide-react";
 
 export default function BackupPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sync, Share & Backup</h1>
-        <p className="text-muted-foreground mt-2">
-          Securely backup your ERP data to local storage or cloud.
-        </p>
+      <div className="flex items-center gap-3">
+        <div className="page-icon-tile">
+          <CloudUpload />
+        </div>
+        <div>
+          <h1 className="page-title">Sync, Share & Backup</h1>
+          <p className="page-description mt-1">
+            Securely backup your ERP data to local storage or cloud.
+          </p>
+        </div>
       </div>
       
       <Card className="border-dashed border-2 bg-muted/30">

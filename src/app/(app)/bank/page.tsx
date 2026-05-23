@@ -133,13 +133,18 @@ export default function BankAccountsPage() {
     <div className="space-y-6">
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-5">
-        <div>
-          <h1 className="page-title text-2xl sm:text-3xl">
-            Bank Accounts
-          </h1>
-          <p className="page-description text-xs sm:text-sm mt-1">
-            Configure register nodes, check balances, print invoice coordinates, and monitor transactional assets.
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <Building2 />
+          </div>
+          <div>
+            <h1 className="page-title">
+              Bank Accounts
+            </h1>
+            <p className="page-description mt-1">
+              Configure register nodes, check balances, print invoice coordinates, and monitor transactional assets.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
@@ -246,11 +251,11 @@ export default function BankAccountsPage() {
           </motion.div>
         </Card>
       ) : (
-        <Card className="border border-border/40 shadow-sm bg-card overflow-hidden rounded-2xl">
+        <Card className="app-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse min-w-[650px]">
               <thead>
-                <tr className="border-b bg-muted/30 text-muted-foreground font-bold uppercase tracking-wider text-[10px] sm:text-xs">
+                <tr className="app-table-head border-b">
                   <th className="p-4">Bank Name</th>
                   <th className="p-4">Account Number</th>
                   <th className="p-4 hidden sm:table-cell">IFSC Code</th>
@@ -271,13 +276,13 @@ export default function BankAccountsPage() {
                     <td className="p-4 font-semibold text-foreground">
                       {bank.accountName}
                     </td>
-                    <td className="p-4 font-mono text-xs text-muted-foreground">
+                    <td className="p-4 receipt-code text-xs">
                       {bank.accountNumber}
                     </td>
-                    <td className="p-4 uppercase text-xs font-semibold text-muted-foreground hidden sm:table-cell">
+                    <td className="p-4 receipt-code uppercase text-xs hidden sm:table-cell">
                       {bank.ifscCode}
                     </td>
-                    <td className="p-4 text-right font-mono font-black text-primary text-xs sm:text-sm">
+                    <td className="p-4 text-right amount-positive text-xs sm:text-sm">
                       {formatCurrency(bank.currentBalance)}
                     </td>
                     <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>

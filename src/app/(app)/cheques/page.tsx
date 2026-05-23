@@ -141,9 +141,14 @@ export default function ChequesPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cheques</h1>
-          <p className="text-muted-foreground mt-1">Manage your incoming and outgoing cheques</p>
+        <div className="flex items-center gap-3">
+          <div className="page-icon-tile">
+            <Receipt />
+          </div>
+          <div>
+            <h1 className="page-title">Cheques</h1>
+            <p className="page-description mt-1">Manage your incoming and outgoing cheques</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6" onClick={() => {
