@@ -34,6 +34,7 @@ import {
   History,
   ListCollapse,
   Boxes,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/themeStore";
@@ -125,6 +126,16 @@ const navEntries: NavEntry[] = [
     label: "Reports",
     icon: BarChart3,
     href: "/reports", 
+  },
+  {
+    label: "Shifts",
+    icon: Clock,
+    href: "/shifts",
+  },
+  {
+    label: "Activity Logs",
+    icon: History,
+    href: "/activity",
   },
   {
     label: "Sync & Backup",

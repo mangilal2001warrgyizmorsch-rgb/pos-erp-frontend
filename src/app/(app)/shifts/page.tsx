@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Clock, Play, StopCircle, IndianRupee, AlertCircle, CheckCircle2, History, Monitor } from "lucide-react";
+import { Clock, Play, StopCircle, IndianRupee, AlertCircle, CheckCircle2, History, Monitor, Wallet, CreditCard, Smartphone, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
+import { printShiftSummary } from "@/lib/print/shiftSummaryPrint";
 import api from "@/services/api";
+import { useAuthStore } from "@/store/authStore";
+import { useBusinessStore } from "@/store/businessStore";
 import { useRouter } from "next/navigation";
 
 interface Shift {
   _id: string;
   status: "open" | "closed";
+  cashierName?: string;
   openingCash: number;
   openingTime: string;
   closingTime?: string;
@@ -30,14 +34,25 @@ interface Shift {
   notes?: string;
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response;
+    return response?.data?.message || fallback;
+  }
+  return fallback;
+}
+
 export default function ShiftsPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const { profile } = useBusinessStore();
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialogOpen, setOpenDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [openingCash, setOpeningCash] = useState("0");
   const [closingCash, setClosingCash] = useState("");
+  const [cashierName, setCashierName] = useState("");
   const [openNotes, setOpenNotes] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +70,8 @@ export default function ShiftsPage() {
   }, []);
 
   useEffect(() => {
+    // The initial server fetch resolves asynchronously and then hydrates shift state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCurrentShift();
   }, [loadCurrentShift]);
 
@@ -64,69 +81,30 @@ export default function ShiftsPage() {
       toast.error("Opening cash cannot be negative");
       return;
     }
+    if (!cashierName.trim()) {
+      toast.error("Cashier name is required");
+      return;
+    }
     try {
       setSubmitting(true);
-      await api.post("/shifts/open", { openingCash: amount, notes: openNotes });
+      await api.post("/shifts/open", { openingCash: amount, cashierName, notes: openNotes });
       toast.success("Shift opened successfully");
       setOpenDialogOpen(false);
+      setCashierName("");
       setOpenNotes("");
       await loadCurrentShift();
       router.push("/pos");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to open shift");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "Failed to open shift"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const printReport = (shift: Shift) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
+    if (!printShiftSummary(shift, profile, shift.cashierName || user?.name)) {
       toast.error("Popup blocker blocked printing the shift summary");
-      return;
     }
-    const html = `
-      <html>
-        <head>
-          <title>Shift Summary Receipt</title>
-          <style>
-            body { font-family: monospace; padding: 20px; color: #000; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .header h2 { margin: 0; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-            .divider { border-top: 1px dashed #000; margin: 10px 0; }
-            .total { font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>SHIFT SUMMARY</h2>
-            <p>Status: CLOSED</p>
-          </div>
-          <div class="row"><span>Opened:</span> <span>${new Date(shift.openingTime).toLocaleString("en-IN")}</span></div>
-          <div class="row"><span>Closed:</span> <span>${shift.closingTime ? new Date(shift.closingTime).toLocaleString("en-IN") : new Date().toLocaleString("en-IN")}</span></div>
-          <div class="divider"></div>
-          <div class="row"><span>Opening Cash:</span> <span>${formatCurrency(shift.openingCash)}</span></div>
-          <div class="row"><span>Cash Sales:</span> <span>${formatCurrency(shift.totalSalesCash || 0)}</span></div>
-          <div class="row"><span>Card Sales:</span> <span>${formatCurrency(shift.totalSalesCard || 0)}</span></div>
-          <div class="row"><span>UPI Sales:</span> <span>${formatCurrency(shift.totalSalesUpi || 0)}</span></div>
-          <div class="row font-bold"><span>Total Sales:</span> <span>${formatCurrency(shift.totalSales || 0)}</span></div>
-          <div class="divider"></div>
-          <div class="row"><span>Expected Cash:</span> <span>${formatCurrency(shift.expectedCash || 0)}</span></div>
-          <div class="row"><span>Actual Cash:</span> <span>${formatCurrency(shift.actualCash || 0)}</span></div>
-          <div class="row total"><span>Difference:</span> <span>${formatCurrency(shift.difference || 0)}</span></div>
-          ${shift.notes ? `<div class="divider"></div><div class="row"><span>Notes:</span> <span>${shift.notes}</span></div>` : ""}
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-    printWindow.document.write(html);
-    printWindow.document.close();
   };
 
   const handleCloseShift = async () => {
@@ -149,8 +127,8 @@ export default function ShiftsPage() {
         printReport(res.data.data);
       }
       loadCurrentShift();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to close shift");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "Failed to close shift"));
     } finally {
       setSubmitting(false);
     }
@@ -169,72 +147,94 @@ export default function ShiftsPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : currentShift ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Shift Status Card */}
-          <Card className="md:col-span-2 p-8 border-t-4 border-t-emerald-500 shadow-xl shadow-emerald-500/5">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <h2 className="text-2xl font-bold">Shift is Active</h2>
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm">
+            <div className="flex flex-col gap-5 border-b border-border/60 bg-gradient-to-r from-emerald-500/[0.07] to-transparent p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-3">
+                  <span className="relative flex h-3 w-3">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
+                  </span>
+                  <h2 className="text-xl font-bold">Active Shift</h2>
+                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Open</span>
                 </div>
-                <p className="text-muted-foreground">Opened at: {new Date(currentShift.openingTime).toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">
+                  Started {new Date(currentShift.openingTime).toLocaleString("en-IN")}
+                </p>
+                {currentShift.cashierName && (
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    Cashier: {currentShift.cashierName}
+                  </p>
+                )}
               </div>
-              <div className="flex flex-wrap gap-4">
-                <Button size="lg" onClick={() => router.push("/pos")} className="h-14 px-8 text-lg font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 border-0 transition-all duration-300 transform hover:scale-[1.02]">
-                  <Monitor className="mr-2 h-6 w-6" /> Go to POS
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => router.push("/pos")} className="h-11 gap-2 bg-emerald-600 px-5 text-white hover:bg-emerald-700">
+                  <Monitor className="h-4 w-4" /> Open POS
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
-                <Button size="lg" variant="destructive" onClick={() => setCloseDialogOpen(true)} className="h-14 px-8 text-lg font-bold transition-all duration-300 transform hover:scale-[1.02]">
-                  <StopCircle className="mr-2 h-6 w-6" /> End Shift
+                <Button variant="outline" onClick={() => setCloseDialogOpen(true)} className="h-11 gap-2 border-rose-200 px-5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/30">
+                  <StopCircle className="h-4 w-4" /> End Shift
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12">
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Opening Cash</p>
-                <p className="text-2xl font-bold">{formatCurrency(currentShift.openingCash)}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sales (Cash)</p>
-                <p className="text-2xl font-bold text-emerald-500">+{formatCurrency(currentShift.totalSalesCash || 0)}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Other Sales</p>
-                <p className="text-xl font-semibold">{formatCurrency((currentShift.totalSalesCard || 0) + (currentShift.totalSalesUpi || 0))}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Expected In Drawer</p>
-                <p className="text-2xl font-black text-primary">{formatCurrency(currentShift.expectedCash || 0)}</p>
+            <div className="p-5 sm:p-6">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Drawer Summary</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Opening Cash</p>
+                  <p className="mt-2 text-xl font-bold tabular-nums">{formatCurrency(currentShift.openingCash)}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.06] p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Cash Sales</p>
+                  <p className="mt-2 text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(currentShift.totalSalesCash || 0)}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Other Sales</p>
+                  <p className="mt-2 text-xl font-bold tabular-nums">{formatCurrency((currentShift.totalSalesCard || 0) + (currentShift.totalSalesUpi || 0))}</p>
+                </div>
+                <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.06] p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Expected Drawer</p>
+                  <p className="mt-2 text-xl font-bold tabular-nums text-primary">{formatCurrency(currentShift.expectedCash || 0)}</p>
+                </div>
               </div>
             </div>
           </Card>
 
-          {/* Quick Stats */}
           <div className="space-y-4">
-            <Card className="p-6 bg-primary/5 border-primary/10">
-              <h3 className="font-bold mb-4 flex items-center gap-2">
-                <IndianRupee className="h-4 w-4" /> Payment Breakdown
-              </h3>
+            <Card className="rounded-2xl border-border/60 p-5 shadow-sm">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary"><IndianRupee className="h-4 w-4" /></div>
+                  <h3 className="font-semibold">Payment Breakdown</h3>
+                </div>
+              </div>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Cash Sales</span>
-                  <span className="font-medium">{formatCurrency(currentShift.totalSalesCash || 0)}</span>
+                <div className="flex items-center justify-between rounded-xl bg-muted/25 p-3 text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><Wallet className="h-4 w-4" /> Cash</span>
+                  <span className="font-semibold tabular-nums">{formatCurrency(currentShift.totalSalesCash || 0)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Card Sales</span>
-                  <span className="font-medium">{formatCurrency(currentShift.totalSalesCard || 0)}</span>
+                <div className="flex items-center justify-between rounded-xl bg-muted/25 p-3 text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><CreditCard className="h-4 w-4" /> Card</span>
+                  <span className="font-semibold tabular-nums">{formatCurrency(currentShift.totalSalesCard || 0)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">UPI Sales</span>
-                  <span className="font-medium">{formatCurrency(currentShift.totalSalesUpi || 0)}</span>
+                <div className="flex items-center justify-between rounded-xl bg-muted/25 p-3 text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><Smartphone className="h-4 w-4" /> UPI</span>
+                  <span className="font-semibold tabular-nums">{formatCurrency(currentShift.totalSalesUpi || 0)}</span>
                 </div>
               </div>
             </Card>
-            
-            <Card className="p-6 border-dashed border-2 flex flex-col items-center justify-center text-center gap-2 text-muted-foreground">
-              <History className="h-8 w-8 mb-2 opacity-20" />
-              <p className="text-xs font-medium">Session history and reports are available in the Reports section</p>
+
+            <Card className="rounded-2xl border-dashed border-border/80 p-5">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-muted p-2.5 text-muted-foreground"><History className="h-5 w-5" /></div>
+                <div>
+                  <p className="text-sm font-semibold">Session Reports</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">View closed session history and shift summaries from Reports.</p>
+                  <Button variant="link" className="mt-2 h-auto p-0 text-xs" onClick={() => router.push("/reports")}>View reports <ArrowRight className="ml-1 h-3 w-3" /></Button>
+                </div>
+              </div>
             </Card>
           </div>
         </div>
@@ -264,6 +264,15 @@ export default function ShiftsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>Cashier Name *</Label>
+              <Input
+                value={cashierName}
+                onChange={(e) => setCashierName(e.target.value)}
+                placeholder="e.g. Imam"
+                className="h-14 text-lg font-semibold"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Opening Cash (₹) *</Label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">₹</span>
@@ -272,7 +281,7 @@ export default function ShiftsPage() {
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
-              <Input value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} placeholder="Counter No, Cashier Name etc." />
+              <Input value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} placeholder="Counter No, remarks etc." />
             </div>
           </div>
           <DialogFooter>
@@ -323,7 +332,7 @@ export default function ShiftsPage() {
                     <p className="text-sm font-bold">
                       {isBalanced ? "Drawer Balanced" : `Difference: ${formatCurrency(actual - expected)}`}
                     </p>
-                    <p className="text-[10px] opacity-80">Final reconcile for today's session</p>
+                    <p className="text-[10px] opacity-80">Final reconcile for today&apos;s session</p>
                   </div>
                 </motion.div>
               );

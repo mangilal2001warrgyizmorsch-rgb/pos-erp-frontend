@@ -4,6 +4,7 @@ import type { ApiResponse } from "@/types";
 export interface Shift {
   _id: string;
   cashier: any;
+  cashierName?: string;
   startTime: string;
   endTime?: string;
   openingBalance: number;
@@ -20,8 +21,8 @@ export const shiftService = {
     return data.data;
   },
 
-  open: async (openingBalance: number): Promise<Shift> => {
-    const { data } = await api.post<ApiResponse<Shift>>("/shifts/open", { openingBalance });
+  open: async (openingBalance: number, cashierName: string, notes?: string): Promise<Shift> => {
+    const { data } = await api.post<ApiResponse<Shift>>("/shifts/open", { openingCash: openingBalance, cashierName, notes });
     return data.data;
   },
 

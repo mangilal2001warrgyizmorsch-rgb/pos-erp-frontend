@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ClipboardList, Search, RefreshCw, Eye, Calendar } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, Calendar, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export default function ActivityPage() {
   const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const params: Record<string, any> = {
+      const params: Record<string, string | number> = {
         page,
         limit: 15,
       };
@@ -100,11 +100,6 @@ export default function ActivityPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [loadLogs]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchUser, module, action, startDate, endDate]);
-
   const handleResetFilters = () => {
     setSearchUser("");
     setModule("all");
@@ -113,6 +108,33 @@ export default function ActivityPage() {
     setEndDate("");
     setPage(1);
   };
+
+  const updateSearchUser = (value: string) => {
+    setSearchUser(value);
+    setPage(1);
+  };
+
+  const updateModule = (value: string) => {
+    setModule(value);
+    setPage(1);
+  };
+
+  const updateAction = (value: string) => {
+    setAction(value);
+    setPage(1);
+  };
+
+  const updateStartDate = (value: string) => {
+    setStartDate(value);
+    setPage(1);
+  };
+
+  const updateEndDate = (value: string) => {
+    setEndDate(value);
+    setPage(1);
+  };
+
+  const hasActiveFilters = Boolean(searchUser || module !== "all" || action !== "all" || startDate || endDate);
 
   const getActionBadge = (actionStr: string) => {
     switch (actionStr) {
@@ -140,69 +162,83 @@ export default function ActivityPage() {
       />
 
       {/* Filter Toolbar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 bg-card p-4 rounded-xl border shadow-sm">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search User..."
-            value={searchUser}
-            onChange={(e) => setSearchUser(e.target.value)}
-            className="pl-10"
-          />
+      <Card className="rounded-2xl border-border/60 p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">Filter Activity</p>
+            {hasActiveFilters && <Badge className="ml-1 rounded-full bg-primary/10 text-primary hover:bg-primary/10">Active</Badge>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleResetFilters} disabled={!hasActiveFilters} className="text-muted-foreground">
+              Clear filters
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={loadLogs} title="Refresh logs" aria-label="Refresh logs">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div>
-          <Select value={module} onValueChange={setModule}>
-            <SelectTrigger>
-              <SelectValue placeholder="Module" />
-            </SelectTrigger>
-            <SelectContent>
-              {MODULE_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="relative xl:col-span-3">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search user..."
+              value={searchUser}
+              onChange={(e) => updateSearchUser(e.target.value)}
+              className="h-11 pl-10"
+            />
+          </div>
+          <div className="xl:col-span-2">
+            <Select value={module} onValueChange={updateModule}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Module" />
+              </SelectTrigger>
+              <SelectContent>
+                {MODULE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="xl:col-span-2">
+            <Select value={action} onValueChange={updateAction}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Action" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACTION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-1 xl:col-span-5">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <Calendar className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => updateStartDate(e.target.value)}
+                className="h-9 min-w-0 border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-0"
+                title="Start Date"
+                aria-label="Start date"
+              />
+              <span className="text-xs font-medium text-muted-foreground">to</span>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => updateEndDate(e.target.value)}
+                className="h-9 min-w-0 border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-0"
+                title="End Date"
+                aria-label="End date"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <Select value={action} onValueChange={setAction}>
-            <SelectTrigger>
-              <SelectValue placeholder="Action" />
-            </SelectTrigger>
-            <SelectContent>
-              {ACTION_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex gap-2 items-center">
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full text-xs"
-            title="Start Date"
-          />
-          <span className="text-muted-foreground text-xs">to</span>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-full text-xs"
-            title="End Date"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleResetFilters} className="w-full">
-            Reset
-          </Button>
-          <Button variant="outline" size="icon" onClick={loadLogs} title="Refresh logs">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      </Card>
 
       {/* Table & Data */}
-      <Card className="overflow-hidden border shadow-sm">
+      <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm">
         {loading ? (
           <div className="p-4"><TableSkeleton rows={8} /></div>
         ) : logs.length === 0 ? (
@@ -212,22 +248,30 @@ export default function ActivityPage() {
             <p className="text-sm">Try relaxing your search filters.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
+          <div>
+            <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold">Activity History</h2>
+                <p className="text-xs text-muted-foreground">Latest system events and user sessions</p>
+              </div>
+              <Badge variant="outline" className="rounded-full px-3 text-muted-foreground">{logs.length} records</Badge>
+            </div>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[860px]">
+              <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="w-48">Timestamp</TableHead>
-                  <TableHead className="w-40">User</TableHead>
-                  <TableHead className="w-32">Module</TableHead>
+                  <TableHead className="w-48 pl-6">Timestamp</TableHead>
+                  <TableHead className="w-44">User</TableHead>
+                  <TableHead className="w-36">Module</TableHead>
                   <TableHead className="w-32">Action</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="w-24 text-right">Details</TableHead>
+                  <TableHead className="w-20 pr-6 text-right">Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
-                  <TableRow key={log._id} className="hover:bg-muted/30">
-                    <TableCell className="text-muted-foreground font-mono text-xs whitespace-nowrap">
+                  <TableRow key={log._id} className="h-[72px] transition-colors hover:bg-muted/25">
+                    <TableCell className="pl-6 text-xs font-mono whitespace-nowrap text-muted-foreground">
                       {formatDate(log.createdAt)}
                     </TableCell>
                     <TableCell>
@@ -237,15 +281,15 @@ export default function ActivityPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-semibold">{log.module}</Badge>
+                      <Badge variant="outline" className="rounded-full bg-muted/20 px-3 font-semibold">{log.module}</Badge>
                     </TableCell>
                     <TableCell>
                       {getActionBadge(log.action)}
                     </TableCell>
-                    <TableCell className="text-sm text-foreground max-w-xs truncate">
+                    <TableCell className="max-w-md truncate text-sm text-foreground" title={log.description}>
                       {log.description}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="pr-6 text-right">
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -261,10 +305,11 @@ export default function ActivityPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+              <div className="flex items-center justify-between border-t bg-muted/10 p-4">
                 <p className="text-sm text-muted-foreground">
                   Page {page} of {totalPages}
                 </p>
