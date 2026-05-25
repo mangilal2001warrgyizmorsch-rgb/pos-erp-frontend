@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ShoppingCart, Eye, Receipt, Plus, Edit, Trash2 } from "lucide-react";
+import { ShoppingCart, Eye, Receipt, Plus, Edit, Trash2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -25,6 +25,7 @@ import { saleService } from "@/services/saleService";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Sale } from "@/types";
 import { getSocket } from "@/lib/socket";
+import { PrintSaleDialog } from "@/components/sales/PrintSaleDialog";
 
 export default function SalesPage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function SalesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState({
@@ -209,7 +211,7 @@ export default function SalesPage() {
                         <Button variant="ghost" size="icon-sm" onClick={() => viewSale(sale._id)} title="View">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/sales/${sale._id}`)} title="Edit">
+                        <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/pos?editSale=${sale._id}`)} title="Edit">
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon-sm" onClick={() => { setDeleteId(sale._id); setDeleteOpen(true); }} title="Delete">
@@ -286,10 +288,14 @@ export default function SalesPage() {
                   <span>Total</span><span className="text-primary">{formatCurrency(selectedSale.totalAmount)}</span>
                 </div>
               </div>
+              <div className="flex justify-end border-t pt-4">
+                <Button className="gap-2" onClick={() => { setDetailOpen(false); setPrintOpen(true); }}><Printer className="h-4 w-4" /> Print / PDF Invoice</Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+      <PrintSaleDialog open={printOpen} onOpenChange={setPrintOpen} sale={selectedSale} />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

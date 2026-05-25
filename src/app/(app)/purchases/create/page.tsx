@@ -47,6 +47,7 @@ import { categoryService } from "@/services/categoryService";
 import { subcategoryService } from "@/services/subcategoryService";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { SupplierModal } from "@/components/shared/SupplierModal";
+import { PrintPurchaseDialog } from "@/components/purchases/PrintPurchaseDialog";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/themeStore";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -404,6 +405,8 @@ export default function CreatePurchasePage() {
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
   const [scanHistory, setScanHistory] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [printPurchase, setPrintPurchase] = useState<Purchase | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
   const [stateOfSupply, setStateOfSupply] = useState("Rajasthan");
   const [roundOff, setRoundOff] = useState(false);
   const [existingPayment, setExistingPayment] = useState<Pick<Purchase, "amountPaid" | "paymentStatus"> | null>(null);
@@ -888,7 +891,7 @@ export default function CreatePurchasePage() {
   const roundOffValue = finalTotal - calculatedGrandTotal;
   const grandTotal = finalTotal;
 
-  const handleSubmit = async (status: "confirmed" | "draft") => {
+  const handleSubmit = async (status: "confirmed" | "draft", printAfterSave = false) => {
     let finalSupplierId = supplierId;
     let finalSupplierName = "";
 
@@ -1026,17 +1029,23 @@ export default function CreatePurchasePage() {
         notes,
       };
 
+      let savedPurchase: Purchase;
       if (editingPurchaseId) {
-        await purchaseService.update(editingPurchaseId, payload);
+        savedPurchase = await purchaseService.update(editingPurchaseId, payload);
         toast.success(status === "draft" ? "Draft updated!" : "Purchase updated! Stock updated automatically.");
       } else if (status === "draft") {
-        await purchaseService.saveDraft(payload);
+        savedPurchase = await purchaseService.saveDraft(payload);
         toast.success("Draft saved!");
       } else {
-        await purchaseService.create(payload);
+        savedPurchase = await purchaseService.create(payload);
         toast.success("Purchase created! Stock updated automatically.");
       }
-      router.push("/purchases");
+      if (printAfterSave) {
+        setPrintPurchase(savedPurchase);
+        setPrintOpen(true);
+      } else {
+        router.push("/purchases");
+      }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || "Failed to create purchase");
@@ -1698,10 +1707,11 @@ export default function CreatePurchasePage() {
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => handleSubmit("confirmed", true)}
+                disabled={saving}
                 className="w-full px-4 py-2.5 text-left text-xs font-semibold hover:bg-muted transition-colors border-b border-border/10"
               >
-                Print Bill
+                Save & Print Bill
               </button>
               <button
                 type="button"
@@ -1820,6 +1830,7 @@ export default function CreatePurchasePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PrintPurchaseDialog open={printOpen} onOpenChange={setPrintOpen} purchase={printPurchase} />
 
       {/* Supplier Modal */}
       <SupplierModal

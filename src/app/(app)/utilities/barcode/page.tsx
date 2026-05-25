@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Plus, Settings, ScanBarcode, Trash2, Printer } from "lucide-react";
+import { Settings, ScanBarcode, Trash2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import { productService } from "@/services/productService";
 import type { Product } from "@/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { BarcodeLabelTemplate } from "@/lib/print/templates/BarcodeLabelTemplate";
+import { barcodePageStyle, type BarcodeLabelSize, type BarcodePrinterType } from "@/lib/print/barcodePrintUtils";
 
 type BarcodeItem = {
   id: string;
@@ -39,12 +41,16 @@ export default function BarcodeGeneratorPage() {
   const [addedItems, setAddedItems] = useState<BarcodeItem[]>([]);
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [labelSize, setLabelSize] = useState("50x25");
-  const [printerType, setPrinterType] = useState("label");
-  const printRef = useRef(null);
+  const [labelSize, setLabelSize] = useState<BarcodeLabelSize>("50x25");
+  const [printerType, setPrinterType] = useState<BarcodePrinterType>("label");
+  const [includePrice, setIncludePrice] = useState(true);
+  const [includeSku, setIncludeSku] = useState(true);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: "Barcode-Labels",
+    pageStyle: barcodePageStyle(labelSize, printerType),
   });
 
   useEffect(() => {
@@ -310,7 +316,7 @@ export default function BarcodeGeneratorPage() {
           <div className="space-y-4 py-4 text-sm">
             <div className="space-y-2">
               <Label>Printer Type</Label>
-              <Select value={printerType} onValueChange={setPrinterType}>
+              <Select value={printerType} onValueChange={(value) => setPrinterType(value as BarcodePrinterType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="label">Thermal Label Printer</SelectItem>
@@ -321,15 +327,17 @@ export default function BarcodeGeneratorPage() {
             </div>
             <div className="space-y-2">
               <Label>Label Size</Label>
-              <Select value={labelSize} onValueChange={setLabelSize}>
+              <Select value={labelSize} onValueChange={(value) => setLabelSize(value as BarcodeLabelSize)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="50x25">50mm × 25mm</SelectItem>
+                  <SelectItem value="40x20">40mm × 20mm</SelectItem>
                   <SelectItem value="38x25">38mm × 25mm</SelectItem>
-                  <SelectItem value="100x50">100mm × 50mm</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-3"><Label htmlFor="barcode-sku">Include SKU</Label><Checkbox id="barcode-sku" checked={includeSku} onCheckedChange={(checked) => setIncludeSku(Boolean(checked))} /></div>
+            <div className="flex items-center justify-between rounded-lg border p-3"><Label htmlFor="barcode-price">Include Price</Label><Checkbox id="barcode-price" checked={includePrice} onCheckedChange={(checked) => setIncludePrice(Boolean(checked))} /></div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button onClick={() => setSettingsOpen(false)}>Save Settings</Button>
@@ -350,13 +358,9 @@ export default function BarcodeGeneratorPage() {
             </Button>
           </div>
           <div className="bg-white text-black p-8 rounded-md" ref={printRef}>
-            <div className="flex flex-wrap gap-4 justify-center">
+            <div className="barcode-sheet grid gap-3 justify-center" style={{ gridTemplateColumns: printerType === "label" ? "1fr" : "repeat(3, max-content)" }}>
               {itemsToPrint.map((item, idx) => (
-                <div key={idx} className="border border-gray-300 w-[200px] h-[100px] flex flex-col items-center justify-center p-2 break-inside-avoid shadow-sm rounded-sm">
-                  <div className="text-[10px] font-bold truncate w-full text-center">{item.header}</div>
-                  <Barcode value={item.itemCode} format="CODE128" width={1.2} height={30} displayValue={true} fontSize={10} background="transparent" margin={2} />
-                  <div className="text-[9px] font-medium leading-tight text-center truncate w-full">{item.line1}</div>
-                </div>
+                <BarcodeLabelTemplate key={idx} size={labelSize} includeSku={includeSku} includePrice={includePrice} item={{ itemName: item.itemName, itemCode: item.itemCode, header: item.header, sku: item.line1, price: item.line2 }} />
               ))}
             </div>
           </div>

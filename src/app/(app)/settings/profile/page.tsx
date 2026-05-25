@@ -85,7 +85,7 @@ export default function BusinessProfilePage() {
     }
     try {
       setSaving(true);
-      await updateProfile(localProfile);
+      await updateProfile({ ...localProfile, gstin: localProfile.gstin?.trim().toUpperCase() || "" });
       toast.success("Business profile updated successfully");
     } catch (error) {
       toast.error("Failed to update business profile");
@@ -312,7 +312,7 @@ export default function BusinessProfilePage() {
                   </Label>
                   <Input 
                     value={localProfile.gstin} 
-                    onChange={(e) => setLocalProfile({...localProfile, gstin: e.target.value})}
+                    onChange={(e) => setLocalProfile({...localProfile, gstin: e.target.value.toUpperCase()})}
                     placeholder="Enter GSTIN"
                     className="h-11 px-4 uppercase font-mono"
                   />

@@ -281,6 +281,29 @@ h6 {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+/* Print previews always represent white paper, even when the app is in dark mode. */
+.print-area {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  color-scheme: light;
+}
+
+.print-area .print-business-name {
+  color: #3730a3 !important;
+}
+
+.print-area .print-thermal-business-name {
+  color: #000000 !important;
+}
+
+.print-area h2,
+.print-area h3,
+.print-area h4,
+.print-area h5,
+.print-area h6 {
+  color: #0f172a;
+}
+
 /* Print styles */
 @media print {
   @page {
@@ -298,6 +321,40 @@ h6 {
   .no-print {
     display: none !important;
   }
+
+  .print-area {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .print-a4 {
+    width: 100% !important;
+    max-width: 186mm !important;
+    margin: 0 auto !important;
+  }
+
+  .print-a4 thead,
+  .print-report thead {
+    display: table-header-group;
+  }
+
+  .print-a4 tr,
+  .print-report tr,
+  .barcode-label,
+  .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-thermal {
+    margin: 0 auto !important;
+    overflow: hidden !important;
+  }
+
+  .print-thermal-58 { width: 58mm !important; max-width: 58mm !important; }
+  .print-thermal-80 { width: 80mm !important; max-width: 80mm !important; }
 }
 
 /* Remove number input spin buttons globally */

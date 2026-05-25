@@ -37,6 +37,7 @@ import { saleService } from "@/services/saleService";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import type { Customer, Sale, SaleReturn, SaleReturnItem, BankAccount } from "@/types";
 import { getSocket } from "@/lib/socket";
+import { ReturnPrintDialog } from "@/components/print/ReturnPrintDialog";
 
 interface FormItem {
   id: string;
@@ -93,6 +94,7 @@ export default function SaleReturnPage() {
   // Detail View states
   const [selectedReturn, setSelectedReturn] = useState<SaleReturn | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
 
   // Keyboard Shortcuts Support
   useEffect(() => {
@@ -1014,12 +1016,13 @@ export default function SaleReturnPage() {
 
           <DialogFooter className="border-t pt-3">
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Close</Button>
-            <Button className="gap-2" onClick={() => window.print()}>
+            <Button className="gap-2" onClick={() => setPrintOpen(true)}>
               <Printer className="h-4 w-4" /> Print Credit Note
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ReturnPrintDialog open={printOpen} onOpenChange={setPrintOpen} type="sale" note={selectedReturn} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, FileText, File, Sheet, Printer } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +12,11 @@ import { SalesAnalyticsDashboard } from "@/components/analytics/SalesAnalyticsDa
 import { PurchaseAnalyticsDashboard } from "@/components/analytics/PurchaseAnalyticsDashboard";
 import { AnalyticsFilters, FilterBar } from "@/components/analytics/FilterBar";
 import { analyticsService, ReportFilters } from "@/services/analyticsService";
-import { exportToCSV, exportToExcel, exportToPDF, printReport } from "@/utils/exportUtils";
+import { exportReportCsv, exportReportExcel, exportReportPdf, formatReportValue, type ExportRow } from "@/lib/print/exportUtils";
+import { ReportPrintDialog } from "@/components/print/ReportPrintDialog";
+import type { ReportColumn, ReportCell } from "@/lib/print/templates/ReportPrintTemplate";
+import { businessService } from "@/services/businessService";
+import type { BusinessProfile } from "@/types";
 
 type Period = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 type ReportType = "inventory" | "sales" | "purchases";
@@ -22,6 +26,15 @@ export default function ReportsPage() {
   const [reportType, setReportType] = useState<ReportType>("sales");
   const [filters, setFilters] = useState<AnalyticsFilters>({});
   const [isExporting, setIsExporting] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printRows, setPrintRows] = useState<Record<string, ReportCell>[]>([]);
+  const [printColumns, setPrintColumns] = useState<ReportColumn[]>([]);
+  const [printTotals, setPrintTotals] = useState<Record<string, ReportCell>>({});
+  const [business, setBusiness] = useState<BusinessProfile | undefined>();
+
+  useEffect(() => {
+    businessService.getProfile().then(setBusiness).catch(() => undefined);
+  }, []);
 
   // Memoize to prevent re-creation every render
   const reportParams: ReportFilters = useMemo(
@@ -41,22 +54,28 @@ export default function ReportsPage() {
   const handleExport = useCallback(async (format: "csv" | "excel" | "pdf" | "print") => {
     try {
       setIsExporting(true);
-      const timestamp = new Date().toLocaleDateString().replace(/\//g, "-");
-      const filename = `${reportType}_report_${timestamp}`;
+      const range = filters.startDate || filters.endDate ? `${filters.startDate || "Beginning"} to ${filters.endDate || "Today"}` : `${period} period`;
+      const suffix = filters.startDate && filters.endDate ? `${filters.startDate}_${filters.endDate}` : new Date().toISOString().split("T")[0];
+      const filename = `${reportType}-report-${suffix}`;
       const report = await getCurrentReport();
-      // Filter out image columns from export data
-      const rows = (report?.table || []).map((row: Record<string, unknown>) => {
-        const cleaned = { ...row };
-        delete cleaned.productImage;
-        return cleaned;
-      });
+      const rawRows = (report?.table || []).map((row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([key]) => key !== "productImage")));
+      const keys = rawRows.length ? Object.keys(rawRows[0]) : [];
+      const rows: ExportRow[] = rawRows.map((row: Record<string, unknown>) => Object.fromEntries(keys.map((key) => [key, formatReportValue(key, row[key])])));
+      const totals: ExportRow = Object.fromEntries(keys.map((key, index) => {
+        if (index === 0) return [key, "TOTAL"];
+        const canTotal = /amount|total|tax|price|revenue|profit|cost|value|payment|stock|quantity/i.test(key) && rawRows.every((row: Record<string, unknown>) => row[key] === undefined || typeof row[key] === "number");
+        return [key, canTotal ? formatReportValue(key, rawRows.reduce((sum: number, row: Record<string, unknown>) => sum + Number(row[key] || 0), 0)) : ""];
+      }));
+      const context = { title: `${reportType.toUpperCase()} REPORT`, filename, dateRange: `Period: ${range}`, filters: filters.search ? `Search: ${filters.search}` : "", business, totals };
 
-      if (format === "csv") exportToCSV(rows, filename);
-      if (format === "excel") await exportToExcel(rows, filename, undefined, `${reportType} report`);
-      if (format === "pdf") await exportToPDF(rows, filename, `${reportType.toUpperCase()} Report`);
+      if (format === "csv") exportReportCsv(rows, context);
+      if (format === "excel") await exportReportExcel(rows, context);
+      if (format === "pdf") await exportReportPdf(rows, context);
       if (format === "print") {
-        const html = document.querySelector("[data-report-dashboard]")?.innerHTML || "";
-        printReport(`${reportType.toUpperCase()} Report`, html);
+        setPrintRows(rows as Record<string, ReportCell>[]);
+        setPrintColumns(keys.map((key) => ({ key, label: key.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase()).trim() })));
+        setPrintTotals(totals as Record<string, ReportCell>);
+        setPrintOpen(true);
       }
 
       toast.success(`Report exported as ${format.toUpperCase()}`);
@@ -65,7 +84,7 @@ export default function ReportsPage() {
     } finally {
       setIsExporting(false);
     }
-  }, [getCurrentReport, reportType]);
+  }, [business, filters, getCurrentReport, period, reportType]);
 
   return (
     <div className="space-y-5">
@@ -203,6 +222,7 @@ export default function ReportsPage() {
       >
         <p>All data is automatically updated. Last refresh: just now</p>
       </motion.div>
+      <ReportPrintDialog open={printOpen} onOpenChange={setPrintOpen} title={`${reportType.toUpperCase()} REPORT`} subtitle={filters.startDate || filters.endDate ? `${filters.startDate || "Beginning"} to ${filters.endDate || "Today"}` : `${period} period`} columns={printColumns} rows={printRows} totals={printTotals} />
     </div>
   );
 }
