@@ -19,6 +19,8 @@ import {
   LayoutList,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useThemeStore } from "@/store/themeStore";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -115,6 +117,7 @@ const calcItemTotal = (item: ItemRow) => {
 //  Page Component 
 export default function OpeningStockPage() {
   const router = useRouter();
+  const { sidebarCollapsed } = useThemeStore();
 
   // Cell focus refs
   const barcodeRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -208,6 +211,18 @@ export default function OpeningStockPage() {
   );
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
+  const [globalTaxType, setGlobalTaxType] = useState<"without" | "with">("without");
+
+  const handleGlobalTaxTypeChange = (value: "without" | "with") => {
+    setGlobalTaxType(value);
+    setItems((prev) =>
+      prev.map((item) => {
+        const updated = { ...item, purchaseTaxType: value };
+        updated.total = calcItemTotal(updated);
+        return updated;
+      })
+    );
+  };
   const [scanHistory, setScanHistory] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -599,379 +614,341 @@ export default function OpeningStockPage() {
   }, 0);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] -m-4 bg-background overflow-hidden relative">
+    <div className="bg-slate-50/50 pb-32 relative">
+      {/* Top Header */}
+      <div className="mb-4">
+        <PageHeader
+          title="Opening Stock Entry"
+          description="Record opening stock of inventory"
+          icon={Boxes}
+        />
+      </div>
 
-      {/*  Top Header / Action Bar  */}
-      <div className="shrink-0 px-3 sm:px-4 py-2 border-b bg-card flex items-center justify-between z-20 shadow-sm gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Boxes className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-          <h1 className="text-xs sm:text-sm font-bold tracking-tight truncate">Opening Stock Entry</h1>
+      {/* Top Details Section */}
+      <div className="flex justify-end mb-4">
+        <div className="bg-card px-4 py-2 rounded-xl border border-border/80 shadow-sm flex items-center gap-3">
+          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0">Stock Date <span className="text-destructive">*</span></Label>
+          <Input
+            type="date"
+            value={openingStockDate}
+            onChange={(e) => setOpeningStockDate(e.target.value)}
+            className="h-8 w-40 text-xs bg-card border border-border/80 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary/30 cursor-pointer font-semibold"
+          />
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {/* Mobile summary toggle */}
+      </div>
+
+      {/* Middle Section: Items Table */}
+      <div className="bg-card rounded-xl border border-border/80 shadow-sm mb-4 overflow-visible">
+        <div>
+          <table className="w-full border-collapse table-fixed">
+            <thead>
+              <tr className="text-[10px] font-black uppercase tracking-[0.08em] text-muted-foreground text-center bg-muted/40 border-b border-border/80">
+                <th className="w-[3%] py-2 border-r border-border/30">#</th>
+                <th className="w-[10%] py-2 text-left px-3 border-r border-border/30">BARCODE</th>
+                <th className="w-[28%] py-2 text-left px-3 border-r border-border/30">ITEM / PRODUCT NAME</th>
+                <th className="w-[5%] py-2 border-r border-border/30">QTY</th>
+                <th className="w-[7%] py-2 border-r border-border/30">UNIT</th>
+                <th className="w-[13%] py-2 px-2 border-r border-border/30">
+                  <div className="flex flex-col items-center justify-center gap-0.5">
+                    <span className="font-black">PURCHASE PRICE</span>
+                    <div className="flex items-center gap-1">
+                      <Select value={globalTaxType} onValueChange={(v: "without" | "with") => handleGlobalTaxTypeChange(v)}>
+                        <SelectTrigger className="h-5 px-1.5 py-0 bg-background/80 hover:bg-background border border-border/80 rounded text-[9px] font-bold text-foreground cursor-pointer justify-center gap-1 [&>svg]:h-3 [&>svg]:w-3">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="min-w-[100px]">
+                          <SelectItem value="without" className="text-[10px] font-semibold">Without Tax</SelectItem>
+                          <SelectItem value="with" className="text-[10px] font-semibold">With Tax</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="relative group flex items-center">
+                        <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-muted border border-border text-[9px] font-bold text-muted-foreground cursor-help hover:bg-primary/10 hover:text-primary transition-all">?</span>
+                        <div className="absolute -translate-x-1/2 top-0 mb-2 bg-popover border border-border text-popover-foreground text-[10px] rounded p-2.5 shadow-xl w-64 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 leading-relaxed text-left font-normal normal-case">
+                          <p className="font-bold border-b pb-1 mb-1 text-[9px] uppercase tracking-wider text-foreground">Price Type Helper</p>
+                          <p className="mb-1"><strong className="text-primary font-bold">Without Tax:</strong> Tax will be added separately on top of purchase price.</p>
+                          <p><strong className="text-primary font-bold">With Tax:</strong> Tax is already included in the entered price.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+                <th className="w-[12%] py-2 px-2 border-r border-border/30">SALE PRICE</th>
+                <th className="w-[7%] py-2 border-r border-border/30">TAX %</th>
+                <th className="w-[12%] py-2 text-right px-3 border-r border-border/30">VALUATION</th>
+                <th className="w-[3%]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/10">
+              {items.map((item, idx) => (
+                <tr
+                  key={item.id}
+                  className={cn(
+                    "hover:bg-muted/10 transition-colors text-center h-9 border-b border-border/40 relative",
+                    activeSearchIdx === idx ? "z-30" : "z-0"
+                  )}
+                >
+                  <td className="py-1 border-r border-border/15 font-bold text-[10px] text-muted-foreground">
+                    {idx + 1}
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15 relative">
+                    <TableCellInput
+                      id={`scan-input-${idx}`}
+                      ref={(el) => { barcodeRefs.current[item.id] = el; }}
+                      value={item.product ? item.product.barcode || item.product.sku : item.productSearch}
+                      onChange={(e) => handleProductSearch(idx, e.target.value)}
+                      onFocus={() => setActiveSearchIdx(idx)}
+                      onKeyDown={(e) => { handleKeyDown(e, idx); handleCustomTab(e, item.id, "barcode", idx); }}
+                      placeholder="Scan/Search"
+                      className={cn(
+                        "h-8 text-left font-mono text-[11px] bg-muted/10 border border-border/40 rounded-lg px-2.5 transition-all w-full focus:bg-background focus:border-primary/45 focus:ring-1 focus:ring-primary/20 focus:shadow-sm",
+                        item.productSearch && !item.product ? "border-amber-500/30 text-amber-500 bg-amber-500/5 focus:border-amber-500/50 focus:ring-amber-500/20" : ""
+                      )}
+                    />
+                    {activeSearchIdx === idx && item.productSearch.length > 0 && (
+                      <div className="absolute z-50 left-1 w-72 top-full mt-1.5 bg-card border border-border rounded-xl shadow-2xl overflow-hidden max-h-[180px] overflow-y-auto flex flex-col animate-in fade-in duration-100">
+                        {productResults.length === 0 ? (
+                          <div className="p-3 text-[10px] text-center text-muted-foreground font-medium">Type to create a new product</div>
+                        ) : (
+                          productResults.map((p, pIdx) => (
+                            <button
+                              key={p._id}
+                              type="button"
+                              onClick={() => selectProduct(idx, p)}
+                              className={cn(
+                                "flex items-center gap-2 w-full px-3 py-1.5 text-left border-b border-border/10 last:border-0 transition-colors",
+                                selectedDropdownIdx === pIdx ? "bg-primary/10 font-bold" : "hover:bg-muted/40"
+                              )}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-semibold truncate">{p.name}</p>
+                                <p className="text-[9px] font-mono text-muted-foreground">{p.sku} {p.barcode ? `• ${p.barcode}` : ""}</p>
+                              </div>
+                              <Badge variant="secondary" className="text-[9px] shrink-0 font-bold">{p.stock} in stock</Badge>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15 text-left">
+                    {item.product ? (
+                      <span className="text-xs font-semibold px-2 block truncate w-full" title={item.product.name}>
+                        {item.product.name}
+                      </span>
+                    ) : (
+                      <TableCellInput
+                        ref={(el) => { nameRefs.current[item.id] = el; }}
+                        value={item.newProductName || ""}
+                        onChange={(e) => updateItem(idx, "newProductName", e.target.value)}
+                        onKeyDown={(e) => handleCustomTab(e, item.id, "name", idx)}
+                        placeholder="New product name..."
+                        className="h-8 text-left text-xs font-semibold bg-amber-500/5 border border-amber-500/20 text-amber-500 placeholder:text-amber-500/40 rounded-lg px-2.5 w-full focus:bg-background focus:border-amber-500/45 focus:ring-1 focus:ring-amber-500/20 focus:shadow-sm"
+                      />
+                    )}
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <TableCellInput
+                      ref={(el) => { qtyRefs.current[item.id] = el; }}
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) => updateItem(idx, "quantity", +e.target.value)}
+                      onKeyDown={(e) => handleCustomTab(e, item.id, "quantity", idx)}
+                      className="h-8 text-center text-xs font-bold bg-muted/10 border border-border/40 rounded-lg px-1.5 focus:bg-background focus:border-primary/45 focus:ring-1 focus:ring-primary/20 focus:shadow-sm transition-all w-full"
+                    />
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <Select value={item.unit} onValueChange={(v) => updateItem(idx, "unit", v)}>
+                      <SelectTrigger className="h-8 w-full px-2 bg-muted/10 hover:bg-muted/20 border border-border/40 focus:ring-0 focus:ring-offset-0 rounded-lg text-xs font-semibold text-foreground cursor-pointer transition-all">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="center" className="min-w-[80px]">
+                        <SelectItem value="piece" className="text-xs font-semibold">Pcs</SelectItem>
+                        <SelectItem value="box" className="text-xs font-semibold">Box</SelectItem>
+                        <SelectItem value="kg" className="text-xs font-semibold">Kg</SelectItem>
+                        <SelectItem value="liter" className="text-xs font-semibold">L</SelectItem>
+                        <SelectItem value="meter" className="text-xs font-semibold">m</SelectItem>
+                        <SelectItem value="dozen" className="text-xs font-semibold">Dz</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <div className="flex items-center h-8 rounded-lg border border-border/40 bg-muted/10 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/45 focus-within:bg-background transition-all px-2 gap-1 w-full focus-within:shadow-sm">
+                      <TableCellInput
+                        ref={(el) => { purchaseRateRefs.current[item.id] = el; }}
+                        type="number"
+                        min={0}
+                        value={item.purchaseRate || ""}
+                        onChange={(e) => updateItem(idx, "purchaseRate", +e.target.value)}
+                        onKeyDown={(e) => handleCustomTab(e, item.id, "purchaseRate", idx)}
+                        className="text-right text-xs font-semibold bg-transparent border-none p-0 h-6 focus:ring-0 w-full min-w-0"
+                      />
+                      <Select value={item.purchaseTaxType} onValueChange={(v) => updateItem(idx, "purchaseTaxType", v)}>
+                        <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/30 hover:bg-muted/50 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end" className="min-w-[65px]">
+                          <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
+                          <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <div className="flex items-center h-8 rounded-lg border border-border/40 bg-muted/10 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/45 focus-within:bg-background transition-all px-2 gap-1 w-full focus-within:shadow-sm">
+                      <TableCellInput
+                        ref={(el) => { salesPriceRefs.current[item.id] = el; }}
+                        type="number"
+                        min={0}
+                        value={item.salesPrice || ""}
+                        onChange={(e) => updateItem(idx, "salesPrice", +e.target.value)}
+                        onKeyDown={(e) => handleCustomTab(e, item.id, "salesPrice", idx)}
+                        className="text-right text-xs font-semibold bg-transparent border-none p-0 h-6 focus:ring-0 w-full min-w-0"
+                      />
+                      <Select value={item.salesTaxType} onValueChange={(v) => updateItem(idx, "salesTaxType", v)}>
+                        <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/30 hover:bg-muted/50 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end" className="min-w-[65px]">
+                          <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
+                          <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </td>
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <Select value={item.taxRate.toString()} onValueChange={(v) => updateItem(idx, "taxRate", +v)}>
+                      <SelectTrigger className="h-8 w-full px-2 bg-muted/10 hover:bg-muted/20 border border-border/40 focus:ring-0 focus:ring-offset-0 rounded-lg text-xs font-bold text-muted-foreground cursor-pointer transition-all">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="center" className="min-w-[70px]">
+                        <SelectItem value="0" className="text-xs font-bold">0%</SelectItem>
+                        <SelectItem value="5" className="text-xs font-bold">5%</SelectItem>
+                        <SelectItem value="12" className="text-xs font-bold">12%</SelectItem>
+                        <SelectItem value="18" className="text-xs font-bold">18%</SelectItem>
+                        <SelectItem value="28" className="text-xs font-bold">28%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="py-1 px-3 border-r border-border/15 text-right font-black text-xs text-foreground tabular-nums">
+                    {formatCurrency(item.total)}
+                  </td>
+                  <td className="py-0.5 px-0.5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(idx)}
+                      disabled={items.length <= 1}
+                      className="p-1.5 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-0 disabled:pointer-events-none"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {/* Empty filler row */}
+              <tr className="h-10 border-b border-border/10">
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="p-2 border-t bg-muted/5 flex items-center justify-start">
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs font-semibold lg:hidden px-2"
-            onClick={() => setSummaryOpen((o) => !o)}
+            onClick={addRow}
+            className="h-8 text-xs font-bold gap-1.5 px-4 rounded-lg hover:bg-muted transition-all border border-border/80 text-foreground"
           >
-            <LayoutList className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline ml-1">Summary</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 sm:h-8 text-xs font-semibold px-2 sm:px-3"
-            onClick={() => router.back()}
-            disabled={saving}
-          >
-            <ArrowLeft className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Cancel</span>
-          </Button>
-          <Button
-            size="sm"
-            className="h-7 sm:h-8 text-xs font-bold shadow-lg shadow-primary/20 px-2 sm:px-3"
-            onClick={handleSubmit}
-            disabled={saving}
-          >
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin sm:mr-1" />}
-            <FileCheck2 className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Save Stock</span>
+            <Plus className="h-3.5 w-3.5" /> Add Row
           </Button>
         </div>
       </div>
 
-      {/* Mobile Summary Drawer (collapsible) */}
-      <AnimatePresence>
-        {summaryOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="lg:hidden shrink-0 overflow-hidden border-b bg-card z-10"
-          >
-            <div className="px-4 py-3 space-y-3">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Stock Summary</h3>
-              <div className="bg-muted/30 p-3 rounded-xl border border-border/50 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Products</span>
-                  <span className="text-sm font-bold">{totalItems}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Total Qty</span>
-                  <span className="text-sm font-bold tabular-nums">{totalQuantity}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Net Valuation</span>
-                  <span className="text-sm font-bold tabular-nums">{formatCurrency(totalValuation)}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Inc. Valuation</span>
-                  <span className="text-sm font-black text-primary tabular-nums">{formatCurrency(totalValuation + totalTax)}</span>
-                </div>
-              </div>
+      {/* Bottom Section: Summary Totals Aligned on the Right */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-start">
+        <div className="md:col-span-1 lg:col-span-2"></div> {/* Left Side Empty */}
+        
+        {/* Column 3: Summary Totals */}
+        <div className="bg-card p-4 rounded-xl border border-border/80 shadow-sm space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b pb-1 mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Stock Summary</h3>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex flex-1 overflow-hidden">
-
-        {/*  Left: Table + Meta  */}
-        <div className="flex flex-col flex-1 min-w-0 bg-background">
-
-          {/*  Table - horizontally scrollable on small screens  */}
-          <div className="flex-1 overflow-auto bg-card relative">
-            <div className="min-w-[700px]">
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-muted/50 backdrop-blur-md border-b-2 border-border/60 whitespace-nowrap">
-                    <th className="w-[24px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">#</th>
-                    <th className="w-[80px] min-w-[80px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Barcode</th>
-                    <th className="w-[80px] min-w-[80px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">SKU</th>
-                    <th className="w-full min-w-[100px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Product Name</th>
-                    <th className="w-[40px] min-w-[40px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Unit</th>
-                    <th className="w-[50px] min-w-[50px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Stock Qty</th>
-                    <th className="w-[85px] min-w-[85px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Purchase Price(Rs)</th>
-                    <th className="w-[85px] min-w-[85px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Sales Price(Rs)</th>
-                    <th className="w-[45px] min-w-[45px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Tax%</th>
-                    <th className="w-[70px] min-w-[70px] px-1 py-1.5 text-right text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Valuation(Rs)</th>
-                    <th className="w-[24px]"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <AnimatePresence>
-                    {items.map((item, idx) => (
-                      <motion.tr
-                        key={item.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className={cn(
-                          "border-b border-border/10 hover:bg-muted/30 transition-colors group",
-                          activeSearchIdx === idx ? "relative z-30" : "relative z-0"
-                        )}
-                      >
-                        {/* # */}
-                        <td className="px-1 py-1 text-center border-r border-border/20">
-                          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold bg-muted/60 text-muted-foreground">{idx + 1}</span>
-                        </td>
-
-                        {/* Barcode / Search */}
-                        <td className="px-1 py-0.5 border-r border-border/20 relative">
-                          <TableCellInput
-                            id={`scan-input-${idx}`}
-                            ref={(el) => { barcodeRefs.current[item.id] = el; }}
-                            value={item.product ? (item.product.barcode || item.product.sku) : item.productSearch}
-                            onChange={(e) => handleProductSearch(idx, e.target.value)}
-                            onFocus={() => setActiveSearchIdx(idx)}
-                            onKeyDown={(e) => { handleKeyDown(e, idx); handleCustomTab(e, item.id, "barcode", idx); }}
-                            placeholder="Scan..."
-                            className={cn(
-                              "text-left font-mono text-[11px] bg-primary/5 rounded-md px-1.5 py-0 h-5.5",
-                              item.productSearch && !item.product ? "border-amber-500/50 text-amber-500" : ""
-                            )}
-                          />
-                          {activeSearchIdx === idx && item.productSearch.length > 0 && (
-                            <div className="absolute z-50 left-0 w-[min(400px,90vw)] top-full mt-1 bg-card border border-border rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
-                              {productResults.length === 0 ? (
-                                <div className="p-3 text-[10px] text-center text-muted-foreground">Type to create a new product</div>
-                              ) : (
-                                productResults.map((p, pIdx) => (
-                                  <button key={p._id} type="button" onClick={() => selectProduct(idx, p)}
-                                    className={`flex items-center gap-2 w-full px-2 py-1.5 text-left transition-colors border-b border-border/10 last:border-0 ${selectedDropdownIdx === pIdx ? "bg-primary/10" : "hover:bg-muted/40"}`}>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-[11px] font-semibold truncate">{p.name}</p>
-                                      <p className="text-[9px] font-mono text-muted-foreground">{p.sku} {p.barcode ? ` ${p.barcode}` : ""}</p>
-                                    </div>
-                                    <Badge variant="secondary" className="text-[9px] shrink-0">{p.stock} in stock</Badge>
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* SKU */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <TableCellInput
-                            ref={(el) => { skuRefs.current[item.id] = el; }}
-                            value={item.sku}
-                            onChange={(e) => updateItem(idx, "sku", e.target.value)}
-                            onKeyDown={(e) => handleCustomTab(e, item.id, "sku", idx)}
-                            placeholder="SKU-XXXX"
-                            className="text-[11px] font-mono px-1 py-0 h-5.5 text-center"
-                          />
-                        </td>
-
-                        {/* Product Name */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          {item.product ? (
-                            <span className="text-[11px] font-semibold px-1.5 block truncate w-full">{item.product.name}</span>
-                          ) : (
-                            <TableCellInput
-                              ref={(el) => { nameRefs.current[item.id] = el; }}
-                              value={item.newProductName}
-                              onChange={(e) => updateItem(idx, "newProductName", e.target.value)}
-                              onKeyDown={(e) => handleCustomTab(e, item.id, "name", idx)}
-                              placeholder="New product name..."
-                              className="text-left text-[11px] font-semibold bg-amber-500/5 border border-amber-500/30 text-amber-500 placeholder:text-amber-500/40 rounded-md px-1.5 py-0 h-5.5"
-                            />
-                          )}
-                        </td>
-
-                        {/* Unit */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <Select value={item.unit} onValueChange={(v) => updateItem(idx, "unit", v)}>
-                            <SelectTrigger className="h-5.5 w-full px-1 py-0 bg-transparent hover:bg-muted/40 border-transparent hover:border-border/40 focus:ring-0 focus:ring-offset-0 rounded-md text-[11px] font-bold text-muted-foreground cursor-pointer transition-all [&>svg]:hidden justify-center gap-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="center" className="min-w-[80px]">
-                              <SelectItem value="piece" className="text-xs font-semibold">Pcs</SelectItem>
-                              <SelectItem value="box" className="text-xs font-semibold">Box</SelectItem>
-                              <SelectItem value="kg" className="text-xs font-semibold">Kg</SelectItem>
-                              <SelectItem value="liter" className="text-xs font-semibold">L</SelectItem>
-                              <SelectItem value="meter" className="text-xs font-semibold">m</SelectItem>
-                              <SelectItem value="dozen" className="text-xs font-semibold">Dz</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-
-                        {/* Stock Qty */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <TableCellInput
-                            ref={(el) => { qtyRefs.current[item.id] = el; }}
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={(e) => updateItem(idx, "quantity", +e.target.value)}
-                            onKeyDown={(e) => handleCustomTab(e, item.id, "quantity", idx)}
-                            className="text-[13px] font-bold px-1 py-0 h-5.5 text-center"
-                          />
-                        </td>
-
-                        {/* Purchase Price */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <div className="flex items-center gap-0.5">
-                            <TableCellInput
-                              ref={(el) => { purchaseRateRefs.current[item.id] = el; }}
-                              type="number"
-                              min={0}
-                              value={item.purchaseRate || ""}
-                              onChange={(e) => updateItem(idx, "purchaseRate", +e.target.value)}
-                              onKeyDown={(e) => handleCustomTab(e, item.id, "purchaseRate", idx)}
-                              className="text-right text-[13px] font-semibold px-1 py-0 h-5.5"
-                            />
-                            <Select value={item.purchaseTaxType} onValueChange={(v) => updateItem(idx, "purchaseTaxType", v)}>
-                              <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/40 hover:bg-muted/60 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center gap-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent align="end" className="min-w-[70px]">
-                                <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
-                                <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </td>
-
-                        {/* Sales Price */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <div className="flex items-center gap-0.5">
-                            <TableCellInput
-                              ref={(el) => { salesPriceRefs.current[item.id] = el; }}
-                              type="number"
-                              min={0}
-                              value={item.salesPrice || ""}
-                              onChange={(e) => updateItem(idx, "salesPrice", +e.target.value)}
-                              onKeyDown={(e) => handleCustomTab(e, item.id, "salesPrice", idx)}
-                              className="text-right text-[13px] font-semibold px-1 py-0 h-5.5"
-                            />
-                            <Select value={item.salesTaxType} onValueChange={(v) => updateItem(idx, "salesTaxType", v)}>
-                              <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/40 hover:bg-muted/60 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center gap-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent align="end" className="min-w-[70px]">
-                                <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
-                                <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </td>
-
-                        {/* Tax% */}
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <Select value={item.taxRate.toString()} onValueChange={(v) => updateItem(idx, "taxRate", +v)}>
-                            <SelectTrigger className="h-5.5 w-full px-1 py-0 bg-transparent hover:bg-muted/40 border-transparent hover:border-border/40 focus:ring-0 focus:ring-offset-0 rounded-md text-[11px] font-bold text-muted-foreground cursor-pointer transition-all [&>svg]:hidden justify-center gap-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="center" className="min-w-[70px]">
-                              <SelectItem value="0" className="text-xs font-bold">0%</SelectItem>
-                              <SelectItem value="5" className="text-xs font-bold">5%</SelectItem>
-                              <SelectItem value="12" className="text-xs font-bold">12%</SelectItem>
-                              <SelectItem value="18" className="text-xs font-bold">18%</SelectItem>
-                              <SelectItem value="28" className="text-xs font-bold">28%</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-
-                        {/* Valuation Total */}
-                        <td className="px-1.5 py-1 text-right border-r border-border/20">
-                          <span className="text-[12px] font-black tabular-nums tracking-tight">{formatCurrency(item.total)}</span>
-                        </td>
-
-                        {/* Delete */}
-                        <td className="px-0.5 py-0.5 text-center">
-                          <button onClick={() => removeRow(idx)} disabled={items.length <= 1}
-                            className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-0 disabled:pointer-events-none">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-
-                  {/* Empty filler row */}
-                  <tr className="h-[40px] border-b border-border/10">
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td className="border-r border-border/10"></td>
-                    <td></td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                <span>Products Count</span>
+                <span className="text-foreground font-bold">{totalItems}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                <span>Total Quantity</span>
+                <span className="tabular-nums text-foreground font-bold">{totalQuantity}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                <span>Net Valuation</span>
+                <span className="tabular-nums text-foreground font-bold">{formatCurrency(totalValuation)}</span>
+              </div>
+              {totalTax > 0 && (
+                <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                  <span>Tax Amount</span>
+                  <span className="tabular-nums text-foreground font-bold">{formatCurrency(totalTax)}</span>
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="shrink-0 p-2 border-t bg-muted/10 flex justify-center z-10">
-            <Button variant="outline" size="sm" onClick={addRow}
-              className="h-7 text-xs font-semibold gap-1 px-4 rounded-full border-dashed border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-              <Plus className="h-3 w-3" /> Add Item
-            </Button>
+          <div className="pt-3 border-t border-border/50 space-y-2 mt-2">
+            <div className="flex justify-between items-center bg-primary/5 p-3 rounded-lg border border-primary/10">
+              <span className="text-xs font-black uppercase text-foreground">Total Valuation</span>
+              <span className="text-lg font-black text-primary tabular-nums">{formatCurrency(totalValuation + totalTax)}</span>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/*  Right: Summary Panel — hidden on mobile/tablet, visible on lg+  */}
-        <div className="hidden lg:flex w-[240px] shrink-0 border-l flex-col bg-card z-20">
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      {/* Sticky Bottom Action Bar */}
+      <div className={cn(
+        "fixed bottom-0 right-0 h-16 bg-card border-t border-border/80 shadow-lg px-6 py-3 flex items-center justify-between z-40 transition-all duration-300",
+        sidebarCollapsed ? "left-0 lg:left-[72px]" : "left-0 lg:left-[256px]"
+      )}>
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => router.back()}
+            disabled={saving}
+            className="h-9 text-xs font-bold gap-2 hover:bg-muted transition-all border border-border/80 text-foreground"
+          >
+            Cancel
+          </Button>
+        </div>
 
-            {/* Stock Summary */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Stock Summary</h3>
-              <div className="bg-muted/30 p-3 rounded-xl border border-border/50 space-y-3">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-muted-foreground">Products</span>
-                  <span className="font-bold">{totalItems}</span>
-                </div>
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-muted-foreground">Total Qty</span>
-                  <span className="tabular-nums font-bold">{totalQuantity}</span>
-                </div>
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-muted-foreground">Net Valuation</span>
-                  <span className="tabular-nums font-bold">{formatCurrency(totalValuation)}</span>
-                </div>
-                {totalTax > 0 && (
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-muted-foreground">Tax Amount</span>
-                    <span className="tabular-nums font-bold">{formatCurrency(totalTax)}</span>
-                  </div>
-                )}
-                <div className="border-t border-border/50 pt-3 flex justify-between text-base font-black">
-                  <span>Inc. Valuation</span>
-                  <span className="text-primary tabular-nums tracking-tight">{formatCurrency(totalValuation + totalTax)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Keyboard shortcuts hint */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Shortcuts</h3>
-              <div className="bg-muted/20 rounded-lg p-2.5 space-y-1.5 border border-border/30">
-                {[
-                  ["F1", "Undo last scan"],
-                  ["F2", "Add new row"],
-                  ["F3", "Focus last qty"],
-                  ["F9", "Save stock"],
-                  ["F12", "Focus notes"],
-                  ["Tab", "Next field"],
-                  ["Esc", "Close dropdown"],
-                ].map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <kbd className="text-[9px] font-black bg-card border border-border/60 rounded px-1.5 py-0.5 text-muted-foreground shadow-sm">{key}</kbd>
-                    <span className="text-[9px] text-muted-foreground">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          {/* Primary Save Button */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="h-9 text-xs font-bold shadow-md shadow-primary/20 px-6 min-w-[100px] gap-1.5"
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5" />
+                Save Stock
+              </>
+            )}
+          </Button>
         </div>
       </div>
 

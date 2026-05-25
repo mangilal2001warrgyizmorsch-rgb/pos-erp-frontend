@@ -48,6 +48,8 @@ import { subcategoryService } from "@/services/subcategoryService";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { SupplierModal } from "@/components/shared/SupplierModal";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useThemeStore } from "@/store/themeStore";
+import { PageHeader } from "@/components/shared/PageHeader";
 import type {
   Supplier,
   Transporter,
@@ -93,7 +95,7 @@ interface ItemRow {
   _autoCalculated?: number;
 }
 
-const newItem = (): ItemRow => {
+const newItem = (purchaseTaxType: "with" | "without" = "without"): ItemRow => {
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
   return {
     id: crypto.randomUUID(),
@@ -104,7 +106,7 @@ const newItem = (): ItemRow => {
     newProductName: "",
     quantity: 1,
     purchaseRate: 0,
-    purchaseTaxType: "without",
+    purchaseTaxType,
     salesPrice: 0,
     salesTaxType: "without",
     discount: 0,
@@ -131,6 +133,21 @@ const calcItemTotal = (item: ItemRow) => {
 // ---------- Component ----------
 export default function CreatePurchasePage() {
   const router = useRouter();
+  const { sidebarCollapsed } = useThemeStore();
+
+  // Global Tax Mode State
+  const [globalTaxType, setGlobalTaxType] = useState<"without" | "with">("without");
+
+  const handleGlobalTaxTypeChange = (newType: "without" | "with") => {
+    setGlobalTaxType(newType);
+    setItems((prev) =>
+      prev.map((item) => {
+        const updated = { ...item, purchaseTaxType: newType };
+        updated.total = calcItemTotal(updated);
+        return updated;
+      })
+    );
+  };
 
   // Focus refs for each editable field in a row
   const barcodeRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -306,10 +323,25 @@ export default function CreatePurchasePage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashBankAccountId, setCashBankAccountId] = useState("");
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState("Thanks for doing business with us!");
+  const [termsTemplate, setTermsTemplate] = useState("default");
+
+  const handleTemplateChange = (val: string) => {
+    setTermsTemplate(val);
+    if (val === "default") {
+      setNotes("Thanks for doing business with us!");
+    } else if (val === "standard") {
+      setNotes("1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.\n3. Payment due within 15 days.");
+    } else {
+      setNotes("");
+    }
+  };
+
   const [items, setItems] = useState<ItemRow[]>([newItem()]);
   const [scanHistory, setScanHistory] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [stateOfSupply, setStateOfSupply] = useState("Rajasthan");
+  const [roundOff, setRoundOff] = useState(false);
 
   useEffect(() => {
     supplierService.getAll({ limit: 200 }).then((r) => setSuppliers(r.data)).catch(() => {});
@@ -627,7 +659,7 @@ export default function CreatePurchasePage() {
   };
 
   const addRow = () => {
-    const ni = newItem();
+    const ni = newItem(globalTaxType);
     setItems(prev => [...prev, ni]);
     setTimeout(() => focusCell(ni.id, "barcode"), 80);
   };
@@ -786,7 +818,10 @@ export default function CreatePurchasePage() {
     return s + (base * item.discount) / 100;
   }, 0);
 
-  const grandTotal = subtotal + totalTax + shippingCharges;
+  const calculatedGrandTotal = subtotal + totalTax + shippingCharges;
+  const finalTotal = roundOff ? Math.round(calculatedGrandTotal) : calculatedGrandTotal;
+  const roundOffValue = finalTotal - calculatedGrandTotal;
+  const grandTotal = finalTotal;
 
   const handleSubmit = async (status: "confirmed" | "draft") => {
     let finalSupplierId = supplierId;
@@ -835,29 +870,29 @@ export default function CreatePurchasePage() {
       const defaultCategoryId = categories[0]?._id;
 
       const resolvedItems = await Promise.all(
-        validItems.map(async (item) => {
-          if (item.product) return item;
+          validItems.map(async (item) => {
+            if (item.product) return item;
 
-          const taxMultiplier = 1 + item.taxRate / 100;
-          const purchasePrice = item.purchaseTaxType === "with" ? item.purchaseRate / taxMultiplier : item.purchaseRate;
-          const salesPrice = item.salesTaxType === "with" ? item.salesPrice / taxMultiplier : item.salesPrice;
-          const finalBarcode = item.barcode.trim();
-          const finalSku = item.sku.trim() || finalBarcode || `SKU-${Math.floor(100000 + Math.random() * 900000)}`;
+            const taxMultiplier = 1 + item.taxRate / 100;
+            const purchasePrice = item.purchaseTaxType === "with" ? item.purchaseRate / taxMultiplier : item.purchaseRate;
+            const salesPrice = item.salesTaxType === "with" ? item.salesPrice / taxMultiplier : item.salesPrice;
+            const finalBarcode = item.barcode.trim();
+            const finalSku = item.sku.trim() || finalBarcode || `SKU-${Math.floor(100000 + Math.random() * 900000)}`;
 
-          const savedProduct = await productService.create({
-            name: item.newProductName!.trim(),
-            sku: finalSku,
-            barcode: finalBarcode,
-            category: defaultCategoryId,
-            stock: 0,
-            purchasePrice,
-            salesPrice,
-            taxRate: item.taxRate,
-            unit: item.unit || "piece",
-          });
-          setProducts((prev) => [...prev, savedProduct]);
-          return { ...item, product: savedProduct };
-        })
+            const savedProduct = await productService.create({
+              name: item.newProductName!.trim(),
+              sku: finalSku,
+              barcode: finalBarcode,
+              category: defaultCategoryId,
+              stock: 0,
+              purchasePrice,
+              salesPrice,
+              taxRate: item.taxRate,
+              unit: item.unit || "piece",
+            });
+            setProducts((prev) => [...prev, savedProduct]);
+            return { ...item, product: savedProduct };
+          })
       );
 
       const payload = {
@@ -867,6 +902,7 @@ export default function CreatePurchasePage() {
         transporterName: transporterId && transporterId !== "none" ? transporters.find((t) => t._id === transporterId)?.name : undefined,
         invoiceNumber,
         purchaseDate,
+        stateOfSupply,
         items: resolvedItems.map((i) => {
           const taxMultiplier = 1 + i.taxRate / 100;
           const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
@@ -907,16 +943,10 @@ export default function CreatePurchasePage() {
           const base = i.quantity * purchasePrice;
           return s + (base * i.discount) / 100;
         }, 0),
-        totalAmount: resolvedItems.reduce((s, i) => {
-          const taxMultiplier = 1 + i.taxRate / 100;
-          const purchasePrice = i.purchaseTaxType === "with" ? i.purchaseRate / taxMultiplier : i.purchaseRate;
-          const base = i.quantity * purchasePrice;
-          const disc = (base * i.discount) / 100;
-          const tax = ((base - disc) * i.taxRate) / 100;
-          return s + (base - disc + tax);
-        }, 0) + shippingCharges,
-        amountPaid: status === "confirmed" ? grandTotal : 0,
-        dueAmount: status === "confirmed" ? 0 : grandTotal,
+        totalAmount: finalTotal,
+        roundOff: roundOffValue,
+        amountPaid: status === "confirmed" ? finalTotal : 0,
+        dueAmount: status === "confirmed" ? 0 : finalTotal,
         status,
         paymentStatus: status === "confirmed" ? "paid" : "pending",
         paymentMethod: status === "confirmed" ? paymentMethod : undefined,
@@ -943,108 +973,29 @@ export default function CreatePurchasePage() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-60px)] -m-4 bg-background overflow-hidden relative">
+  // Calculate totalQty at render scope
+  const totalQty = items.reduce((s, item) => s + (item.product || item.newProductName ? item.quantity : 0), 0);
 
-      {/* Top Header / Action Bar */}
-      <div className="shrink-0 px-3 sm:px-4 py-2 border-b bg-card flex items-center justify-between z-20 shadow-sm gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-          <h1 className="text-xs sm:text-sm font-bold tracking-tight truncate">Create Purchase Bill</h1>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {/* Mobile summary toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs font-semibold lg:hidden px-2"
-            onClick={() => setSummaryOpen((o) => !o)}
-          >
-            <LayoutList className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline ml-1">Summary</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 sm:h-8 text-xs font-semibold px-2 sm:px-3"
-            onClick={() => handleSubmit("draft")}
-            disabled={saving}
-          >
-            <Save className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Save Draft</span>
-          </Button>
-          <Button
-            size="sm"
-            className="h-7 sm:h-8 text-xs font-bold shadow-lg shadow-primary/20 px-2 sm:px-3"
-            onClick={() => handleSubmit("confirmed")}
-            disabled={saving}
-          >
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin sm:mr-1" />}
-            <span className="hidden sm:inline">Submit Purchase</span>
-            <span className="sm:hidden">Submit</span>
-          </Button>
-        </div>
+  return (
+    <div className="bg-slate-50/50 pb-32 relative">
+      {/* Top Header */}
+      <div className="mb-4">
+        <PageHeader
+          title="Purchase"
+          description="Create and manage purchase bills"
+          icon={Receipt}
+        />
       </div>
 
-      {/* Mobile Summary Drawer (collapsible) */}
-      <AnimatePresence>
-        {summaryOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="lg:hidden shrink-0 overflow-hidden border-b bg-card z-10"
-          >
-            <div className="px-4 py-3 space-y-3">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bill Summary</h3>
-              <div className="bg-muted/30 p-3 rounded-xl border border-border/50 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Items</span>
-                  <span className="text-sm font-bold">{items.filter(i => i.product || i.newProductName).length}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Subtotal</span>
-                  <span className="text-sm font-bold tabular-nums">{formatCurrency(subtotal)}</span>
-                </div>
-                {totalDiscount > 0 && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-emerald-500 font-medium">Discount</span>
-                    <span className="text-sm font-bold tabular-nums text-emerald-500">- {formatCurrency(totalDiscount)}</span>
-                  </div>
-                )}
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Total</span>
-                  <span className="text-sm font-black text-primary tabular-nums">{formatCurrency(grandTotal)}</span>
-                </div>
-              </div>
-              {/* Shipping inline on mobile */}
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground font-medium">Shipping</span>
-                <Input
-                  type="number"
-                  min={0}
-                  value={shippingCharges || ""}
-                  onChange={(e) => setShippingCharges(+e.target.value)}
-                  placeholder="0"
-                  className="w-[100px] h-7 px-2 text-right tabular-nums font-bold bg-background text-xs"
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* Left Side: Forms & Table */}
-        <div className="flex flex-col flex-1 min-w-0 bg-background">
-
-          {/* Supplier & Details Compact Grid */}
-          <div className="shrink-0 p-2 sm:p-3 bg-muted/10 border-b grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 z-30 relative">
-            {/* Supplier - full width on mobile */}
-            <div className="col-span-2 sm:col-span-3 md:col-span-2 space-y-1 relative" ref={supplierWrapperRef}>
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Supplier *</Label>
+      {/* Top Purchase Details Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 bg-card p-4 rounded-xl border border-border/80 shadow-sm mb-4">
+        {/* Left Side: Supplier Details */}
+        <div className="space-y-3">
+          <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground/80 border-b pb-1">Supplier Details</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Supplier select */}
+            <div className="space-y-1.5 relative" ref={supplierWrapperRef}>
+              <Label className="text-xs font-semibold text-foreground">Supplier / Party <span className="text-destructive">*</span></Label>
               <div className="relative flex items-center">
                 <Input
                   value={supplierSearch}
@@ -1054,9 +1005,9 @@ export default function CreatePurchasePage() {
                   }}
                   onFocus={() => setShowSupplierSuggestions(true)}
                   onKeyDown={handleSupplierKeyDown}
-                  placeholder="Search/Add Supplier..."
+                  placeholder="Search by Name/Phone"
                   className={cn(
-                    "h-7 text-xs font-semibold pr-8 bg-card transition-all placeholder:text-muted-foreground/60",
+                    "h-9 text-xs font-semibold pr-9 bg-card shadow-sm border border-border/80 transition-all placeholder:text-muted-foreground/60 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/30",
                     isSupplierMatched
                       ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-600 font-bold"
                       : supplierSearch.trim() !== ""
@@ -1072,21 +1023,21 @@ export default function CreatePurchasePage() {
                       clearSupplier();
                       setShowSupplierSuggestions(true);
                     }}
-                    className="absolute right-2 p-0.5 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all z-10"
+                    className="absolute right-2.5 p-0.5 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all z-10"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 ) : (
-                  <ChevronDown className="absolute right-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 )}
               </div>
 
               {showSupplierSuggestions && (
-                <div className="absolute z-50 left-0 w-full min-w-[240px] top-full mt-1 bg-card border border-border rounded-xl shadow-2xl max-h-56 overflow-y-auto flex flex-col">
+                <div className="absolute z-50 left-0 w-full min-w-[240px] top-full mt-1.5 bg-card border border-border rounded-xl shadow-2xl max-h-56 overflow-y-auto flex flex-col">
                   <button
                     type="button"
                     onClick={() => { setSupplierModalOpen(true); setShowSupplierSuggestions(false); }}
-                    className="px-3 py-2 text-left text-xs font-bold text-primary hover:bg-primary/10 border-b border-border/50 sticky top-0 bg-card z-10 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="px-3 py-2.5 text-left text-xs font-bold text-primary hover:bg-primary/10 border-b border-border/50 sticky top-0 bg-card z-10 flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" /> Add New Supplier
                   </button>
@@ -1099,7 +1050,7 @@ export default function CreatePurchasePage() {
                         type="button"
                         onClick={() => selectSupplier(s)}
                         className={cn(
-                          "w-full px-3 py-2 text-left text-xs hover:bg-muted/50 transition-colors flex justify-between border-b border-border/10 last:border-0",
+                          "w-full px-3 py-2.5 text-left text-xs hover:bg-muted/50 transition-colors flex justify-between border-b border-border/10 last:border-0",
                           selectedSupplierDropdownIdx === idx ? "bg-primary/10 text-primary font-bold" : "",
                           supplierId === s._id && "bg-primary/5 font-semibold"
                         )}
@@ -1116,351 +1067,595 @@ export default function CreatePurchasePage() {
               )}
             </div>
 
-            {/* Mobile: Mobile + GST side by side (hidden on md+) */}
-            <div className="space-y-1 md:hidden">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mobile</Label>
-              <Input value={supplierPhone} onChange={(e) => { if (!isSupplierMatched) setSupplierPhone(e.target.value); }} readOnly={isSupplierMatched} placeholder="Phone..." className={`h-7 text-xs ${isSupplierMatched ? "bg-muted/30 text-muted-foreground border-transparent" : "bg-card"}`} />
+            {/* Phone No */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Phone No.</Label>
+              <Input
+                value={supplierPhone}
+                onChange={(e) => { if (!isSupplierMatched) setSupplierPhone(e.target.value); }}
+                readOnly={isSupplierMatched}
+                placeholder="Phone No."
+                className={cn(
+                  "h-9 text-xs bg-card border border-border/80 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary/30",
+                  isSupplierMatched && "bg-muted/30 text-muted-foreground border-transparent shadow-none cursor-not-allowed"
+                )}
+              />
             </div>
-
-            {/* Desktop: Mobile field */}
-            <div className="space-y-1 hidden md:block">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mobile</Label>
-              <Input value={supplierPhone} onChange={(e) => { if (!isSupplierMatched) setSupplierPhone(e.target.value); }} readOnly={isSupplierMatched} placeholder="Phone..." className={`h-7 text-xs ${isSupplierMatched ? "bg-muted/30 text-muted-foreground border-transparent" : "bg-card"}`} />
-            </div>
-
-            {/* GST - hidden on smallest, show from sm */}
-            <div className="space-y-1 hidden sm:block">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">GST No</Label>
-              <Input value={supplierGst} onChange={(e) => { if (!isSupplierMatched) setSupplierGst(e.target.value); }} readOnly={isSupplierMatched} placeholder="GST..." className={`h-7 text-xs ${isSupplierMatched ? "bg-muted/30 text-muted-foreground border-transparent" : "bg-card"}`} />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Invoice No</Label>
-              <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-..." className="h-7 text-xs bg-card" />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</Label>
-              <Input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="h-7 text-xs bg-card" />
-            </div>
-          </div>
-
-          {/* Table Area - horizontally scrollable on small screens */}
-          <div className="flex-1 overflow-auto bg-card relative">
-            <div className="min-w-[780px]">
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-muted/50 backdrop-blur-md border-b-2 border-border/60 whitespace-nowrap">
-                    <th className="w-[24px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">#</th>
-                    <th className="w-[80px] min-w-[80px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Barcode</th>
-                    <th className="w-[80px] min-w-[80px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">SKU</th>
-                    <th className="w-full min-w-[100px] px-1 py-1.5 text-left text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Product Name</th>
-                    <th className="w-[40px] min-w-[40px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Unit</th>
-                    <th className="w-[40px] min-w-[40px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Qty</th>
-                    <th className="w-[85px] min-w-[85px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Pur. Price(₹)</th>
-                    <th className="w-[85px] min-w-[85px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Sales Price(₹)</th>
-                    <th className="w-[35px] min-w-[35px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Disc%</th>
-                    <th className="w-[45px] min-w-[45px] px-1 py-1.5 text-center text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Tax%</th>
-                    <th className="w-[70px] min-w-[70px] px-1 py-1.5 text-right text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground border-r border-border/30">Total(₹)</th>
-                    <th className="w-[24px]"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <AnimatePresence>
-                    {items.map((item, idx) => (
-                      <motion.tr
-                        key={item.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className={cn(
-                          "border-b border-border/10 hover:bg-muted/30 transition-colors group",
-                          activeSearchIdx === idx ? "relative z-30" : "relative z-0"
-                        )}
-                      >
-                        <td className="px-1 py-1 text-center border-r border-border/20">
-                          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold bg-muted/60 text-muted-foreground">{idx + 1}</span>
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20 relative">
-                          <div className="relative">
-                            <TableCellInput
-                              id={`scan-input-${idx}`}
-                              ref={(el) => { barcodeRefs.current[item.id] = el; }}
-                              value={item.product ? item.product.barcode || item.product.sku : item.productSearch}
-                              onChange={(e) => handleProductSearch(idx, e.target.value)}
-                              onFocus={() => setActiveSearchIdx(idx)}
-                              onKeyDown={(e) => { handleKeyDown(e, idx); handleCustomTab(e, item.id, "barcode", idx); }}
-                              placeholder="Scan..."
-                              className={cn(
-                                "text-left font-mono text-[11px] bg-primary/5 rounded-md px-1.5 py-0 h-5.5",
-                                item.productSearch && !item.product ? "border-amber-500/50 text-amber-500" : ""
-                              )}
-                            />
-                          </div>
-                          {activeSearchIdx === idx && item.productSearch.length > 0 && (
-                            <div className="absolute z-50 left-0 w-[min(400px,90vw)] top-full mt-1 bg-card border border-border rounded-xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
-                              {productResults.length === 0 ? (
-                                <div className="p-3 text-[10px] text-center text-muted-foreground">Type to create a new product</div>
-                              ) : (
-                                productResults.map((p, pIdx) => (
-                                  <button key={p._id} type="button" onClick={() => selectProduct(idx, p)} className={`flex items-center gap-2 w-full px-2 py-1.5 text-left transition-colors border-b border-border/10 last:border-0 ${selectedDropdownIdx === pIdx ? "bg-primary/10" : "hover:bg-muted/40"}`}>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-[11px] font-semibold truncate">{p.name}</p>
-                                      <p className="text-[9px] font-mono text-muted-foreground">{p.sku} {p.barcode ? `• ${p.barcode}` : ""}</p>
-                                    </div>
-                                    <Badge variant="secondary" className="text-[9px] shrink-0">{p.stock} in stock</Badge>
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <TableCellInput
-                            ref={(el) => { skuRefs.current[item.id] = el; }}
-                            value={item.sku}
-                            onChange={(e) => updateItem(idx, "sku", e.target.value)}
-                            onKeyDown={(e) => handleCustomTab(e, item.id, "sku", idx)}
-                            placeholder="SKU-XXXX"
-                            className="text-[11px] font-mono px-1 py-0 h-5.5 text-center"
-                          />
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          {item.product ? (
-                            <span className="text-[11px] font-semibold px-1.5 block truncate w-full">{item.product.name}</span>
-                          ) : (
-                            <TableCellInput
-                              ref={(el) => { nameRefs.current[item.id] = el; }}
-                              value={item.newProductName}
-                              onChange={(e) => updateItem(idx, "newProductName", e.target.value)}
-                              onKeyDown={(e) => handleCustomTab(e, item.id, "name", idx)}
-                              placeholder="New product name..."
-                              className="text-left text-[11px] font-semibold bg-amber-500/5 border border-amber-500/30 text-amber-500 placeholder:text-amber-500/40 rounded-md px-1.5 py-0 h-5.5"
-                            />
-                          )}
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <Select value={item.unit} onValueChange={(v) => updateItem(idx, "unit", v)}>
-                            <SelectTrigger className="h-5.5 w-full px-1 py-0 bg-transparent hover:bg-muted/40 border-transparent hover:border-border/40 focus:ring-0 focus:ring-offset-0 rounded-md text-[11px] font-bold text-muted-foreground cursor-pointer transition-all [&>svg]:hidden justify-center gap-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="center" className="min-w-[80px]">
-                              <SelectItem value="piece" className="text-xs font-semibold">Pcs</SelectItem>
-                              <SelectItem value="box" className="text-xs font-semibold">Box</SelectItem>
-                              <SelectItem value="kg" className="text-xs font-semibold">Kg</SelectItem>
-                              <SelectItem value="liter" className="text-xs font-semibold">L</SelectItem>
-                              <SelectItem value="meter" className="text-xs font-semibold">m</SelectItem>
-                              <SelectItem value="dozen" className="text-xs font-semibold">Dz</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <TableCellInput
-                            ref={(el) => { qtyRefs.current[item.id] = el; }}
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={(e) => updateItem(idx, "quantity", +e.target.value)}
-                            onKeyDown={(e) => handleCustomTab(e, item.id, "quantity", idx)}
-                            className="text-[13px] font-bold px-1 py-0 h-5.5 text-center"
-                          />
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <div className="flex items-center gap-0.5">
-                            <TableCellInput
-                              ref={(el) => { purchaseRateRefs.current[item.id] = el; }}
-                              type="number"
-                              min={0}
-                              value={item.purchaseRate || ""}
-                              onChange={(e) => updateItem(idx, "purchaseRate", +e.target.value)}
-                              onKeyDown={(e) => handleCustomTab(e, item.id, "purchaseRate", idx)}
-                              className="text-right text-[13px] font-semibold px-1 py-0 h-5.5"
-                            />
-                            <Select value={item.purchaseTaxType} onValueChange={(v) => updateItem(idx, "purchaseTaxType", v)}>
-                              <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/40 hover:bg-muted/60 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center gap-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent align="end" className="min-w-[70px]">
-                                <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
-                                <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <div className="flex items-center gap-0.5">
-                            <TableCellInput
-                              ref={(el) => { salesPriceRefs.current[item.id] = el; }}
-                              type="number"
-                              min={0}
-                              value={item.salesPrice || ""}
-                              onChange={(e) => updateItem(idx, "salesPrice", +e.target.value)}
-                              onKeyDown={(e) => handleCustomTab(e, item.id, "salesPrice", idx)}
-                              className="text-right text-[13px] font-semibold px-1 py-0 h-5.5"
-                            />
-                            <Select value={item.salesTaxType} onValueChange={(v) => updateItem(idx, "salesTaxType", v)}>
-                              <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/40 hover:bg-muted/60 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center gap-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent align="end" className="min-w-[70px]">
-                                <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
-                                <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <TableCellInput
-                            ref={(el) => { discountRefs.current[item.id] = el; }}
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={item.discount}
-                            onChange={(e) => updateItem(idx, "discount", +e.target.value)}
-                            onKeyDown={(e) => handleCustomTab(e, item.id, "discount", idx)}
-                            className="text-[12px] font-bold px-1 py-0 h-5.5 text-center"
-                          />
-                        </td>
-
-                        <td className="px-1 py-0.5 border-r border-border/20">
-                          <Select value={item.taxRate.toString()} onValueChange={(v) => updateItem(idx, "taxRate", +v)}>
-                            <SelectTrigger className="h-5.5 w-full px-1 py-0 bg-transparent hover:bg-muted/40 border-transparent hover:border-border/40 focus:ring-0 focus:ring-offset-0 rounded-md text-[11px] font-bold text-muted-foreground cursor-pointer transition-all [&>svg]:hidden justify-center gap-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="center" className="min-w-[70px]">
-                              <SelectItem value="0" className="text-xs font-bold">0%</SelectItem>
-                              <SelectItem value="5" className="text-xs font-bold">5%</SelectItem>
-                              <SelectItem value="12" className="text-xs font-bold">12%</SelectItem>
-                              <SelectItem value="18" className="text-xs font-bold">18%</SelectItem>
-                              <SelectItem value="28" className="text-xs font-bold">28%</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-
-                        <td className="px-1.5 py-1 text-right border-r border-border/20">
-                          <span className="text-[12px] font-black tabular-nums tracking-tight">{formatCurrency(item.total)}</span>
-                        </td>
-
-                        <td className="px-0.5 py-0.5 text-center">
-                          <button onClick={() => removeRow(idx)} disabled={items.length <= 1} className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-0 disabled:pointer-events-none">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-
-                  {/* Empty Filler Row */}
-                  <tr className="h-[40px] border-b border-border/10">
-                    <td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td className="border-r border-border/10"></td><td></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="shrink-0 p-2 border-t bg-muted/10 flex justify-center z-10">
-            <Button variant="outline" size="sm" onClick={addRow} className="h-7 text-xs font-semibold gap-1 px-4 rounded-full border-dashed border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-              <Plus className="h-3 w-3" /> Add Item
-            </Button>
           </div>
         </div>
 
-        {/* Right Side: Bill Summary — hidden on mobile/tablet, visible on lg+ */}
-        <div className="hidden lg:flex w-[240px] shrink-0 border-l flex-col bg-card z-20">
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bill Summary</h3>
-              <div className="bg-muted/30 p-3 rounded-xl border border-border/50 space-y-3">
-                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Items</span><span>{items.filter(i => i.product || i.newProductName).length}</span></div>
-                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums font-bold">{formatCurrency(subtotal)}</span></div>
-                {totalDiscount > 0 && <div className="flex justify-between text-xs font-bold text-emerald-500"><span>Discount</span><span className="tabular-nums">- {formatCurrency(totalDiscount)}</span></div>}
-                {totalTax > 0 && <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Tax Amount</span><span className="tabular-nums font-bold">{formatCurrency(totalTax)}</span></div>}
-                <div className="flex justify-between text-xs font-medium items-center">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={shippingCharges || ""}
-                    onChange={(e) => setShippingCharges(+e.target.value)}
-                    placeholder="0"
-                    data-field="shipping"
-                    className="w-[80px] h-6 px-2 text-right tabular-nums font-bold bg-background text-[11px]"
-                  />
-                </div>
-                <div className="border-t border-border/50 pt-3 flex justify-between text-base font-black">
-                  <span>Total</span><span className="text-primary tabular-nums tracking-tight">{formatCurrency(grandTotal)}</span>
-                </div>
-              </div>
+        {/* Right Side: Bill Details */}
+        <div className="space-y-3">
+          <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground/80 border-b pb-1">Bill Details</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Bill Number */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Bill Number</Label>
+              <Input
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="Bill Number"
+                className="h-9 text-xs bg-card border border-border/80 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary/30"
+              />
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Payment Details</h3>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Payment Method</Label>
+            {/* Bill Date */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Bill Date</Label>
+              <Input
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                className="h-9 text-xs bg-card border border-border/80 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary/30 cursor-pointer"
+              />
+            </div>
+
+            {/* State of Supply */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">State of Supply</Label>
+              <Select value={stateOfSupply} onValueChange={setStateOfSupply}>
+                <SelectTrigger className="h-9 text-xs font-semibold bg-card border border-border/85 shadow-sm rounded-lg focus:ring-1 focus:ring-primary/30 transition-all hover:bg-card/90 cursor-pointer">
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Rajasthan", "Delhi", "Maharashtra", "Gujarat", "Uttar Pradesh", "Haryana", "Punjab", "Karnataka", "Tamil Nadu", "Telangana", "Other"].map((state) => (
+                    <SelectItem key={state} value={state} className="text-xs font-medium">{state}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Middle Section: Items Table */}
+      <div className="bg-card rounded-xl border border-border/80 shadow-sm mb-4 overflow-visible">
+        <div>
+          <table className="w-full border-collapse table-fixed">
+            <thead>
+              <tr className="text-[10px] font-black uppercase tracking-[0.08em] text-muted-foreground text-center bg-muted/40 border-b border-border/80">
+                <th className="w-[3%] py-2 border-r border-border/30">#</th>
+                <th className="w-[10%] py-2 text-left px-3 border-r border-border/30">BARCODE</th>
+                <th className="w-[18%] py-2 text-left px-3 border-r border-border/30">ITEM / PRODUCT NAME</th>
+                <th className="w-[5%] py-2 border-r border-border/30">QTY</th>
+                <th className="w-[7%] py-2 border-r border-border/30">UNIT</th>
+                <th className="w-[13%] py-2 px-2 border-r border-border/30">
+                  <div className="flex flex-col items-center justify-center gap-0.5">
+                    <span className="font-black">PRICE / UNIT</span>
+                    <div className="flex items-center gap-1">
+                      <Select value={globalTaxType} onValueChange={(v: "without" | "with") => handleGlobalTaxTypeChange(v)}>
+                        <SelectTrigger className="h-5 px-1.5 py-0 bg-background/80 hover:bg-background border border-border/80 rounded text-[9px] font-bold text-foreground cursor-pointer justify-center gap-1 [&>svg]:h-3 [&>svg]:w-3">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="min-w-[100px]">
+                          <SelectItem value="without" className="text-[10px] font-semibold">Without Tax</SelectItem>
+                          <SelectItem value="with" className="text-[10px] font-semibold">With Tax</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="relative group flex items-center">
+                        <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-muted border border-border text-[9px] font-bold text-muted-foreground cursor-help hover:bg-primary/10 hover:text-primary transition-all">?</span>
+                        <div className="absolute -translate-x-1/2 top-0 mb-2 bg-popover border border-border text-popover-foreground text-[10px] rounded p-2.5 shadow-xl w-64 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 leading-relaxed text-left font-normal normal-case">
+                          <p className="font-bold border-b pb-1 mb-1 text-[9px] uppercase tracking-wider text-foreground">Price Type Helper</p>
+                          <p className="mb-1"><strong className="text-primary font-bold">Without Tax:</strong> Tax will be added separately on top of purchase price.</p>
+                          <p><strong className="text-primary font-bold">With Tax:</strong> Tax is already included in the entered price.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+                <th className="w-[12%] py-2 px-2 border-r border-border/30">SALE PRICE</th>
+                <th className="w-[6%] py-2 border-r border-border/30">DISC %</th>
+                <th className="w-[7%] py-2 border-r border-border/30">TAX %</th>
+                <th className="w-[12%] py-2 text-right px-3 border-r border-border/30">AMOUNT</th>
+                <th className="w-[3%]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/10">
+              {items.map((item, idx) => (
+                <tr
+                  key={item.id}
+                  className={cn(
+                    "hover:bg-muted/10 transition-colors text-center h-9 border-b border-border/40 relative",
+                    activeSearchIdx === idx ? "z-30" : "z-0"
+                  )}
+                >
+                  {/* # */}
+                  <td className="py-1 border-r border-border/15 font-bold text-[10px] text-muted-foreground">
+                    {idx + 1}
+                  </td>
+
+                  {/* Barcode / Scan */}
+                  <td className="py-0.5 px-1 border-r border-border/15 relative">
+                    <TableCellInput
+                      id={`scan-input-${idx}`}
+                      ref={(el) => { barcodeRefs.current[item.id] = el; }}
+                      value={item.product ? item.product.barcode || item.product.sku : item.productSearch}
+                      onChange={(e) => handleProductSearch(idx, e.target.value)}
+                      onFocus={() => setActiveSearchIdx(idx)}
+                      onKeyDown={(e) => { handleKeyDown(e, idx); handleCustomTab(e, item.id, "barcode", idx); }}
+                      placeholder="Scan/Search"
+                      className={cn(
+                        "h-8 text-left font-mono text-[11px] bg-muted/10 border border-border/40 rounded-lg px-2.5 transition-all w-full focus:bg-background focus:border-primary/45 focus:ring-1 focus:ring-primary/20 focus:shadow-sm",
+                        item.productSearch && !item.product ? "border-amber-500/30 text-amber-500 bg-amber-500/5 focus:border-amber-500/50 focus:ring-amber-500/20" : ""
+                      )}
+                    />
+                    {activeSearchIdx === idx && item.productSearch.length > 0 && (
+                      <div className="absolute z-50 left-1 w-72 top-full mt-1.5 bg-card border border-border rounded-xl shadow-2xl overflow-hidden max-h-[180px] overflow-y-auto flex flex-col animate-in fade-in duration-100">
+                        {productResults.length === 0 ? (
+                          <div className="p-3 text-[10px] text-center text-muted-foreground font-medium">Type to create a new product</div>
+                        ) : (
+                          productResults.map((p, pIdx) => (
+                            <button
+                              key={p._id}
+                              type="button"
+                              onClick={() => selectProduct(idx, p)}
+                              className={cn(
+                                "flex items-center gap-2 w-full px-3 py-1.5 text-left border-b border-border/10 last:border-0 transition-colors",
+                                selectedDropdownIdx === pIdx ? "bg-primary/10 font-bold" : "hover:bg-muted/40"
+                              )}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-semibold truncate">{p.name}</p>
+                                <p className="text-[9px] font-mono text-muted-foreground">{p.sku} {p.barcode ? `• ${p.barcode}` : ""}</p>
+                              </div>
+                              <Badge variant="secondary" className="text-[9px] shrink-0 font-bold">{p.stock} in stock</Badge>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Product Name */}
+                  <td className="py-0.5 px-1 border-r border-border/15 text-left">
+                    {item.product ? (
+                      <span className="text-xs font-semibold px-2 block truncate w-full" title={item.product.name}>
+                        {item.product.name}
+                      </span>
+                    ) : (
+                      <TableCellInput
+                        ref={(el) => { nameRefs.current[item.id] = el; }}
+                        value={item.newProductName}
+                        onChange={(e) => updateItem(idx, "newProductName", e.target.value)}
+                        onKeyDown={(e) => handleCustomTab(e, item.id, "name", idx)}
+                        placeholder="New product name..."
+                        className="h-8 text-left text-xs font-semibold bg-amber-500/5 border border-amber-500/20 text-amber-500 placeholder:text-amber-500/40 rounded-lg px-2.5 w-full focus:bg-background focus:border-amber-500/45 focus:ring-1 focus:ring-amber-500/20 focus:shadow-sm"
+                      />
+                    )}
+                  </td>
+
+                  {/* Qty */}
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <TableCellInput
+                      ref={(el) => { qtyRefs.current[item.id] = el; }}
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) => updateItem(idx, "quantity", +e.target.value)}
+                      onKeyDown={(e) => handleCustomTab(e, item.id, "quantity", idx)}
+                      className="h-8 text-center text-xs font-bold bg-muted/10 border border-border/40 rounded-lg px-1.5 focus:bg-background focus:border-primary/45 focus:ring-1 focus:ring-primary/20 focus:shadow-sm transition-all w-full"
+                    />
+                  </td>
+
+                  {/* Unit */}
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <Select value={item.unit} onValueChange={(v) => updateItem(idx, "unit", v)}>
+                      <SelectTrigger className="h-8 w-full px-2 bg-muted/10 hover:bg-muted/20 border border-border/40 focus:ring-0 focus:ring-offset-0 rounded-lg text-xs font-semibold text-foreground cursor-pointer transition-all">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="center" className="min-w-[80px]">
+                        <SelectItem value="piece" className="text-xs font-semibold">Pcs</SelectItem>
+                        <SelectItem value="box" className="text-xs font-semibold">Box</SelectItem>
+                        <SelectItem value="kg" className="text-xs font-semibold">Kg</SelectItem>
+                        <SelectItem value="liter" className="text-xs font-semibold">L</SelectItem>
+                        <SelectItem value="meter" className="text-xs font-semibold">m</SelectItem>
+                        <SelectItem value="dozen" className="text-xs font-semibold">Dz</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+
+                  {/* Purchase Price */}
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <div className="flex items-center h-8 rounded-lg border border-border/40 bg-muted/10 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/45 focus-within:bg-background transition-all px-2 gap-1 w-full focus-within:shadow-sm">
+                      <TableCellInput
+                        ref={(el) => { purchaseRateRefs.current[item.id] = el; }}
+                        type="number"
+                        min={0}
+                        value={item.purchaseRate || ""}
+                        onChange={(e) => updateItem(idx, "purchaseRate", +e.target.value)}
+                        onKeyDown={(e) => handleCustomTab(e, item.id, "purchaseRate", idx)}
+                        className="text-right text-xs font-semibold bg-transparent border-none p-0 h-6 focus:ring-0 w-full min-w-0"
+                      />
+                      <Select value={item.purchaseTaxType} onValueChange={(v) => updateItem(idx, "purchaseTaxType", v)}>
+                        <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/30 hover:bg-muted/50 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end" className="min-w-[65px]">
+                          <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
+                          <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </td>
+
+                  {/* Sale Price */}
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <div className="flex items-center h-8 rounded-lg border border-border/40 bg-muted/10 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/45 focus-within:bg-background transition-all px-2 gap-1 w-full focus-within:shadow-sm">
+                      <TableCellInput
+                        ref={(el) => { salesPriceRefs.current[item.id] = el; }}
+                        type="number"
+                        min={0}
+                        value={item.salesPrice || ""}
+                        onChange={(e) => updateItem(idx, "salesPrice", +e.target.value)}
+                        onKeyDown={(e) => handleCustomTab(e, item.id, "salesPrice", idx)}
+                        className="text-right text-xs font-semibold bg-transparent border-none p-0 h-6 focus:ring-0 w-full min-w-0"
+                      />
+                      <Select value={item.salesTaxType} onValueChange={(v) => updateItem(idx, "salesTaxType", v)}>
+                        <SelectTrigger className="w-[32px] shrink-0 h-5 px-0.5 py-0 bg-muted/30 hover:bg-muted/50 border-transparent focus:ring-0 focus:ring-offset-0 rounded text-[8px] font-black uppercase text-muted-foreground cursor-pointer transition-colors [&>svg]:hidden justify-center">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end" className="min-w-[65px]">
+                          <SelectItem value="without" className="text-[10px] font-bold">EXC</SelectItem>
+                          <SelectItem value="with" className="text-[10px] font-bold">INC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </td>
+
+                  {/* Discount % */}
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <TableCellInput
+                      ref={(el) => { discountRefs.current[item.id] = el; }}
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={item.discount}
+                      onChange={(e) => updateItem(idx, "discount", +e.target.value)}
+                      onKeyDown={(e) => handleCustomTab(e, item.id, "discount", idx)}
+                      className="h-8 text-center text-xs font-bold bg-muted/10 border border-border/40 rounded-lg px-1 focus:bg-background focus:border-primary/45 focus:ring-1 focus:ring-primary/20 focus:shadow-sm transition-all w-full"
+                    />
+                  </td>
+
+                  {/* Tax % */}
+                  <td className="py-0.5 px-1 border-r border-border/15">
+                    <Select value={item.taxRate.toString()} onValueChange={(v) => updateItem(idx, "taxRate", +v)}>
+                      <SelectTrigger className="h-8 w-full px-2 bg-muted/10 hover:bg-muted/20 border border-border/40 focus:ring-0 focus:ring-offset-0 rounded-lg text-xs font-bold text-muted-foreground cursor-pointer transition-all">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="center" className="min-w-[70px]">
+                        <SelectItem value="0" className="text-xs font-bold">0%</SelectItem>
+                        <SelectItem value="5" className="text-xs font-bold">5%</SelectItem>
+                        <SelectItem value="12" className="text-xs font-bold">12%</SelectItem>
+                        <SelectItem value="18" className="text-xs font-bold">18%</SelectItem>
+                        <SelectItem value="28" className="text-xs font-bold">28%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+
+                  {/* Amount */}
+                  <td className="py-1 px-3 border-r border-border/15 text-right font-black text-xs text-foreground tabular-nums">
+                    {formatCurrency(item.total)}
+                  </td>
+
+                  {/* Delete row button */}
+                  <td className="py-0.5 px-0.5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(idx)}
+                      disabled={items.length <= 1}
+                      className="p-1.5 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-0 disabled:pointer-events-none"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {/* Empty filler row */}
+              <tr className="h-10 border-b border-border/10">
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td className="border-r border-border/10"></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Add Row Button below table */}
+        <div className="p-2 border-t bg-muted/5 flex items-center justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addRow}
+            className="h-8 text-xs font-bold gap-1.5 px-4 rounded-lg hover:bg-muted transition-all border border-border/80 text-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Row
+          </Button>
+        </div>
+      </div>
+
+      {/* Bottom Section: 3 Columns Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        {/* Column 1: Terms & Conditions */}
+        <div className="bg-card p-4 rounded-xl border border-border/80 shadow-sm flex flex-col justify-between">
+          <div className="space-y-3 flex-1 flex flex-col">
+            <div className="flex items-center justify-between border-b pb-1">
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Terms & Conditions</h3>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Template</Label>
+              <Select value={termsTemplate} onValueChange={handleTemplateChange}>
+                <SelectTrigger className="h-8 text-xs font-semibold bg-card border border-border/80 rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default" className="text-xs font-medium">Purchase Bill</SelectItem>
+                  <SelectItem value="standard" className="text-xs font-medium">Standard Terms</SelectItem>
+                  <SelectItem value="custom" className="text-xs font-medium">Custom / Blank</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 flex-1 flex flex-col">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Terms Text</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                data-field="notes"
+                placeholder="Thanks for doing business with us!"
+                className="flex-1 min-h-[96px] text-xs bg-card border border-border/80 shadow-sm focus:border-border hover:bg-card/95 transition-all resize-none p-2 rounded-lg leading-relaxed w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Column 2: Payment & Attachments */}
+        <div className="bg-card p-4 rounded-xl border border-border/80 shadow-sm flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b pb-1">
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Payment & Attachments</h3>
+            </div>
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Payment Type</Label>
                   <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
-                    <SelectTrigger className="h-8 text-xs font-semibold bg-muted/20 hover:bg-muted/40 border border-border/40 hover:border-border/80 transition-all cursor-pointer focus:ring-1 focus:ring-primary/40 focus:bg-background"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs font-semibold bg-card border border-border/80 rounded-lg">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash" className="text-xs">Cash</SelectItem>
-                      <SelectItem value="bank_transfer" className="text-xs">Bank Transfer</SelectItem>
-                      <SelectItem value="cheque" className="text-xs">Cheque</SelectItem>
-                      <SelectItem value="upi" className="text-xs">UPI</SelectItem>
-                      <SelectItem value="card" className="text-xs">Card</SelectItem>
+                      <SelectItem value="cash" className="text-xs font-medium">Cash</SelectItem>
+                      <SelectItem value="upi" className="text-xs font-medium">UPI</SelectItem>
+                      <SelectItem value="card" className="text-xs font-medium">Card</SelectItem>
+                      <SelectItem value="bank_transfer" className="text-xs font-medium">Bank</SelectItem>
+                      <SelectItem value="cheque" className="text-xs font-medium">Cheque</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                {paymentMethod !== "cash" && bankAccounts.length > 0 && (
-                  <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Bank *</Label>
-                    <Select value={cashBankAccountId} onValueChange={setCashBankAccountId}>
-                      <SelectTrigger className="h-8 text-xs font-semibold bg-muted/20 hover:bg-muted/40 border border-border/40 hover:border-border/80 transition-all cursor-pointer focus:ring-1 focus:ring-primary/40 focus:bg-background"><SelectValue placeholder="Select bank" /></SelectTrigger>
-                      <SelectContent>
-                        {bankAccounts.map((account) => (
-                          <SelectItem key={account._id} value={account._id} className="text-xs">
-                            {account.accountName} - ₹{account.currentBalance.toFixed(2)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Shipping Charges</Label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-2.5 text-[10px] font-bold text-muted-foreground/60 pointer-events-none">₹</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={shippingCharges || ""}
+                      onChange={(e) => setShippingCharges(+e.target.value)}
+                      placeholder="0"
+                      data-field="shipping"
+                      className="w-full h-8 pl-6 pr-2 text-right tabular-nums font-bold bg-card border border-border/80 rounded-lg shadow-sm text-xs"
+                    />
                   </div>
-                )}
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Transporter</Label>
-                  <Select value={transporterId} onValueChange={setTransporterId}>
-                    <SelectTrigger className="h-8 text-xs font-semibold bg-muted/20 hover:bg-muted/40 border border-border/40 hover:border-border/80 transition-all cursor-pointer focus:ring-1 focus:ring-primary/40 focus:bg-background"><SelectValue placeholder="Select Transporter" /></SelectTrigger>
+                </div>
+              </div>
+
+              {/* Bank Accounts */}
+              {paymentMethod !== "cash" && bankAccounts.length > 0 && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Bank *</Label>
+                  <Select value={cashBankAccountId} onValueChange={setCashBankAccountId}>
+                    <SelectTrigger className="h-8 text-xs font-semibold bg-card border border-border/80 rounded-lg">
+                      <SelectValue placeholder="Select bank account" />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none" className="text-xs">None</SelectItem>
-                      {transporters.map((t) => (
-                        <SelectItem key={t._id} value={t._id} className="text-xs">{t.name}</SelectItem>
+                      {bankAccounts.map((account) => (
+                        <SelectItem key={account._id} value={account._id} className="text-xs font-medium">
+                          {account.accountName} - ₹{account.currentBalance.toFixed(2)}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Notes</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    data-field="notes"
-                    placeholder="Add purchase notes..."
-                    className="h-16 text-xs bg-muted/30 resize-none"
-                  />
-                </div>
-              </div>
+              )}
             </div>
+          </div>
+
+          {/* Transporter selector positioned at the bottom */}
+          <div className="space-y-1 mt-3">
+            <Label className="text-[10px] font-bold text-muted-foreground uppercase">Transporter</Label>
+            <Select value={transporterId} onValueChange={setTransporterId}>
+              <SelectTrigger className="h-8 text-xs font-semibold bg-card border border-border/80 rounded-lg">
+                <SelectValue placeholder="Select Transporter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" className="text-xs font-medium">None</SelectItem>
+                {transporters.map((t) => (
+                  <SelectItem key={t._id} value={t._id} className="text-xs font-medium">{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
+        {/* Column 3: Totals & Round-off */}
+        <div className="bg-card p-4 rounded-xl border border-border/80 shadow-sm space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b pb-1 mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Totals</h3>
+            </div>
+            
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                <span>Subtotal</span>
+                <span className="tabular-nums text-foreground">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                <span>Discount</span>
+                <span className="tabular-nums text-emerald-600">- {formatCurrency(totalDiscount)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                <span>Tax Amount</span>
+                <span className="tabular-nums text-foreground">{formatCurrency(totalTax)}</span>
+              </div>
+              {shippingCharges > 0 && (
+                <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+                  <span>Shipping Charges</span>
+                  <span className="tabular-nums text-foreground">{formatCurrency(shippingCharges)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-border/50 space-y-2 mt-2">
+            {/* Round Off Checkbox */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <input
+                  id="roundOffCheckbox"
+                  type="checkbox"
+                  checked={roundOff}
+                  onChange={(e) => setRoundOff(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                />
+                <Label htmlFor="roundOffCheckbox" className="font-semibold text-muted-foreground uppercase text-[10px] cursor-pointer">Round Off</Label>
+              </div>
+              {roundOff && (
+                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                  {roundOffValue >= 0 ? "+" : ""}{roundOffValue.toFixed(2)}
+                </span>
+              )}
+            </div>
+
+            {/* Grand Total Display */}
+            <div className="flex justify-between items-center bg-primary/5 p-3 rounded-lg border border-primary/10">
+              <span className="text-xs font-black uppercase text-foreground">Grand Total</span>
+              <span className="text-lg font-black text-primary tabular-nums">{formatCurrency(grandTotal)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Action Bar */}
+            <div className={cn(
+        "fixed bottom-0 right-0 h-16 bg-card border-t border-border/80 shadow-lg px-6 py-3 flex items-center justify-between z-40 transition-all duration-300",
+        sidebarCollapsed ? "left-0 lg:left-[72px]" : "left-0 lg:left-[256px]"
+      )}>
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const fileInput = document.createElement("input");
+              fileInput.type = "file";
+              fileInput.accept = "image/*,application/pdf";
+              fileInput.onchange = () => {
+                toast.success("Bill document selected and attached to this purchase invoice draft.");
+              };
+              fileInput.click();
+            }}
+            className="h-9 text-xs font-bold gap-2 hover:bg-muted transition-all border border-border/80 text-foreground"
+          >
+            Upload Bill
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Share Button with Dropdown Menu */}
+          <div className="relative group">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs font-bold gap-1 border border-border/80 text-foreground hover:bg-muted"
+            >
+              Share
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+            <div className="absolute right-0 bottom-full mb-1 bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-w-[160px] hidden group-hover:block hover:block z-50">
+              <button
+                type="button"
+                onClick={() => toast.success("WhatsApp link generated and copied!")}
+                className="w-full px-4 py-2.5 text-left text-xs font-semibold hover:bg-muted transition-colors border-b border-border/10"
+              >
+                Share on WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => toast.success("Email drafted to supplier!")}
+                className="w-full px-4 py-2.5 text-left text-xs font-semibold hover:bg-muted transition-colors border-b border-border/10"
+              >
+                Email Invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="w-full px-4 py-2.5 text-left text-xs font-semibold hover:bg-muted transition-colors border-b border-border/10"
+              >
+                Print Bill
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmit("draft")}
+                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-primary hover:bg-primary/5 transition-colors"
+              >
+                Save as Draft
+              </button>
+            </div>
+          </div>
+
+          {/* Primary Save Button */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => handleSubmit("confirmed")}
+            disabled={saving}
+            className="h-9 text-xs font-bold shadow-md shadow-primary/20 px-6 min-w-[100px]"
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* New Product Modal */}
@@ -1562,4 +1757,6 @@ export default function CreatePurchasePage() {
       />
     </div>
   );
+
+
 }
