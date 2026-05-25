@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { usePOSStore } from "@/store/posStore";
 import { useThemeStore } from "@/store/themeStore";
 import { POSItemTable } from "@/components/pos/POSItemTable";
@@ -11,10 +12,29 @@ import { ShoppingCart, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function FastPOSPage() {
+  const searchParams = useSearchParams();
   const { sidebarCollapsed } = useThemeStore();
-  const { setActiveModal, getActiveBill, removeItem, addItem } = usePOSStore();
+  const { setActiveModal, getActiveBill, removeItem, addItem, loadSaleForEditing } = usePOSStore();
   const [activeTab, setActiveTab] = useState<"cart" | "pay">("cart");
   const [isMobile, setIsMobile] = useState(false);
+  const loadedEditSaleId = useRef<string | null>(null);
+
+  // Load sale for editing if editSale param exists
+  useEffect(() => {
+    const editSaleId = searchParams.get("editSale");
+    if (editSaleId && loadedEditSaleId.current !== editSaleId) {
+      loadedEditSaleId.current = editSaleId;
+      loadSaleForEditing(editSaleId)
+        .then(() => {
+          toast.success("Sale loaded for editing");
+        })
+        .catch((error) => {
+          loadedEditSaleId.current = null;
+          console.error("Failed to load sale", error);
+          toast.error("Failed to load sale details");
+        });
+    }
+  }, [searchParams, loadSaleForEditing]);
 
   useEffect(() => {
     const handleResize = () => {

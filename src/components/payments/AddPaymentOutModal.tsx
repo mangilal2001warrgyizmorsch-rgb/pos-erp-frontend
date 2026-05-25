@@ -45,14 +45,17 @@ interface AddPaymentOutModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  paymentId?: string | null;
 }
 
-export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPaymentOutModalProps) {
+export function AddPaymentOutModal({ open, onOpenChange, onSuccess, paymentId }: AddPaymentOutModalProps) {
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [unpaidBills, setUnpaidBills] = useState<Purchase[]>([]);
   const [fetchingBills, setFetchingBills] = useState(false);
+  const [receiptNo, setReceiptNo] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
@@ -75,8 +78,50 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
   useEffect(() => {
     if (open) {
       loadInitialData();
+      if (paymentId) {
+        loadPaymentData(paymentId);
+      } else {
+        setIsEditing(false);
+        setReceiptNo("");
+        form.reset({
+          partyId: "",
+          amountPaid: 0,
+          paymentMode: "Cash",
+          cashBankAccountId: "",
+          date: new Date().toISOString().split("T")[0],
+          linkedPurchaseId: "",
+          description: "",
+          referenceNo: "",
+        });
+      }
     }
-  }, [open]);
+  }, [open, paymentId]);
+
+  const loadPaymentData = async (id: string) => {
+    try {
+      const payment = await paymentOutService.getById(id);
+      const partyId = typeof payment.partyId === "string" ? payment.partyId : payment.partyId?._id;
+      const linkedPurchaseId = typeof payment.linkedPurchaseId === "string" ? payment.linkedPurchaseId : payment.linkedPurchaseId?._id;
+      setIsEditing(true);
+      setReceiptNo(payment.receiptNo || "");
+      form.reset({
+        partyId,
+        amountPaid: payment.amountPaid,
+        paymentMode: payment.paymentMode,
+        cashBankAccountId: payment.cashBankAccountId,
+        date: payment.date?.split("T")[0] || new Date().toISOString().split("T")[0],
+        linkedPurchaseId,
+        description: payment.description,
+        referenceNo: payment.referenceNo,
+      });
+      if (partyId) {
+        fetchUnpaidBills(partyId);
+      }
+    } catch (error) {
+      console.error("Failed to load payment", error);
+      toast.error("Failed to load payment details");
+    }
+  };
 
   useEffect(() => {
     if (selectedPartyId) {
@@ -114,13 +159,19 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
-      await paymentOutService.create(values);
-      toast.success("Payment-Out recorded successfully");
+      if (isEditing && paymentId) {
+        await paymentOutService.update(paymentId, values);
+        toast.success("Payment-Out updated successfully");
+      } else {
+        await paymentOutService.create(values);
+        toast.success("Payment-Out recorded successfully");
+      }
       onSuccess?.();
       onOpenChange(false);
       form.reset();
+      setIsEditing(false);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to record payment");
+      toast.error(error.response?.data?.message || "Failed to save payment");
     } finally {
       setLoading(false);
     }
@@ -132,7 +183,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Wallet className="h-5 w-5 text-primary" />
-            Add Payment-Out
+            {isEditing ? "Edit Payment-Out" : "Add Payment-Out"}
           </DialogTitle>
         </DialogHeader>
 
@@ -147,7 +198,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Supplier / Vendor *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger className="h-11 rounded-xl">
                             <SelectValue placeholder="Select Supplier" />
@@ -255,7 +306,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
                   />
                   <FormItem>
                     <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Receipt No</FormLabel>
-                    <Input disabled value="Auto-generated" className="h-11 rounded-xl bg-muted/50" />
+                    <Input disabled value={isEditing ? receiptNo : "Auto-generated"} className="h-11 rounded-xl bg-muted/50" />
                   </FormItem>
                 </div>
 
@@ -288,7 +339,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Payment Mode *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                           <FormControl>
                             <SelectTrigger className="h-11 rounded-xl">
                               <SelectValue placeholder="Mode" />
@@ -314,7 +365,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bank Account *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value || undefined}>
                             <FormControl>
                               <SelectTrigger className="h-11 rounded-xl">
                                 <SelectValue placeholder="Select Account" />
@@ -354,7 +405,7 @@ export function AddPaymentOutModal({ open, onOpenChange, onSuccess }: AddPayment
                 Cancel
               </Button>
               <Button type="submit" disabled={loading} className="rounded-xl h-11 px-8 min-w-[140px] bg-primary hover:bg-primary/95 text-primary-foreground border-0">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Payment"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Update Payment" : "Save Payment"}
               </Button>
             </DialogFooter>
           </form>

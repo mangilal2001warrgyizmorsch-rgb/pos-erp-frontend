@@ -46,14 +46,17 @@ interface AddPaymentInModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  paymentId?: string | null;
 }
 
-export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentInModalProps) {
+export function AddPaymentInModal({ open, onOpenChange, onSuccess, paymentId }: AddPaymentInModalProps) {
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [unpaidInvoices, setUnpaidInvoices] = useState<Sale[]>([]);
   const [fetchingInvoices, setFetchingInvoices] = useState(false);
+  const [receiptNo, setReceiptNo] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
@@ -76,8 +79,50 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
   useEffect(() => {
     if (open) {
       loadInitialData();
+      if (paymentId) {
+        loadPaymentData(paymentId);
+      } else {
+        setIsEditing(false);
+        setReceiptNo("");
+        form.reset({
+          partyId: "",
+          amountReceived: 0,
+          paymentMode: "Cash",
+          cashBankAccountId: "",
+          date: new Date().toISOString().split("T")[0],
+          linkedInvoiceId: "",
+          description: "",
+          referenceNo: "",
+        });
+      }
     }
-  }, [open]);
+  }, [open, paymentId]);
+
+  const loadPaymentData = async (id: string) => {
+    try {
+      const payment = await paymentInService.getById(id);
+      const partyId = typeof payment.partyId === "string" ? payment.partyId : payment.partyId?._id;
+      const linkedInvoiceId = typeof payment.linkedInvoiceId === "string" ? payment.linkedInvoiceId : payment.linkedInvoiceId?._id;
+      setIsEditing(true);
+      setReceiptNo(payment.receiptNo || "");
+      form.reset({
+        partyId,
+        amountReceived: payment.amountReceived,
+        paymentMode: payment.paymentMode,
+        cashBankAccountId: payment.cashBankAccountId,
+        date: payment.date?.split("T")[0] || new Date().toISOString().split("T")[0],
+        linkedInvoiceId,
+        description: payment.description,
+        referenceNo: payment.referenceNo,
+      });
+      if (partyId) {
+        fetchUnpaidInvoices(partyId);
+      }
+    } catch (error) {
+      console.error("Failed to load payment", error);
+      toast.error("Failed to load payment details");
+    }
+  };
 
   useEffect(() => {
     if (selectedPartyId) {
@@ -115,13 +160,19 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
-      await paymentInService.create(values);
-      toast.success("Payment-In recorded successfully");
+      if (isEditing && paymentId) {
+        await paymentInService.update(paymentId, values);
+        toast.success("Payment-In updated successfully");
+      } else {
+        await paymentInService.create(values);
+        toast.success("Payment-In recorded successfully");
+      }
       onSuccess?.();
       onOpenChange(false);
       form.reset();
+      setIsEditing(false);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to record payment");
+      toast.error(error.response?.data?.message || "Failed to save payment");
     } finally {
       setLoading(false);
     }
@@ -133,7 +184,7 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Wallet className="h-5 w-5 text-emerald-500" />
-            Add Payment-In
+            {isEditing ? "Edit Payment-In" : "Add Payment-In"}
           </DialogTitle>
         </DialogHeader>
 
@@ -148,7 +199,7 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Party / Customer *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger className="h-11 rounded-xl">
                             <SelectValue placeholder="Select Customer" />
@@ -256,7 +307,7 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
                   />
                   <FormItem>
                     <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Receipt No</FormLabel>
-                    <Input disabled value="Auto-generated" className="h-11 rounded-xl bg-muted/50" />
+                    <Input disabled value={isEditing ? receiptNo : "Auto-generated"} className="h-11 rounded-xl bg-muted/50" />
                   </FormItem>
                 </div>
 
@@ -289,7 +340,7 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Payment Mode *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                           <FormControl>
                             <SelectTrigger className="h-11 rounded-xl">
                               <SelectValue placeholder="Mode" />
@@ -315,7 +366,7 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bank Account *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value || undefined}>
                             <FormControl>
                               <SelectTrigger className="h-11 rounded-xl">
                                 <SelectValue placeholder="Select Account" />
@@ -355,7 +406,7 @@ export function AddPaymentInModal({ open, onOpenChange, onSuccess }: AddPaymentI
                 Cancel
               </Button>
               <Button type="submit" disabled={loading} className="rounded-xl h-11 px-8 min-w-[140px]">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Payment"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Update Payment" : "Save Payment"}
               </Button>
             </DialogFooter>
           </form>

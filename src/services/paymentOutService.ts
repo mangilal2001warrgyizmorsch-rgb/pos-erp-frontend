@@ -7,7 +7,7 @@ export const paymentOutService = {
   },
   getById: async (id: string) => {
     const { data } = await api.get(`/payment-out/${id}`);
-    return data;
+    return data.data;
   },
   create: async (payload: any) => {
     const { data } = await api.post('/payment-out', payload);
@@ -15,6 +15,10 @@ export const paymentOutService = {
   },
   delete: async (id: string) => {
     const { data } = await api.delete(`/payment-out/${id}`);
+    return data;
+  },
+  update: async (id: string, payload: any) => {
+    const { data } = await api.put(`/payment-out/${id}`, payload);
     return data;
   }
 };

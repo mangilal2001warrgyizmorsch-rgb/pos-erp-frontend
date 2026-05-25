@@ -209,7 +209,7 @@ export default function SalesPage() {
                         <Button variant="ghost" size="icon-sm" onClick={() => viewSale(sale._id)} title="View">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/sales/${sale._id}`)} title="Edit">
+                        <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/sales/edit/${sale._id}`)} title="Edit">
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon-sm" onClick={() => { setDeleteId(sale._id); setDeleteOpen(true); }} title="Delete">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Receipt,
@@ -54,6 +54,7 @@ import type {
   Supplier,
   Transporter,
   Product,
+  Purchase,
   Category,
   Subcategory,
 } from "@/types";
@@ -133,6 +134,8 @@ const calcItemTotal = (item: ItemRow) => {
 // ---------- Component ----------
 export default function CreatePurchasePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editingPurchaseId = searchParams.get("id");
   const { sidebarCollapsed } = useThemeStore();
 
   // Global Tax Mode State
@@ -295,6 +298,67 @@ export default function CreatePurchasePage() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
+  useEffect(() => {
+    if (!editingPurchaseId) return;
+
+    let cancelled = false;
+    purchaseService.getById(editingPurchaseId)
+      .then((purchase: Purchase) => {
+        if (cancelled) return;
+
+        const supplier = typeof purchase.supplier === "string" ? null : purchase.supplier;
+        const transporterId = typeof purchase.transporter === "string"
+          ? purchase.transporter
+          : purchase.transporter?._id || "none";
+
+        if (supplier) {
+          setSupplierId(supplier._id);
+          setSupplierSearch(supplier.name);
+          setSupplierPhone(supplier.phone || "");
+          setSupplierGst(supplier.gstNumber || "");
+          setIsSupplierMatched(true);
+        }
+
+        setTransporterId(transporterId);
+        setInvoiceNumber(purchase.invoiceNumber || "");
+        setPurchaseDate((purchase.purchaseDate || purchase.createdAt).split("T")[0]);
+        setStateOfSupply(purchase.stateOfSupply || "Rajasthan");
+        setShippingCharges(purchase.shippingCharges || 0);
+        setRoundOff(Boolean(purchase.roundOff));
+        setPaymentMethod(purchase.paymentMethod || "cash");
+        setCashBankAccountId(purchase.cashBankAccountId || "");
+        setNotes(purchase.notes || "");
+        setExistingPayment({ amountPaid: purchase.amountPaid, paymentStatus: purchase.paymentStatus });
+        setItems(purchase.items.length > 0 ? purchase.items.map((item) => {
+          const product = typeof item.product === "string" ? null : item.product;
+          return {
+            id: crypto.randomUUID(),
+            product,
+            productSearch: item.name,
+            sku: item.sku,
+            barcode: product?.barcode || "",
+            quantity: item.quantity,
+            purchaseRate: item.purchasePrice,
+            purchaseTaxType: "without",
+            salesPrice: item.salesPrice,
+            salesTaxType: "without",
+            discount: 0,
+            taxRate: item.taxRate || 0,
+            unit: product?.unit || "piece",
+            total: item.total,
+          };
+        }) : [newItem()]);
+      })
+      .catch((error) => {
+        console.error("Failed to load purchase for editing", error);
+        toast.error("Failed to load purchase details");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editingPurchaseId]);
+
   const clearSupplier = () => {
     setSupplierId("");
     setSupplierSearch("");
@@ -342,6 +406,7 @@ export default function CreatePurchasePage() {
   const [saving, setSaving] = useState(false);
   const [stateOfSupply, setStateOfSupply] = useState("Rajasthan");
   const [roundOff, setRoundOff] = useState(false);
+  const [existingPayment, setExistingPayment] = useState<Pick<Purchase, "amountPaid" | "paymentStatus"> | null>(null);
 
   useEffect(() => {
     supplierService.getAll({ limit: 200 }).then((r) => setSuppliers(r.data)).catch(() => {});
@@ -895,6 +960,13 @@ export default function CreatePurchasePage() {
           })
       );
 
+      const paidAmount = editingPurchaseId && existingPayment
+        ? existingPayment.amountPaid
+        : status === "confirmed" ? finalTotal : 0;
+      const paymentStatus = status === "draft"
+        ? "pending"
+        : paidAmount >= finalTotal ? "paid" : paidAmount > 0 ? "partial" : "pending";
+
       const payload = {
         supplier: finalSupplierId,
         supplierName: finalSupplierName,
@@ -945,19 +1017,19 @@ export default function CreatePurchasePage() {
         }, 0),
         totalAmount: finalTotal,
         roundOff: roundOffValue,
-        amountPaid: status === "confirmed" ? finalTotal : 0,
-        dueAmount: status === "confirmed" ? 0 : finalTotal,
+        amountPaid: paidAmount,
+        dueAmount: Math.max(0, finalTotal - paidAmount),
         status,
-        paymentStatus: status === "confirmed" ? "paid" : "pending",
+        paymentStatus,
         paymentMethod: status === "confirmed" ? paymentMethod : undefined,
         cashBankAccountId: status === "confirmed" && paymentMethod !== "cash" ? cashBankAccountId : undefined,
         notes,
       };
 
-      payload.amountPaid = status === "confirmed" ? payload.totalAmount : 0;
-      payload.dueAmount = status === "confirmed" ? 0 : payload.totalAmount;
-
-      if (status === "draft") {
+      if (editingPurchaseId) {
+        await purchaseService.update(editingPurchaseId, payload);
+        toast.success(status === "draft" ? "Draft updated!" : "Purchase updated! Stock updated automatically.");
+      } else if (status === "draft") {
         await purchaseService.saveDraft(payload);
         toast.success("Draft saved!");
       } else {
@@ -981,8 +1053,8 @@ export default function CreatePurchasePage() {
       {/* Top Header */}
       <div className="mb-4">
         <PageHeader
-          title="Purchase"
-          description="Create and manage purchase bills"
+          title={editingPurchaseId ? "Edit Purchase" : "Purchase"}
+          description={editingPurchaseId ? "Update purchase bill details" : "Create and manage purchase bills"}
           icon={Receipt}
         />
       </div>
@@ -1652,7 +1724,7 @@ export default function CreatePurchasePage() {
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              "Save"
+              editingPurchaseId ? "Update" : "Save"
             )}
           </Button>
         </div>

@@ -26,4 +26,11 @@ export const saleService = {
     const { data } = await api.get(`/sales/unpaid/${customerId}`);
     return data;
   },
+  update: async (id: string, payload: any) => {
+    const { data } = await api.put(`/sales/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => {
+    await api.delete(`/sales/${id}`);
+  },
 };

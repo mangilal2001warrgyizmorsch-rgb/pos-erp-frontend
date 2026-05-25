@@ -279,6 +279,8 @@ export interface Purchase {
   taxAmount: number;
   discountAmount: number;
   shippingCharges: number;
+  stateOfSupply?: string;
+  roundOff?: number;
   totalAmount: number;
   amountPaid: number;
   dueAmount: number;
@@ -596,4 +598,3 @@ export interface PurchaseReturnModel {
 }
 
 export * from './shortcuts';
-

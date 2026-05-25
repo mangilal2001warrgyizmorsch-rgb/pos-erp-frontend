@@ -26,6 +26,11 @@ export const saleReturnService = {
     return data.data;
   },
 
+  // Delete sale return / credit note
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/sales-returns/${id}`);
+  },
+
   // Cancel sale return / credit note
   cancel: async (id: string): Promise<SaleReturn> => {
     const { data } = await api.post(`/sales-returns/${id}/cancel`);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Wallet, Plus, Trash2, Printer, Search, Calendar, FileText } from "lucide-react";
+import { Wallet, Plus, Trash2, Printer, Search, Calendar, FileText, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -20,6 +20,7 @@ export default function PaymentOutPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -44,6 +45,16 @@ export default function PaymentOutPage() {
     } catch {
       toast.error("Failed to delete payment");
     }
+  };
+
+  const handleEdit = (paymentId: string) => {
+    setSelectedPaymentId(paymentId);
+    setAddModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setAddModalOpen(false);
+    setSelectedPaymentId(null);
   };
 
   const filtered = payments.filter(p => 
@@ -110,7 +121,10 @@ export default function PaymentOutPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(p._id)}>
+                        <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => handleEdit(p._id)} title="Edit">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(p._id)} title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -125,8 +139,9 @@ export default function PaymentOutPage() {
 
       <AddPaymentOutModal 
         open={addModalOpen} 
-        onOpenChange={setAddModalOpen} 
-        onSuccess={load} 
+        onOpenChange={handleModalClose} 
+        onSuccess={load}
+        paymentId={selectedPaymentId}
       />
     </div>
   );

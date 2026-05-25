@@ -52,20 +52,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    const loadStats = async () => {
+      try {
+        const data = await saleService.getDashboardStats();
+        setStats(data);
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error);
+        toast.error("Failed to load dashboard stats");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadStats = async () => {
-    try {
-      const data = await saleService.getDashboardStats();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load dashboard stats:", error);
-      toast.error("Failed to load dashboard stats");
-    } finally {
-      setLoading(false);
-    }
-  };
+    void loadStats();
+  }, []);
 
   const salesChartData =
     stats?.salesByMonth.map((item) => ({
@@ -161,7 +161,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <AreaChart
                     data={
                       salesChartData.length > 0
@@ -238,7 +238,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart
                     data={
                       dailyChartData.length > 0

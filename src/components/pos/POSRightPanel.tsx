@@ -1,17 +1,36 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, Receipt, Printer, Calendar, User, X, Plus, AlertCircle, Trash2 } from "lucide-react";
-import { usePOSStore, WALK_IN_CUSTOMER } from "@/store/posStore";
+import { usePOSStore, WALK_IN_CUSTOMER, type POSBill } from "@/store/posStore";
 import { useThemeStore } from "@/store/themeStore";
 import { saleService } from "@/services/saleService";
 import { cashBankService } from "@/services/cashBankService";
 import { customerService } from "@/services/customerService";
 import { formatCurrency, formatNumberInputValue, cn } from "@/lib/utils";
-import type { Sale } from "@/types";
+import type { BankAccount, Customer, Sale } from "@/types";
 import { toast } from "sonner";
 import { PrintSaleDialog } from "@/components/sales/PrintSaleDialog";
 import { CustomerModal } from "@/components/shared/CustomerModal";
 
+type POSBankAccount = BankAccount & {
+  accountType?: string;
+  bankName?: string;
+  isDefault?: boolean;
+  status?: string;
+};
+
+interface SplitPayment {
+  id: string;
+  mode: string;
+  amount: number;
+}
+
 export function POSRightPanel() {
+  const activeBillId = usePOSStore((state) => state.activeBillId);
+
+  return <POSRightPanelContent key={activeBillId || "empty"} />;
+}
+
+function POSRightPanelContent() {
   const store = usePOSStore();
   const { theme } = useThemeStore();
   const isDark = theme === "dark";
@@ -22,12 +41,12 @@ export function POSRightPanel() {
   const [showFullBreakup, setShowFullBreakup] = useState(false);
   const [showMultiPay, setShowMultiPay] = useState(false);
   const [printSaleData, setPrintSaleData] = useState<Sale | null>(null);
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<POSBankAccount[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   
   // Mobile-responsive states for customer & date
   const [showCustomerDD, setShowCustomerDD] = useState(false);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [custSearch, setCustSearch] = useState("");
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const customerDDRef = useRef<HTMLDivElement>(null);
@@ -43,7 +62,8 @@ export function POSRightPanel() {
     cashBankService.getAccounts()
       .then(res => {
         if (res.success && res.data) {
-          setBankAccounts(res.data.filter((a: any) => a.accountType === "bank" && a.status === "active"));
+          const accounts = res.data as POSBankAccount[];
+          setBankAccounts(accounts.filter((account) => account.accountType === "bank" && account.status === "active"));
         }
       })
       .catch(err => console.error("Failed to load bank accounts:", err));
@@ -69,30 +89,26 @@ export function POSRightPanel() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Reset edited state when active bill changes
-  useEffect(() => {
-    setIsAmountEdited(false);
-  }, [bill?.id]);
-
-  if (!bill) return null;
-
-  const realItems = bill.items.filter(i => i.itemName !== "");
+  const realItems = bill?.items.filter(i => i.itemName !== "") || [];
   const totalItems = realItems.length;
   const totalQty = realItems.reduce((s, i) => s + i.quantity, 0);
   const grandTotal = realItems.reduce((s, i) => s + i.total, 0);
-  const change = Math.max(0, bill.amountReceived - grandTotal);
-  const remaining = Math.max(0, grandTotal - bill.amountReceived);
+  const amountReceived = bill?.amountReceived || 0;
+  const change = Math.max(0, amountReceived - grandTotal);
+  const remaining = Math.max(0, grandTotal - amountReceived);
   const paymentBalance = remaining > 0 ? remaining : change;
   const paymentBalanceLabel = remaining > 0 ? "Remaining Amount:" : "Change to Return:";
 
   // Sync amount when total changes (if not manually edited)
   useEffect(() => {
-    if (!isAmountEdited && grandTotal > 0) {
+    if (!bill || isAmountEdited) return;
+
+    if (bill.amountReceived !== grandTotal) {
       store.setAmountReceived(grandTotal);
-    } else if (!isAmountEdited && grandTotal === 0) {
-      store.setAmountReceived(0);
     }
-  }, [grandTotal, isAmountEdited]);
+  }, [bill, grandTotal, isAmountEdited, store]);
+
+  if (!bill) return null;
 
   const handleSave = async () => {
     const activeBill = store.getActiveBill();
@@ -125,17 +141,33 @@ export function POSRightPanel() {
           ? "upi"
           : activeBill.paymentMode.toLowerCase();
 
-      const savedSale = await saleService.create({
+      const saleData = {
         customer: cId, customerName: cName, saleDate: dateToUse,
         items: currentItems.map(i => ({ product: i.productId || undefined, name: i.itemName, sku: i.itemCode, quantity: i.quantity, unitPrice: i.pricePerUnit, purchasePrice: i.purchasePrice, discount: i.discount, total: i.total })),
         subtotal, taxAmount: taxAmt, discountAmount: discountAmt, totalAmount: currentGrandTotal, amountPaid: receivedAmount,
         status: "completed", paymentStatus: paidInFull ? "paid" : "partial", paymentMethod, notes: activeBill.remarks,
         cashBankAccountId: (activeBill.paymentMode !== "Cash" && activeBill.paymentMode !== "Wallet" && activeBill.paymentMode !== "Partial") ? activeBill.cashBankAccountId : undefined,
-      });
-      toast.success("Sale saved!"); 
+      };
+
+      let savedSale;
+      if (activeBill.editingId) {
+        // Update existing sale
+        await saleService.update(activeBill.editingId, saleData);
+        toast.success("Sale updated successfully!"); 
+        // Fetch updated sale data for printing
+        savedSale = await saleService.getById(activeBill.editingId);
+      } else {
+        // Create new sale
+        savedSale = await saleService.create(saleData);
+        toast.success("Sale saved!"); 
+      }
+      
       setPrintSaleData(savedSale);
       store.resetActiveBill();
-    } catch (e: any) { toast.error(e?.response?.data?.message || "Failed to save"); }
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message || "Failed to save");
+    }
     finally { setSaving(false); }
   };
 
@@ -143,7 +175,7 @@ export function POSRightPanel() {
   
   const isWalkIn = !bill?.customer || bill.customer._id === "walk-in";
   const filtered = custSearch.trim()
-    ? customers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || (c.mobileNo && c.mobileNo.includes(custSearch)))
+    ? customers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || (c.phone && c.phone.includes(custSearch)))
     : customers;
 
   return (
@@ -251,7 +283,7 @@ export function POSRightPanel() {
                   <button key={c._id} onClick={() => { store.setCustomer(c); setShowCustomerDD(false); setCustSearch(""); }}
                     className="w-full px-3 py-2 text-left text-xs hover:bg-muted/50 transition-colors flex justify-between">
                     <span className="font-medium">{c.name}</span>
-                    {c.mobileNo && <span className="text-[10px] text-muted-foreground">{c.mobileNo}</span>}
+                    {c.phone && <span className="text-[10px] text-muted-foreground">{c.phone}</span>}
                   </button>
                 ))}
                 {filtered.length === 0 && <div className="p-3 text-center text-xs text-muted-foreground">No customer found</div>}
@@ -394,7 +426,7 @@ export function POSRightPanel() {
           className="w-full h-12 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground font-bold text-xs uppercase tracking-[0.15em] rounded-lg shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >
           <Printer className="h-4 w-4" />
-          {saving ? "Saving..." : "SAVE & PRINT BILL"}
+          {saving ? (bill?.editingId ? "Updating..." : "Saving...") : (bill?.editingId ? "UPDATE & PRINT BILL" : "SAVE & PRINT BILL")}
         </button>
         <button 
           onClick={() => setShowMultiPay(true)}
@@ -409,19 +441,21 @@ export function POSRightPanel() {
         open={showFullBreakup} 
         onClose={() => setShowFullBreakup(false)} 
       />
-      <MultiPayModal 
-        open={showMultiPay} 
-        onClose={() => setShowMultiPay(false)}
-        onSave={() => {
-          setShowMultiPay(false);
-          handleSave();
-        }}
-        onSaveNew={async () => {
-          setShowMultiPay(false);
-          await handleSave();
-          store.createNewBill();
-        }}
-      />
+      {showMultiPay && (
+        <MultiPayModal
+          open={showMultiPay}
+          onClose={() => setShowMultiPay(false)}
+          onSave={() => {
+            setShowMultiPay(false);
+            handleSave();
+          }}
+          onSaveNew={async () => {
+            setShowMultiPay(false);
+            await handleSave();
+            store.createNewBill();
+          }}
+        />
+      )}
       <PrintSaleDialog 
         open={!!printSaleData} 
         onOpenChange={(open) => { if (!open) setPrintSaleData(null); }} 
@@ -535,26 +569,27 @@ interface MultiPayModalProps {
   onSaveNew: () => void;
 }
 
+function getInitialSplitPayments(bill: POSBill | undefined): SplitPayment[] {
+  if (!bill) return [];
+
+  const grandTotal = bill.items
+    .filter((item) => item.itemName !== "")
+    .reduce((sum, item) => sum + item.total, 0);
+  const existingAmount = bill.amountReceived || 0;
+  const firstAmount = existingAmount > 0 && existingAmount < grandTotal ? existingAmount : 0;
+
+  return [
+    { id: crypto.randomUUID(), mode: "Cash", amount: firstAmount },
+    { id: crypto.randomUUID(), mode: "UPI", amount: Math.max(0, grandTotal - firstAmount) },
+  ];
+}
+
 function MultiPayModal({ open, onClose, onSave, onSaveNew }: MultiPayModalProps) {
   const store = usePOSStore();
   const bill = store.getActiveBill();
   
-  const [payments, setPayments] = useState<Array<{ id: string; mode: string; amount: number }>>([]);
+  const [payments, setPayments] = useState<SplitPayment[]>(() => getInitialSplitPayments(bill));
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!bill || !open) return;
-    const realItems = bill.items.filter(i => i.itemName !== "");
-    const grandTotal = realItems.reduce((s, i) => s + i.total, 0);
-    const existingAmount = bill.amountReceived || 0;
-    const firstAmount = existingAmount > 0 && existingAmount < grandTotal ? existingAmount : 0;
-    const balanceAmount = Math.max(0, grandTotal - firstAmount);
-
-    setPayments([
-      { id: crypto.randomUUID(), mode: "Cash", amount: firstAmount },
-      { id: crypto.randomUUID(), mode: "UPI", amount: balanceAmount },
-    ]);
-  }, [bill, open]);
 
   useEffect(() => {
     if (open) {

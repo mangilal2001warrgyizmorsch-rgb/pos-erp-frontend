@@ -26,6 +26,11 @@ export const purchaseReturnService = {
     return data.data;
   },
 
+  // Delete purchase return / debit note
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/purchases-returns/${id}`);
+  },
+
   // Cancel purchase return / debit note
   cancel: async (id: string): Promise<PurchaseReturnModel> => {
     const { data } = await api.post(`/purchases-returns/${id}/cancel`);

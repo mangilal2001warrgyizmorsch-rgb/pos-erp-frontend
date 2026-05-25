@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Product, Customer } from '@/types';
+import { saleService } from '@/services/saleService';
 
 // Dummy walk-in customer — never persisted to DB
 export const WALK_IN_CUSTOMER: Customer = {
@@ -36,6 +37,7 @@ export interface POSItem {
 
 export interface POSBill {
   id: string;
+  editingId?: string;
   billNo: number;
   customer: Customer | null;
   items: POSItem[];
@@ -60,6 +62,7 @@ interface POSStore {
   closeBill: (id: string) => void;
   setActiveBill: (id: string) => void;
   setActiveModal: (type: POSModalType) => void;
+  loadSaleForEditing: (id: string) => Promise<void>;
   
   // Actions on active bill
   getActiveBill: () => POSBill | undefined;
@@ -144,6 +147,46 @@ export const usePOSStore = create<POSStore>((set, get) => ({
 
   setActiveBill: (id) => set({ activeBillId: id }),
   setActiveModal: (type) => set({ activeModal: type }),
+
+  loadSaleForEditing: async (id) => {
+    const sale = await saleService.getById(id);
+
+    set((state) => ({
+      bills: state.bills.map((bill) => {
+        if (bill.id !== state.activeBillId) return bill;
+
+        const items: POSItem[] = sale.items.map((item) => ({
+          id: crypto.randomUUID(),
+          productId: typeof item.product === 'string' ? item.product : item.product._id,
+          product: typeof item.product === 'string' ? undefined : item.product,
+          itemCode: item.sku,
+          itemName: item.name,
+          customItem: false,
+          quantity: item.quantity,
+          unit: 'Pcs',
+          pricePerUnit: item.unitPrice,
+          purchasePrice: item.purchasePrice,
+          taxPercent: item.taxRate || 0,
+          taxAmount: 0,
+          total: item.total,
+          discount: 0,
+          isInclusive: false,
+        }));
+
+        return {
+          ...bill,
+          editingId: sale._id,
+          customer: typeof sale.customer === 'object' && sale.customer ? sale.customer : WALK_IN_CUSTOMER,
+          items: [...items, createPlaceholderItem()],
+          selectedRowIndex: items.length,
+          paymentMode: sale.paymentMethod === 'cash' ? 'Cash' : sale.paymentMethod === 'card' ? 'Card' : 'UPI',
+          amountReceived: sale.amountPaid,
+          remarks: sale.notes || '',
+          cashBankAccountId: sale.cashBankAccountId || '',
+        };
+      }),
+    }));
+  },
 
   getActiveBill: () => {
     const state = get();

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Receipt, Plus, Eye, Trash2, Loader2, Search, FileText, Filter,
+  Receipt, Plus, Eye, Trash2, Loader2, Search, FileText, Filter, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -208,6 +208,13 @@ export default function PurchasesPage() {
                           onClick={() => router.push(`/purchases/${p._id}`)}
                         >
                           <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => router.push(`/purchases/create?id=${p._id}`)}
+                        >
+                          <Pencil className="h-4 w-4 text-amber-500" />
                         </Button>
                         <Button
                           variant="ghost"
