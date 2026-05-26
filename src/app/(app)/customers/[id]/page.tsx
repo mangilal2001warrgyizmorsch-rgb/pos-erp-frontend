@@ -100,7 +100,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         <div className="flex flex-col md:flex-row justify-between gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">{customer.name}</h1>
+              <h1 className="page-title">{customer.name}</h1>
               <Button 
                 variant="ghost" 
                 size="icon-sm" 

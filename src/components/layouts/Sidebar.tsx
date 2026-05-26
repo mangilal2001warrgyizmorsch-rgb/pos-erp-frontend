@@ -1,49 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { usePathname } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  Package,
-  Tags,
-  Users,
-  ShoppingCart,
-  BarChart3,
-  Settings,
-  ChevronLeft,
-  ChevronDown,
-  Zap,
-  X,
-  Truck,
-  Receipt,
-  Warehouse,
-  IndianRupee,
-  UserCheck,
-  Layers,
-  FileText,
+  ArrowDownUp,
   ArrowLeftRight,
-  Wallet,
+  BarChart3,
   Building,
+  ChevronDown,
+  ChevronLeft,
+  Clock,
   Cloud,
   CloudLightning,
-  Wrench,
-  ScanBarcode,
-  ArrowDownUp,
+  FileText,
   History,
+  IndianRupee,
+  LayoutDashboard,
+  Layers,
   ListCollapse,
+  Package,
+  Receipt,
+  ScanBarcode,
+  Settings,
+  ShoppingCart,
+  Tags,
+  Truck,
+  UserCheck,
+  Users,
+  Wallet,
+  Warehouse,
+  Wrench,
+  X,
+  Zap,
   Boxes,
-  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useThemeStore } from "@/store/themeStore";
 import { useBusinessStore } from "@/store/businessStore";
+import { useThemeStore } from "@/store/themeStore";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useEffect } from "react";
 
-// ---------- Types ----------
 interface NavLink {
   label: string;
   href: string;
@@ -62,9 +60,8 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return "children" in entry;
 }
 
-// ---------- Navigation Structure ----------
 const navEntries: NavEntry[] = [
-  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   {
     label: "Parties",
     icon: Users,
@@ -125,7 +122,7 @@ const navEntries: NavEntry[] = [
   {
     label: "Reports",
     icon: BarChart3,
-    href: "/reports", 
+    href: "/reports",
   },
   {
     label: "Shifts",
@@ -140,30 +137,23 @@ const navEntries: NavEntry[] = [
   {
     label: "Sync & Backup",
     icon: Cloud,
-    children: [
-      { label: "Backup & Restore", href: "/backup", icon: CloudLightning },
-    ],
+    children: [{ label: "Backup & Restore", href: "/backup", icon: CloudLightning }],
   },
   {
     label: "Utilities",
     icon: Wrench,
     children: [
-      {
-        label: "Barcode Generator",
-        href: "/utilities/barcode",
-        icon: ScanBarcode,
-      },
-      {
-        label: "Import/Export",
-        href: "/utilities/import-export",
-        icon: ArrowDownUp,
-      },
+      { label: "Barcode Generator", href: "/utilities/barcode", icon: ScanBarcode },
+      { label: "Import/Export", href: "/utilities/import-export", icon: ArrowDownUp },
     ],
   },
-  { label: "Settings", href: "/settings", icon: Settings },
+  {
+    label: "Settings",
+    icon: Settings,
+    href: "/settings",
+  },
 ];
 
-// ---------- Component ----------
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
@@ -173,68 +163,71 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useThemeStore();
   const { profile, fetchProfile } = useBusinessStore();
+  const [manualOpenGroups, setManualOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!profile) {
-      fetchProfile();
-    }
-  }, []);
+    if (!profile) fetchProfile();
+  }, [fetchProfile, profile]);
 
-  // Track open state for multiple groups
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initialState: Record<string, boolean> = {};
+  const openGroups = useMemo(() => {
+    const state: Record<string, boolean> = {};
     navEntries.forEach((entry) => {
       if (isGroup(entry)) {
-        initialState[entry.label] = entry.children.some(
-          (child) => pathname.startsWith(child.href) && child.href !== "/",
-        );
+        const isPathActive = entry.children.some((child) => pathname.startsWith(child.href));
+        state[entry.label] = Boolean(manualOpenGroups[entry.label] || isPathActive);
       }
     });
-    return initialState;
-  });
-
-  const toggleGroup = (label: string) => {
-    if (sidebarCollapsed) return;
-    setOpenGroups((prev) => ({
-      ...prev,
-      [label]: !prev[label],
-    }));
-  };
+    return state;
+  }, [manualOpenGroups, pathname]);
 
   const isLinkActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
-  // Renders a single nav link
+  const toggleGroup = (label: string) => {
+    if (sidebarCollapsed) return;
+    setManualOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const businessName = profile?.businessName || "Business Profile";
+  const businessDetail = profile?.phone
+    ? profile.phone
+    : profile?.gstin
+      ? `GSTIN: ${profile.gstin.toUpperCase()}`
+      : profile?.tagline || "Manage business profile";
+
   const renderLink = (item: NavLink, nested = false) => {
     const isActive = isLinkActive(item.href);
+
     return (
       <Link
         key={item.href}
         href={item.href}
         onClick={onMobileClose}
         className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 group relative",
-          nested && !sidebarCollapsed && "pl-10",
+          "group relative flex h-12 items-center gap-3.5 rounded-full px-4 text-[15px] font-medium text-foreground/78 transition-colors duration-150 hover:bg-primary/[0.10] hover:text-primary focus-visible:outline-none focus-visible:bg-primary/[0.10] focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-primary/20",
+          nested && !sidebarCollapsed && "ml-8 mr-1 h-11 px-4",
           isActive
-            ? "bg-primary/10 text-primary shadow-sm"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            ? "bg-primary/[0.10] text-primary"
+            : "",
         )}
       >
         {isActive && (
           <motion.div
             layoutId="sidebar-active"
-            className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary"
+            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary"
             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
           />
         )}
+
         <item.icon
           className={cn(
-            "h-5 w-5 shrink-0 transition-colors",
+            "h-[18px] w-[18px] shrink-0 transition-colors",
             isActive
               ? "text-primary"
-              : "text-muted-foreground group-hover:text-foreground",
+              : "text-muted-foreground group-hover:text-primary",
           )}
         />
+
         <AnimatePresence>
           {!sidebarCollapsed && (
             <motion.span
@@ -251,53 +244,57 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     );
   };
 
-  // Renders a collapsible group
   const renderGroup = (group: NavGroup) => {
-    const isAnyChildActive = group.children.some((c) => isLinkActive(c.href));
+    const isAnyChildActive = group.children.some((child) => isLinkActive(child.href));
     const isOpen = openGroups[group.label] || false;
 
     return (
       <div key={group.label}>
         <button
+          type="button"
           onClick={() => toggleGroup(group.label)}
           className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full group relative",
-            isAnyChildActive
-              ? "bg-primary/5 text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            "group relative flex h-12 w-full items-center gap-3.5 rounded-full px-4 text-[15px] font-medium text-foreground/78 transition-colors duration-150 hover:bg-primary/[0.10] hover:text-primary focus-visible:outline-none focus-visible:bg-primary/[0.10] focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-primary/20",
+            isOpen
+              ? "bg-primary/[0.10] text-primary"
+              : "",
           )}
         >
           <group.icon
             className={cn(
-              "h-5 w-5 shrink-0 transition-colors",
-              isAnyChildActive
+              "h-[18px] w-[18px] shrink-0 transition-colors",
+              isOpen
                 ? "text-primary"
-                : "text-muted-foreground group-hover:text-foreground",
+                : isAnyChildActive
+                  ? "text-primary"
+                  : "text-muted-foreground group-hover:text-primary",
             )}
           />
+
           <AnimatePresence>
             {!sidebarCollapsed && (
               <motion.span
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
-                className="overflow-hidden whitespace-nowrap flex-1 text-left"
+                className="flex-1 overflow-hidden whitespace-nowrap text-left"
               >
                 {group.label}
               </motion.span>
             )}
           </AnimatePresence>
+
           {!sidebarCollapsed && (
             <ChevronDown
               className={cn(
-                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                "h-4 w-4 shrink-0 transition-transform duration-200",
+                isOpen ? "text-primary" : "text-muted-foreground",
                 isOpen && "rotate-180",
               )}
             />
           )}
         </button>
 
-        {/* Submenu items */}
         <AnimatePresence initial={false}>
           {(isOpen || sidebarCollapsed) && (
             <motion.div
@@ -309,9 +306,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             >
               <div
                 className={cn(
-                  "space-y-0.5",
-                  !sidebarCollapsed &&
-                    "mt-1 ml-2 border-l border-border/40 pl-1",
+                  "space-y-1",
+                  !sidebarCollapsed && "relative my-2 ml-6 border-l border-primary/20 py-1 pl-0.5",
                 )}
               >
                 {group.children.map((child) => renderLink(child, true))}
@@ -324,13 +320,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-border/50">
+    <div className="flex h-full flex-col bg-[#f6f7fb] dark:bg-card">
+      <div className="flex h-[88px] items-center justify-between px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25 shrink-0">
-            <Zap className="h-5 w-5 text-white" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/[0.08]">
+            <Zap className="h-5 w-5 text-primary" />
           </div>
+
           <AnimatePresence>
             {!sidebarCollapsed && (
               <motion.div
@@ -339,92 +335,84 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 exit={{ opacity: 0, width: 0 }}
                 className="overflow-hidden"
               >
-                <h1 className="text-lg font-bold whitespace-nowrap gradient-text">
+                <h1 className="whitespace-nowrap text-[17px] font-semibold tracking-tight text-foreground">
                   POS ERP
                 </h1>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Modern Point of Sale
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Collapse All Options Button */}
         {!sidebarCollapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setOpenGroups({})}
-            title="Collapse all submenus"
-            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
-          >
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setManualOpenGroups({})}
+              title="Collapse all submenus"
+              className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-primary/[0.10] hover:text-primary focus-visible:ring-primary/20"
+            >
             <ListCollapse className="h-4 w-4" />
           </Button>
         )}
       </div>
 
-      {/* Nav items */}
-      <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
-        {navEntries.map((entry) =>
-          isGroup(entry) ? renderGroup(entry) : renderLink(entry),
-        )}
+      
+      <nav className="no-scrollbar flex-1 space-y-2 overflow-y-auto border-t border-border/55 px-4 py-6">
+        {navEntries.map((entry) => (isGroup(entry) ? renderGroup(entry) : renderLink(entry)))}
       </nav>
 
+      <div className="border-t border-border/55 bg-[#f6f7fb] px-4 pb-4 pt-4 dark:bg-card">
+        <Link
+          href="/settings/profile"
+          className="block rounded-[22px] bg-background p-3 transition-colors hover:bg-primary/[0.10] focus-visible:outline-none focus-visible:bg-primary/[0.10] focus-visible:ring-2 focus-visible:ring-primary/20"
+        >
+          <div className={cn("flex items-center gap-3", sidebarCollapsed && "justify-center")}>
+            <Avatar className="h-11 w-11 shrink-0 rounded-xl">
+              {profile?.logo ? <AvatarImage src={profile.logo} /> : null}
+              <AvatarFallback className="rounded-xl bg-primary/10 text-sm font-semibold text-primary">
+                {businessName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
 
-
-      {/* Business Profile Footer */}
-      <Link 
-        href="/settings/profile"
-        className="p-3 border-t border-border/50 bg-muted/20 block hover:bg-muted/40 transition-colors duration-200"
-      >
-        <div className={cn(
-          "flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-200",
-          !sidebarCollapsed && "hover:bg-background/50"
-        )}>
-          <Avatar className="h-9 w-9 rounded-full border border-primary/20 shadow-sm ring-2 ring-primary/5 shrink-0">
-            {profile?.logo ? (
-              <AvatarImage src={profile.logo} />
-            ) : null}
-            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-xs">
-              {profile?.businessName?.charAt(0) || "P"}
-            </AvatarFallback>
-          </Avatar>
-          
-          <AnimatePresence>
-            {!sidebarCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="flex flex-col min-w-0"
-              >
-                <span className="text-xs font-bold truncate">
-                  {profile?.businessName || "My Business"}
-                </span>
-                <span className="text-[10px] text-muted-foreground truncate opacity-70">
-                  Business Admin
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </Link>
+            <AnimatePresence>
+              {!sidebarCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="flex min-w-0 flex-col"
+                >
+                  <span className="truncate text-[15px] font-semibold text-foreground">
+                    {businessName}
+                  </span>
+                  <span className="truncate text-sm text-muted-foreground">
+                    {businessDetail}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </Link>
+      </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop sidebar */}
       <motion.aside
         initial={false}
-        animate={{ width: sidebarCollapsed ? 72 : 256 }}
+        animate={{ width: sidebarCollapsed ? 72 : 272 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="hidden lg:flex flex-col fixed left-0 top-0 h-screen border-r border-border/50 bg-card/80 backdrop-blur-xl z-30 group/sidebar"
+        className="group/sidebar fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-border/55 bg-[#f6f7fb] lg:flex dark:bg-card"
       >
         {sidebarContent}
-        
-        {/* Floating Collapse Toggle */}
+
         <button
           onClick={toggleSidebar}
-          className="absolute -right-5 bottom-2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-[20%] border border-border bg-background shadow-sm opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-50 hover:bg-muted"
+          className="absolute -right-4 bottom-3 z-50 flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background shadow-sm opacity-0 transition-all duration-200 hover:border-primary/20 hover:bg-primary/[0.10] hover:text-primary group-hover/sidebar:opacity-100"
         >
           <ChevronLeft
             className={cn(
@@ -435,7 +423,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </button>
       </motion.aside>
 
-      {/* Mobile overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -444,14 +431,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onMobileClose}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
             />
+
             <motion.aside
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-              className="fixed left-0 top-0 h-screen w-[280px] border-r border-border/50 bg-card z-50 lg:hidden"
+              className="fixed left-0 top-0 z-50 h-screen w-[288px] border-r border-border/55 bg-[#f6f7fb] lg:hidden dark:bg-card"
             >
               <Button
                 variant="ghost"

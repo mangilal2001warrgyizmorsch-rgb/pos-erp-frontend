@@ -90,7 +90,7 @@ export const KeyboardShortcutsSettings: React.FC<KeyboardShortcutsSettingsProps>
               <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                 Purchase Shortcuts
               </p>
-              <p className="text-2xl font-bold text-purple-600">{purchaseShortcuts.length}</p>
+              <p className="text-2xl font-bold text-orange-600">{purchaseShortcuts.length}</p>
             </div>
           </div>
 

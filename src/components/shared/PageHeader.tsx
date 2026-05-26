@@ -29,9 +29,9 @@ export function PageHeader({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-2.5">
         {Icon && (
           <div className="page-icon-tile">
             <Icon />
@@ -40,14 +40,14 @@ export function PageHeader({
         <div>
           <h1 className="page-title">{title}</h1>
           {description && (
-            <p className="page-description mt-1">{description}</p>
+            <p className="page-description mt-0.5">{description}</p>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {children}
         {action && (
-          <Button onClick={action.onClick} className="gap-2">
+          <Button onClick={action.onClick} className="gap-2 font-medium">
             {action.icon ? (
               <action.icon className="h-4 w-4" />
             ) : (

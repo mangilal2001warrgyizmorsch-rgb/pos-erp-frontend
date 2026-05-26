@@ -194,7 +194,7 @@ export default function ShiftsPage() {
                   <p className="text-xs font-medium text-muted-foreground">Other Sales</p>
                   <p className="mt-2 text-xl font-bold tabular-nums">{formatCurrency((currentShift.totalSalesCard || 0) + (currentShift.totalSalesUpi || 0))}</p>
                 </div>
-                <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.06] p-4">
+                <div className="rounded-xl border border-orange-500/15 bg-orange-500/[0.06] p-4">
                   <p className="text-xs font-medium text-muted-foreground">Expected Drawer</p>
                   <p className="mt-2 text-xl font-bold tabular-nums text-primary">{formatCurrency(currentShift.expectedCash || 0)}</p>
                 </div>

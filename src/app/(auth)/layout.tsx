@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         initial={false}
         animate={{ x: isRegister ? "100%" : "0%" }}
         transition={{ duration: 0.7, ease: "easeInOut" }}
-        className="hidden lg:flex absolute top-0 bottom-0 left-0 w-1/2 z-20 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 p-12 items-center justify-center shadow-2xl"
+        className="hidden lg:flex absolute top-0 bottom-0 left-0 w-1/2 z-20 bg-gradient-to-br from-orange-500 via-amber-400 to-orange-600 p-12 items-center justify-center shadow-2xl"
       >
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="relative z-10 max-w-lg">
@@ -33,9 +33,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
               Modern Point of Sale
               <br />
-              <span className="text-indigo-200">for your business</span>
+              <span className="text-orange-200">for your business</span>
             </h2>
-            <p className="text-lg text-indigo-200/80 leading-relaxed">
+            <p className="text-lg text-orange-200/80 leading-relaxed">
               Streamline your sales, manage inventory, track customers, and grow
               your business with our premium ERP solution.
             </p>

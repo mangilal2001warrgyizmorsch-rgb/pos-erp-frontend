@@ -176,7 +176,7 @@ export default function BusinessProfilePage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
         <div className="flex items-center gap-4">
-          <div className="page-icon-tile bg-gradient-to-br from-indigo-500 to-purple-600">
+          <div className="page-icon-tile bg-gradient-to-br from-orange-500 to-amber-400">
             <Building2 className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -410,12 +410,12 @@ export default function BusinessProfilePage() {
             </CardContent>
           </Card>
           
-          <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 p-6 relative overflow-hidden group">
+          <div className="rounded-2xl bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20 p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 -mr-4 -mt-4 opacity-5 group-hover:opacity-10 transition-opacity text-primary">
               <ShieldCheck className="h-24 w-24" />
             </div>
             <div className="relative z-10 flex flex-col items-center text-center gap-4">
-              <div className="h-24 w-40 rounded-xl bg-card border border-indigo-500/20 flex items-center justify-center shadow-sm overflow-hidden p-2 relative group/sign">
+              <div className="h-24 w-40 rounded-xl bg-card border border-orange-500/20 flex items-center justify-center shadow-sm overflow-hidden p-2 relative group/sign">
                 {signUploading ? (
                   <UploadCloud className="h-6 w-6 animate-bounce text-primary" />
                 ) : localProfile.signature ? (
@@ -443,7 +443,7 @@ export default function BusinessProfilePage() {
                   </div>
                 ) : (
                   <div 
-                    className="flex flex-col items-center gap-1 opacity-40 cursor-pointer w-full h-full justify-center hover:bg-indigo-500/10 transition-colors"
+                    className="flex flex-col items-center gap-1 opacity-40 cursor-pointer w-full h-full justify-center hover:bg-orange-500/10 transition-colors"
                     onClick={() => signInputRef.current?.click()}
                   >
                     <Fingerprint className="h-6 w-6" />
@@ -452,7 +452,7 @@ export default function BusinessProfilePage() {
                 )}
               </div>
               <div>
-                <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">E-Signature</p>
+                <p className="text-xs font-bold text-orange-600 uppercase tracking-widest">E-Signature</p>
                 <p className="text-[10px] text-muted-foreground mt-1 px-2">
                   Used for authorized vouchers & A4 invoices
                 </p>
@@ -470,7 +470,7 @@ export default function BusinessProfilePage() {
                   size="sm" 
                   disabled={signUploading}
                   onClick={() => signInputRef.current?.click()}
-                  className="bg-card hover:bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 hover:text-indigo-600 font-semibold h-8 rounded-lg shadow-sm"
+                  className="bg-card hover:bg-orange-500/10 border border-orange-500/20 text-orange-500 hover:text-orange-600 font-semibold h-8 rounded-lg shadow-sm"
                 >
                   {signUploading ? "Uploading..." : "Upload Signature"}
                 </Button>

@@ -281,8 +281,8 @@ export default function ImportExportPage() {
               </div>
 
               <div className="flex flex-col items-center text-center mt-2">
-                <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-6 relative">
-                  <FileSpreadsheet className="h-10 w-10 text-indigo-500 dark:text-indigo-400" />
+                <div className="h-24 w-24 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-6 relative">
+                  <FileSpreadsheet className="h-10 w-10 text-orange-500 dark:text-orange-400" />
                   <div className="absolute top-6 left-6 bg-blue-500 rounded-sm w-4 h-4 flex items-center justify-center text-[10px] text-white font-bold">X</div>
                 </div>
                 <h3 className="text-lg font-bold mb-3">Import From Excel</h3>

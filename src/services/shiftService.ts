@@ -1,9 +1,10 @@
 import api from "./api";
 import type { ApiResponse } from "@/types";
+import type { User } from "@/types";
 
 export interface Shift {
   _id: string;
-  cashier: any;
+  cashier: User | string;
   cashierName?: string;
   startTime: string;
   endTime?: string;

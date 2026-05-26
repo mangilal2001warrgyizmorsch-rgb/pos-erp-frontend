@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
         className="w-full max-w-sm mx-auto space-y-8"
       >
         <div className="lg:hidden flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-400">
             <Zap className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold gradient-text">POS ERP</h1>

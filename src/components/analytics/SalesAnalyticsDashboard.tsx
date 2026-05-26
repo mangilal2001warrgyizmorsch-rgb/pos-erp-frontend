@@ -70,7 +70,7 @@ export function SalesAnalyticsDashboard({
           title="Total Sales"
           value={data?.summary?.totalSales || 0}
           icon={ShoppingCart}
-          color="indigo"
+          color="orange"
           format="currency"
           loading={loading}
         />
@@ -86,7 +86,7 @@ export function SalesAnalyticsDashboard({
           title="Gross Profit"
           value={data?.summary?.grossProfit || 0}
           icon={TrendingUp}
-          color="blue"
+          color="slate"
           format="currency"
           loading={loading}
         />
@@ -94,7 +94,7 @@ export function SalesAnalyticsDashboard({
           title="Net Profit"
           value={data?.summary?.netProfit || 0}
           icon={BarChart3}
-          color="violet"
+          color="orange"
           format="currency"
           loading={loading}
         />
@@ -130,7 +130,7 @@ export function SalesAnalyticsDashboard({
           title="Purchase Cost"
           value={data?.summary?.purchaseCost || 0}
           icon={ShoppingCart}
-          color="indigo"
+          color="orange"
           format="currency"
           loading={loading}
         />
@@ -169,7 +169,7 @@ export function SalesAnalyticsDashboard({
                 <Line
                   type="monotone"
                   dataKey="totalSales"
-                  stroke="#6366f1"
+                  stroke="#f97316"
                   strokeWidth={2}
                   dot={false}
                   name="Sales Amount"
@@ -190,8 +190,8 @@ export function SalesAnalyticsDashboard({
               <AreaChart data={data?.charts?.revenueTrend || []}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -215,7 +215,7 @@ export function SalesAnalyticsDashboard({
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#10b981"
+                  stroke="#f97316"
                   strokeWidth={2}
                   fill="url(#colorRevenue)"
                   name="Revenue"
@@ -261,7 +261,7 @@ export function SalesAnalyticsDashboard({
                 />
                 <Bar
                   dataKey="totalSales"
-                  fill="#6366f1"
+                  fill="#f97316"
                   radius={[6, 6, 0, 0]}
                   name="Sales Amount"
                 />
@@ -355,7 +355,7 @@ export function SalesAnalyticsDashboard({
         </div>
         <div className="bg-card border border-border/40 rounded-xl p-4">
           <p className="text-sm text-muted-foreground">Orders</p>
-          <p className="text-2xl font-bold text-violet-500 mt-1">
+          <p className="text-2xl font-bold text-orange-500 mt-1">
             {data?.summary?.orderCount || 0}
           </p>
         </div>

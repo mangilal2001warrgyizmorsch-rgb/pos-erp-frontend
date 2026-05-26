@@ -184,7 +184,7 @@ function POSRightPanelContent() {
       <div className={cn(
         "mx-4 mt-4 px-3.5 py-3 rounded-2xl shadow-xl",
         isDark 
-          ? "bg-gradient-to-br from-purple-100 via-indigo-100 to-purple-50 text-slate-900"
+          ? "bg-gradient-to-br from-orange-100 via-amber-100 to-orange-50 text-slate-900"
           : "bg-gradient-to-br from-slate-700 via-slate-700 to-slate-800 text-white"
       )}>
         <div className="flex items-start justify-between gap-1.5">
@@ -198,7 +198,7 @@ function POSRightPanelContent() {
             onClick={() => setShowFullBreakup(true)}
             className={cn(
               "text-[10px] font-semibold leading-3 text-right transition-colors shrink-0",
-              isDark ? "text-indigo-600 hover:text-indigo-700" : "text-indigo-200 hover:text-white"
+              isDark ? "text-orange-600 hover:text-orange-700" : "text-orange-200 hover:text-white"
             )}
           >
             Full Breakup<br />

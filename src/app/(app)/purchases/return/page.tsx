@@ -498,7 +498,7 @@ export default function PurchaseReturnPage() {
                               "whitespace-nowrap",
                               ret.status === "refunded" && "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-0",
                               ret.status === "issued" && "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-0",
-                              ret.status === "adjusted" && "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 border-0",
+                              ret.status === "adjusted" && "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 border-0",
                               ret.status === "cancelled" && "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-0"
                             )}
                           >
@@ -545,11 +545,8 @@ export default function PurchaseReturnPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Receipt className="h-6 w-6 text-primary animate-pulse" />
-                Issue Debit Note
-              </h1>
-              <p className="text-sm text-muted-foreground">Deduct inventory stock and adjust supplier ledger</p>
+              <h1 className="page-title">Issue Debit Note</h1>
+              <p className="page-description mt-0.5">Deduct inventory stock and adjust supplier ledger</p>
             </div>
           </div>
 

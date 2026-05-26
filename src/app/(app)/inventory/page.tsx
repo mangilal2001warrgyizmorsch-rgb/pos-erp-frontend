@@ -349,13 +349,13 @@ export default function InventoryPage() {
                                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
                                   m.type === "purchase" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500"
                                 } ${
-                                  m.type === "sale" && "bg-blue-500/10 text-blue-600 dark:text-blue-500"
+                                  m.type === "sale" && "bg-orange-500/10 text-orange-600 dark:text-orange-500"
                                 } ${
-                                  m.type === "return" && "bg-indigo-500/10 text-indigo-600 dark:text-indigo-500"
+                                  m.type === "return" && "bg-amber-500/10 text-amber-600 dark:text-amber-500"
                                 } ${
                                   m.type === "adjustment" && "bg-amber-500/10 text-amber-600 dark:text-amber-500"
                                 } ${
-                                  m.type === "transfer" && "bg-violet-500/10 text-violet-600 dark:text-violet-500"
+                                  m.type === "transfer" && "bg-orange-500/10 text-orange-600 dark:text-orange-500"
                                 } ${
                                   m.type === "cancellation" && "bg-rose-500/10 text-rose-600 dark:text-rose-500"
                                 }`}

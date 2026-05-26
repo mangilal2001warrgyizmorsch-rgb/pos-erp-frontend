@@ -65,7 +65,7 @@ export function PurchaseAnalyticsDashboard({
     loadData();
   }, [loadData]);
 
-  const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
+  const COLORS = ["#f97316", "#10b981", "#f59e0b", "#ef4444", "#fb923c", "#06b6d4"];
 
   return (
     <div className="space-y-5">
@@ -75,7 +75,7 @@ export function PurchaseAnalyticsDashboard({
           title="Total Purchases"
           value={data?.summary?.totalPurchases || 0}
           icon={ShoppingCart}
-          color="indigo"
+          color="orange"
           format="number"
           loading={loading}
         />
@@ -91,7 +91,7 @@ export function PurchaseAnalyticsDashboard({
           title="Suppliers"
           value={data?.summary?.supplierCount || 0}
           icon={Building2}
-          color="violet"
+          color="orange"
           format="number"
           loading={loading}
         />
@@ -99,7 +99,7 @@ export function PurchaseAnalyticsDashboard({
           title="Avg Purchase"
           value={data?.summary?.averagePurchaseValue || 0}
           icon={TrendingUp}
-          color="blue"
+          color="slate"
           format="currency"
           loading={loading}
         />
@@ -134,8 +134,8 @@ export function PurchaseAnalyticsDashboard({
               <AreaChart data={data?.charts?.purchaseTrend || []}>
                 <defs>
                   <linearGradient id="colorPurchase" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -157,7 +157,7 @@ export function PurchaseAnalyticsDashboard({
                 <Area
                   type="monotone"
                   dataKey="totalPurchases"
-                  stroke="#6366f1"
+                  stroke="#f97316"
                   strokeWidth={2}
                   fill="url(#colorPurchase)"
                   name="Purchase Count"
@@ -247,7 +247,7 @@ export function PurchaseAnalyticsDashboard({
                 />
                 <Bar
                   dataKey="totalPurchaseAmount"
-                  fill="#6366f1"
+                  fill="#f97316"
                   radius={[0, 6, 6, 0]}
                   name="Purchase Amount"
                 />
@@ -314,7 +314,7 @@ export function PurchaseAnalyticsDashboard({
         </div>
         <div className="bg-card border border-border/40 rounded-xl p-4">
           <p className="text-sm text-muted-foreground">Supplier Count</p>
-          <p className="text-2xl font-bold text-indigo-500 mt-1">
+          <p className="text-2xl font-bold text-orange-500 mt-1">
             {data?.summary?.supplierCount || 0}
           </p>
         </div>

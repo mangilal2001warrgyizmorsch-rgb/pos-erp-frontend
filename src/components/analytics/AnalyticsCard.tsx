@@ -9,7 +9,7 @@ interface AnalyticsCardProps {
   title: string;
   value: number | string;
   icon?: LucideIcon;
-  color?: "indigo" | "emerald" | "blue" | "amber" | "rose" | "violet" | "cyan";
+  color?: "orange" | "emerald" | "slate" | "amber" | "rose" | "violet" | "cyan";
   trend?: {
     value: number;
     isPositive: boolean;
@@ -19,12 +19,12 @@ interface AnalyticsCardProps {
 }
 
 const colorClasses = {
-  indigo: "text-indigo-500 bg-indigo-500/10",
+  orange: "text-orange-500 bg-orange-500/10",
   emerald: "text-emerald-500 bg-emerald-500/10",
-  blue: "text-blue-500 bg-blue-500/10",
+  slate: "text-slate-500 bg-slate-500/10",
   amber: "text-amber-500 bg-amber-500/10",
   rose: "text-rose-500 bg-rose-500/10",
-  violet: "text-violet-500 bg-violet-500/10",
+  violet: "text-orange-500 bg-orange-500/10",
   cyan: "text-cyan-500 bg-cyan-500/10",
 };
 
@@ -48,7 +48,7 @@ export function AnalyticsCard({
   title,
   value,
   icon: Icon,
-  color = "indigo",
+  color = "orange",
   trend,
   format = "number",
   loading = false,

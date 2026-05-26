@@ -68,7 +68,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search products, customers, invoices..."
-                className="pl-10 bg-muted/50"
+                className="pl-10 bg-background/80"
                 autoFocus
                 onBlur={() => setSearchOpen(false)}
               />
@@ -78,7 +78,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-2 text-muted-foreground"
+            className="gap-2 text-muted-foreground font-medium"
             onClick={() => setSearchOpen(true)}
           >
             <Search className="h-4 w-4" />
@@ -108,15 +108,15 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
         {/* User menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-bold shrink-0 aspect-square">
-                {user?.name?.charAt(0).toUpperCase() || "U"}
-              </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium leading-tight">
-                  {user?.name}
-                </p>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="gap-2 px-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-400 text-white text-sm font-semibold shrink-0 aspect-square">
+              {user?.name?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-sm font-semibold leading-tight">
+                {user?.name}
+              </p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {user?.role}
                 </p>

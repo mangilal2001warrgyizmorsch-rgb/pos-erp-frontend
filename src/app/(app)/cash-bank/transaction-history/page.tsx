@@ -396,11 +396,11 @@ function TransactionHistoryContent() {
             <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">
               Bank Balance
             </div>
-            <div className="h-7 w-7 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0 group-hover:scale-105 transition-transform duration-200">
+            <div className="h-7 w-7 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0 group-hover:scale-105 transition-transform duration-200">
               <Building className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl font-black mt-3 sm:mt-4 text-indigo-500 font-mono tracking-tight whitespace-nowrap">
+          <div className="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl font-black mt-3 sm:mt-4 text-orange-500 font-mono tracking-tight whitespace-nowrap">
             {formatCurrencyCompact(summary.totalBankBalance)}
           </div>
           <div className="text-[9px] sm:text-[10px] text-muted-foreground/80 mt-1 truncate">Unified banks aggregate</div>

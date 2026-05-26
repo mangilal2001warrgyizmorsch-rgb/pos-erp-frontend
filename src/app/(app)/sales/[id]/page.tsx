@@ -79,11 +79,8 @@ export default function SaleDetailsPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Receipt className="h-6 w-6 text-primary" />
-            {sale.invoiceNumber}
-          </h1>
-          <p className="text-sm text-muted-foreground">Created on {formatDate(sale.createdAt)}</p>
+          <h1 className="page-title">{sale.invoiceNumber}</h1>
+          <p className="page-description mt-0.5">Created on {formatDate(sale.createdAt)}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">

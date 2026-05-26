@@ -82,11 +82,8 @@ export default function PurchaseDetailsPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Receipt className="h-6 w-6 text-primary" />
-                {purchase.purchaseNumber}
-              </h1>
-              <p className="text-sm text-muted-foreground">Created on {formatDate(purchase.createdAt)}</p>
+              <h1 className="page-title">{purchase.purchaseNumber}</h1>
+              <p className="page-description mt-0.5">Created on {formatDate(purchase.createdAt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

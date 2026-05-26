@@ -147,7 +147,7 @@ export default function ActivityPage() {
         return <Badge variant="outline" className="bg-rose-500/10 text-rose-600 hover:bg-rose-500/10 border-rose-500/20 font-bold capitalize">{actionStr}</Badge>;
       case "login":
       case "logout":
-        return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 hover:bg-purple-500/10 border-purple-500/20 font-bold capitalize">{actionStr}</Badge>;
+        return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/10 border-orange-500/20 font-bold capitalize">{actionStr}</Badge>;
       default:
         return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/10 border-amber-500/20 font-bold capitalize">{actionStr.replace("_", " ")}</Badge>;
     }

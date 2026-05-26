@@ -115,7 +115,7 @@ export default function DashboardPage() {
           value={stats?.today.totalSales || 0}
           subtitle={formatCurrency(stats?.today.totalRevenue || 0)}
           icon={ShoppingCart}
-          color="indigo"
+          color="orange"
         />
         <StatCard
           title="Monthly Revenue"
@@ -128,7 +128,7 @@ export default function DashboardPage() {
           title="Products"
           value={stats?.totalProducts || 0}
           icon={Package}
-          color="blue"
+          color="slate"
         />
         <StatCard
           title="Customers"
@@ -179,12 +179,12 @@ export default function DashboardPage() {
                       >
                         <stop
                           offset="5%"
-                          stopColor="#6366f1"
+                          stopColor="#f97316"
                           stopOpacity={0.3}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#6366f1"
+                          stopColor="#f97316"
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                     <Area
                       type="monotone"
                       dataKey="revenue"
-                      stroke="#6366f1"
+                      stroke="#f97316"
                       strokeWidth={2}
                       fill="url(#revenueGradient)"
                     />

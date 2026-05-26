@@ -103,7 +103,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                 {supplier.name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <h1 className="page-title flex items-center gap-2">
                   {supplier.name}
                   <Button 
                     variant="ghost" 

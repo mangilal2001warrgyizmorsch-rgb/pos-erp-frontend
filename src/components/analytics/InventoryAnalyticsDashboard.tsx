@@ -60,7 +60,7 @@ export function InventoryAnalyticsDashboard({
     loadData();
   }, [loadData]);
 
-  const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const COLORS = ["#f97316", "#10b981", "#f59e0b", "#ef4444", "#fb923c"];
   const stockOverview = data?.charts?.stockOverview
     ? [
         { name: "In Stock", value: data.charts.stockOverview.inStock },
@@ -77,7 +77,7 @@ export function InventoryAnalyticsDashboard({
           title="Total Products"
           value={data?.summary?.totalProducts || 0}
           icon={Package}
-          color="indigo"
+          color="orange"
           format="number"
           loading={loading}
         />
@@ -93,7 +93,7 @@ export function InventoryAnalyticsDashboard({
           title="Inventory Cost"
           value={data?.summary?.totalInventoryCost || 0}
           icon={DollarSign}
-          color="blue"
+          color="slate"
           format="currency"
           loading={loading}
         />
@@ -101,7 +101,7 @@ export function InventoryAnalyticsDashboard({
           title="Potential Profit"
           value={data?.summary?.potentialProfit || 0}
           icon={TrendingUp}
-          color="violet"
+          color="orange"
           format="currency"
           loading={loading}
         />
@@ -165,8 +165,8 @@ export function InventoryAnalyticsDashboard({
                 />
                 <Legend />
                 <Bar dataKey="Value" fill="#10b981" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="Cost" fill="#6366f1" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="Profit" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Cost" fill="#f97316" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Profit" fill="#fb923c" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
