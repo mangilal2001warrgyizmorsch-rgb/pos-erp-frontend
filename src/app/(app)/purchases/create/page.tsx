@@ -59,7 +59,9 @@ import type {
   Purchase,
   Category,
   Subcategory,
+  Godown,
 } from "@/types";
+import { godownService } from "@/services/godownService";
 
 const TableCellInput = React.forwardRef<
   HTMLInputElement,
@@ -301,6 +303,7 @@ export default function CreatePurchasePage() {
   const [selectedDropdownIdx, setSelectedDropdownIdx] = useState<number>(-1);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [godowns, setGodowns] = useState<Godown[]>([]);
 
   // New Product Modal state
   const [newProductModalOpen, setNewProductModalOpen] = useState(false);
@@ -375,6 +378,7 @@ export default function CreatePurchasePage() {
         setPurchaseDate(
           (purchase.purchaseDate || purchase.createdAt).split("T")[0],
         );
+        setGodownId((purchase.godownId as any)?._id || (purchase.godownId as string) || "");
         setStateOfSupply(purchase.stateOfSupply || "Rajasthan");
         setShippingCharges(purchase.shippingCharges || 0);
         setRoundOff(Boolean(purchase.roundOff));
@@ -446,6 +450,7 @@ export default function CreatePurchasePage() {
   const [purchaseDate, setPurchaseDate] = useState(
     new Date().toISOString().split("T")[0],
   );
+  const [godownId, setGodownId] = useState("");
   const [shippingCharges, setShippingCharges] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashBankAccountId, setCashBankAccountId] = useState("");
@@ -524,6 +529,19 @@ export default function CreatePurchasePage() {
         }
       })
       .catch((err) => console.error("Failed to load bank accounts:", err));
+    godownService
+      .getAllGodowns()
+      .then((res) => {
+        if (res.success && res.data) {
+          const activeGodowns = res.data.filter((g) => g.isActive);
+          setGodowns(activeGodowns);
+          if (!editingPurchaseId) {
+            const defaultGodown = activeGodowns.find((g) => g.isDefault) || activeGodowns[0];
+            if (defaultGodown) setGodownId(defaultGodown._id);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1172,6 +1190,10 @@ export default function CreatePurchasePage() {
       toast.error("Quantity must be > 0");
       return;
     }
+    if (!godownId) {
+      toast.error("Please select a Godown to receive this stock.");
+      return;
+    }
     if (
       validItems.some(
         (i) =>
@@ -1291,6 +1313,7 @@ export default function CreatePurchasePage() {
             : undefined,
         invoiceNumber,
         purchaseDate,
+        godownId,
         stateOfSupply,
         items: purchaseLines,
         subtotal: validItems.reduce((s, i) => {
@@ -1541,6 +1564,25 @@ export default function CreatePurchasePage() {
                 onChange={(e) => setPurchaseDate(e.target.value)}
                 className="h-9 text-xs bg-card border border-border/80 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary/30 cursor-pointer"
               />
+            </div>
+
+            {/* Godown Selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Receiving Godown <span className="text-destructive">*</span>
+              </Label>
+              <Select value={godownId} onValueChange={setGodownId}>
+                <SelectTrigger className="h-9 text-xs font-semibold bg-card border border-border/85 shadow-sm rounded-lg focus:ring-1 focus:ring-primary/30 transition-all hover:bg-card/90 cursor-pointer">
+                  <SelectValue placeholder="Select Godown" />
+                </SelectTrigger>
+                <SelectContent>
+                  {godowns.map((g) => (
+                    <SelectItem key={g._id} value={g._id} className="text-xs font-medium">
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* State of Supply */}

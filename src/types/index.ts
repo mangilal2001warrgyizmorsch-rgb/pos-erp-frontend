@@ -61,12 +61,27 @@ export interface Product {
   taxRate: number;
   salesTaxType?: "inclusive" | "exclusive" | "without";
   purchaseTaxType?: "inclusive" | "exclusive" | "without";
-  openingStockPrice: number;
-  openingStockDate: string;
+  openingStockPrice?: number;
+  openingStockDate?: string;
+  mrp?: number;
+  stockByGodown?: { godownId: Godown | string; stock: number }[];
   isActive: boolean;
   isLowStock?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  pricingStatus?: "active" | "inactive";
+  source?: "manual" | "purchase" | "opening_stock" | "import";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Godown {
+  _id: string;
+  name: string;
+  address?: string;
+  manager?: User | string;
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SalesPrice {
@@ -177,6 +192,7 @@ export interface Sale {
   invoiceNumber: string;
   customer?: Customer | string;
   customerName: string;
+  godownId?: Godown | string;
   items: SaleItem[];
   subtotal: number;
   taxRate: number;
@@ -345,6 +361,7 @@ export interface Purchase {
   transporterName?: string;
   invoiceNumber?: string;
   purchaseDate: string;
+  godownId?: Godown | string;
   items: PurchaseItem[];
   subtotal: number;
   taxAmount: number;

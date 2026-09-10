@@ -69,6 +69,7 @@ export interface POSBill {
   additionalCharges: number;
   remarks: string;
   cashBankAccountId?: string;
+  godownId?: string;
 }
 
 export type POSModalType = "qty" | "itemDisc" | "unit" | "addCharges" | "billDisc" | "loyalty" | "remarks" | null;
@@ -306,6 +307,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
           amountReceived: sale.amountPaid,
           remarks: sale.notes || '',
           cashBankAccountId: sale.cashBankAccountId || '',
+          godownId: (sale.godownId as any)?._id || (sale.godownId as string) || undefined,
         };
       }),
     }));

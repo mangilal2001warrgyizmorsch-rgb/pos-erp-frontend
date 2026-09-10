@@ -6,10 +6,11 @@ import { saleService } from "@/services/saleService";
 import { cashBankService } from "@/services/cashBankService";
 import { customerService } from "@/services/customerService";
 import { formatCurrency, formatNumberInputValue, cn } from "@/lib/utils";
-import type { BankAccount, Customer, Sale } from "@/types";
+import type { BankAccount, Customer, Sale, Godown } from "@/types";
 import { toast } from "sonner";
 import { PrintSaleDialog } from "@/components/sales/PrintSaleDialog";
 import { CustomerModal } from "@/components/shared/CustomerModal";
+import { godownService } from "@/services/godownService";
 
 type POSBankAccount = BankAccount & {
   accountType?: string;
@@ -43,6 +44,7 @@ function POSRightPanelContent() {
   const [sendWhatsapp, setSendWhatsapp] = useState(true);
   const [printSaleData, setPrintSaleData] = useState<Sale | null>(null);
   const [bankAccounts, setBankAccounts] = useState<POSBankAccount[]>([]);
+  const [godowns, setGodowns] = useState<Godown[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   
   // Mobile-responsive states for customer & date
@@ -56,8 +58,10 @@ function POSRightPanelContent() {
   const [isAmountEdited, setIsAmountEdited] = useState(false);
   const [showPaymentDD, setShowPaymentDD] = useState(false);
   const [showBankDD, setShowBankDD] = useState(false);
+  const [showGodownDD, setShowGodownDD] = useState(false);
   const paymentRef = useRef<HTMLDivElement>(null);
   const bankRef = useRef<HTMLDivElement>(null);
+  const godownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     cashBankService.getAccounts()
@@ -69,11 +73,25 @@ function POSRightPanelContent() {
       })
       .catch(err => console.error("Failed to load bank accounts:", err));
     
-    // Load customers for mobile view
     customerService.getAll({ limit: 200 })
       .then(res => {
         if (res.data) {
           setCustomers(res.data);
+        }
+      })
+      .catch(() => {});
+      
+    godownService.getAllGodowns()
+      .then((res) => {
+        if (res.success && res.data) {
+          const activeGodowns = res.data.filter((g) => g.isActive);
+          setGodowns(activeGodowns);
+          if (activeGodowns.length > 0 && !store.getActiveBill()?.godownId) {
+            const defaultGodown = activeGodowns.find((g) => g.isDefault) || activeGodowns[0];
+            if (defaultGodown) {
+              store.updateBillField("godownId", defaultGodown._id);
+            }
+          }
         }
       })
       .catch(() => {});
@@ -84,6 +102,7 @@ function POSRightPanelContent() {
     const h = (e: MouseEvent) => {
       if (paymentRef.current && !paymentRef.current.contains(e.target as Node)) setShowPaymentDD(false);
       if (bankRef.current && !bankRef.current.contains(e.target as Node)) setShowBankDD(false);
+      if (godownRef.current && !godownRef.current.contains(e.target as Node)) setShowGodownDD(false);
       if (customerDDRef.current && !customerDDRef.current.contains(e.target as Node)) setShowCustomerDD(false);
     };
     document.addEventListener("mousedown", h);
@@ -117,6 +136,10 @@ function POSRightPanelContent() {
     const currentItems = activeBill.items.filter(i => i.itemName !== "");
     const currentGrandTotal = currentItems.reduce((s, i) => s + i.total, 0);
     if (currentItems.length === 0) { toast.error("Add items first"); return; }
+    if (!activeBill.godownId) {
+      toast.error("Please select a Godown to deduct stock from.");
+      return;
+    }
     setSaving(true);
     try {
       for (const item of currentItems) {
@@ -233,6 +256,7 @@ function POSRightPanelContent() {
         amountPaid: receivedAmount,
         status: "completed", paymentStatus: paidInFull ? "paid" : "partial", paymentMethod, notes: activeBill.remarks,
         cashBankAccountId: (activeBill.paymentMode !== "Cash" && activeBill.paymentMode !== "Wallet" && activeBill.paymentMode !== "Partial") ? activeBill.cashBankAccountId : undefined,
+        godownId: activeBill.godownId,
         sendWhatsapp: sendWhatsapp,
       };
 
@@ -380,8 +404,50 @@ function POSRightPanelContent() {
         </div>
       </div>
 
-      {/* Payment Mode + Amount */}
+      {/* Payment Mode + Godown + Amount */}
       <div className="p-4 flex-1 space-y-4 overflow-y-auto overflow-x-visible no-scrollbar bg-background dark:bg-background">
+        {/* Godown Selection */}
+        <div className="space-y-2">
+          <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Godown (Store)</label>
+          <div className="relative" ref={godownRef}>
+            <button
+              type="button"
+              onClick={() => setShowGodownDD(!showGodownDD)}
+              className="w-full h-11 pl-4 pr-8 text-sm font-semibold text-left bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-primary/30 cursor-pointer transition-all hover:border-border dark:hover:border-border/50 truncate"
+            >
+              {bill.godownId
+                ? (godowns.find(g => g._id === bill.godownId)?.name || "Select Godown")
+                : "Select Godown"}
+            </button>
+            <ChevronDown className={cn(
+              "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-transform",
+              showGodownDD && "rotate-180"
+            )} />
+            {showGodownDD && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-[1000] max-h-48 overflow-y-auto no-scrollbar bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl">
+                {godowns.map((g) => (
+                  <button
+                    key={g._id}
+                    type="button"
+                    onClick={() => {
+                      store.updateBillField("godownId", g._id);
+                      setShowGodownDD(false);
+                    }}
+                    className={cn(
+                      "w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors border-b border-border/10 last:border-0",
+                      bill.godownId === g._id
+                        ? "bg-primary/10 dark:bg-primary/15 text-primary"
+                        : "text-foreground hover:bg-muted/50 dark:hover:bg-muted/30"
+                    )}
+                  >
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Payment Mode</label>
