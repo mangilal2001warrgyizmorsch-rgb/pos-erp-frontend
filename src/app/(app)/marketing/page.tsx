@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Megaphone, Users, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Plus, Megaphone, Users, CheckCircle2, XCircle, Clock, MoreVertical, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { marketingService, type Campaign } from "@/services/marketingService";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export default function MarketingDashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -25,6 +32,21 @@ export default function MarketingDashboard() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this campaign?")) return;
+    try {
+      const res = await marketingService.deleteCampaign(id);
+      if (res.success) {
+        toast.success("Campaign deleted");
+        setCampaigns(campaigns.filter(c => c._id !== id));
+      } else {
+        toast.error("Failed to delete campaign");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
     }
   };
 
@@ -76,6 +98,28 @@ export default function MarketingDashboard() {
                     Created on {format(new Date(c.createdAt), "dd MMM yyyy, hh:mm a")}
                   </p>
                 </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/marketing/${c._id}`} className="flex items-center cursor-pointer">
+                        <Eye className="mr-2 h-4 w-4" />
+                        <span>View Details</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDelete(c._id)}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </CardHeader>
               <CardContent>
                 <div className="bg-muted/50 p-4 rounded-md text-sm mb-4">

@@ -96,6 +96,7 @@ const navEntries: NavEntry[] = [
       { label: "Subcategories", href: "/subcategories", icon: Layers },
       { label: "Opening Stock", href: "/inventory/opening-stock", icon: Boxes },
       { label: "Inventory Manager", href: "/inventory", icon: Warehouse },
+      { label: "Stores / Godowns", href: "/inventory/godowns", icon: Building },
     ],
   },
   {
@@ -369,14 +370,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           />
         )}
 
-        <item.icon
-          className={cn(
-            "h-[18px] w-[18px] shrink-0 transition-colors",
-            isActive
-              ? "text-primary dark:text-primary-foreground group-hover:text-primary dark:group-hover:text-primary-foreground"
-              : "text-muted-foreground group-hover:text-primary",
-          )}
-        />
+        <item.icon className="h-[18px] w-[18px] shrink-0 transition-colors" />
 
         <AnimatePresence>
           {!sidebarCollapsed && (
@@ -411,14 +405,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               : "",
           )}
         >
-          <group.icon
-            className={cn(
-              "h-[18px] w-[18px] shrink-0 transition-colors",
-              isOpen && !isAnyChildActive
-                ? "text-primary dark:text-primary-foreground"
-                : "text-muted-foreground group-hover:text-primary",
-            )}
-          />
+          <group.icon className="h-[18px] w-[18px] shrink-0 transition-colors" />
 
           <AnimatePresence>
             {!sidebarCollapsed && (

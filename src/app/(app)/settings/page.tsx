@@ -18,7 +18,6 @@ import { authService } from "@/services/authService";
 import { KeyboardShortcutsSettings } from "@/components/settings/KeyboardShortcutsSettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { UserManagement } from "@/components/settings/UserManagement";
-import { GodownSettings } from "@/components/settings/GodownSettings";
 
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
@@ -217,11 +216,7 @@ export default function SettingsPage() {
         </motion.div>
       )}
 
-      {isAdmin && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <GodownSettings />
-        </motion.div>
-      )}
+
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: isAdmin ? 0.4 : 0.2 }}>
         <Card>

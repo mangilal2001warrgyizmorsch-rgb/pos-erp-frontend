@@ -8,8 +8,13 @@ export const godownService = {
   },
 
   getGodownById: async (id: string): Promise<ApiResponse<Godown>> => {
-    const response = await api.get(`/godowns/${id}`);
-    return response.data;
+    const { data } = await api.get<ApiResponse<Godown>>(`/godowns/${id}`);
+    return data;
+  },
+
+  getGodownInventory: async (id: string): Promise<ApiResponse<any>> => {
+    const { data } = await api.get<ApiResponse<any>>(`/godowns/${id}/inventory`);
+    return data;
   },
 
   createGodown: async (data: Partial<Godown>): Promise<ApiResponse<Godown>> => {

@@ -36,5 +36,10 @@ export const marketingService = {
   getCampaignLogs: async (id: string): Promise<{ success: boolean; data: CampaignLog[] }> => {
     const { data } = await api.get(`/marketing/campaigns/${id}/logs`);
     return data;
+  },
+
+  deleteCampaign: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const { data } = await api.delete(`/marketing/campaigns/${id}`);
+    return data;
   }
 };

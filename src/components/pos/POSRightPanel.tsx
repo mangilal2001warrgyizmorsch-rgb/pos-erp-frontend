@@ -405,7 +405,7 @@ function POSRightPanelContent() {
       </div>
 
       {/* Payment Mode + Godown + Amount */}
-      <div className="p-4 flex-1 space-y-4 overflow-y-auto overflow-x-visible no-scrollbar bg-background dark:bg-background">
+      <div className="p-4 flex-1 space-y-4 overflow-visible no-scrollbar bg-background dark:bg-background">
         {/* Godown Selection */}
         <div className="space-y-2">
           <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground pl-1">Godown (Store)</label>
@@ -464,7 +464,7 @@ function POSRightPanelContent() {
                 showPaymentDD && "rotate-180"
               )} />
               {showPaymentDD && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-1000 max-h-40 overflow-y-auto no-scrollbar bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-10000 max-h-40 overflow-y-auto no-scrollbar bg-card dark:bg-card border border-border/50 dark:border-border/30 rounded-lg shadow-xl">
                   {modes.map(m => (
                     <button
                       key={m}
@@ -565,7 +565,7 @@ function POSRightPanelContent() {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border/50 dark:border-border/30 space-y-3 bg-card dark:bg-card">
+      <div className="p-4 border-t border-border/50 z-1 dark:border-border/30 space-y-3 bg-card dark:bg-card">
         {/* Change */}
         <div className="flex items-center justify-between px-2 py-2 bg-success/10 dark:bg-success/15 rounded-lg border border-success/20 dark:border-success/30">
           <span className="text-xs font-bold text-foreground">{paymentBalanceLabel}</span>

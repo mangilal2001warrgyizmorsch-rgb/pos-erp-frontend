@@ -62,6 +62,16 @@ export const stockService = {
     };
   },
 
+  transferStock: async (payload: {
+    items: { productId: string; quantity: number }[];
+    sourceGodownId: string;
+    destinationGodownId: string;
+    notes?: string;
+  }): Promise<any> => {
+    const { data } = await api.post<ApiResponse<any>>("/inventory/transfer", payload);
+    return data.data;
+  },
+
   // Low stock alerts
   getLowStockAlerts: async (): Promise<Product[]> => {
     const { data } = await api.get<ApiResponse<Product[]>>("/stock/alerts");

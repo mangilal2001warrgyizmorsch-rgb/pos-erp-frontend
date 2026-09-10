@@ -19,11 +19,17 @@ export const saleService = {
       const { data } = await api.post("/sales", payload);
       return data.data;
     } catch (error: any) {
-      if (error.code === 'ERR_NETWORK' || !navigator.onLine) {
+      // Only queue offline if it's a genuine network failure (no response at all)
+      const isNetworkFailure = (
+        error.code === 'ERR_NETWORK' || 
+        !navigator.onLine || 
+        (error.message && error.message.includes('Network Error') && !error.response)
+      );
+      
+      if (isNetworkFailure) {
         console.warn("Offline mode: Queuing sale to local IndexedDB");
         
         const offlineSaleId = crypto.randomUUID();
-        // Construct a mock response so the frontend can clear the cart and print
         const mockResponse = {
           ...payload,
           _id: `offline_${offlineSaleId}`,
