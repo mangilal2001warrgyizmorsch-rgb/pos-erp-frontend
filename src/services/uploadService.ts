@@ -26,8 +26,12 @@ export const uploadService = {
       );
       
       // Construct the full URL
+      const imageUrl = data.data.imageUrl;
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        return imageUrl;
+      }
       const baseUrl = API_BASE_URL.replace("/api", "");
-      return `${baseUrl}${data.data.imageUrl}`;
+      return `${baseUrl}${imageUrl}`;
     } catch (error: any) {
       console.error("Upload error details:", {
         message: error.message,
@@ -57,7 +61,13 @@ export const uploadService = {
     );
     
     const baseUrl = API_BASE_URL.replace("/api", "");
-    return data.data.map((item) => `${baseUrl}${item.imageUrl}`);
+    return data.data.map((item) => {
+      const imageUrl = item.imageUrl;
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        return imageUrl;
+      }
+      return `${baseUrl}${imageUrl}`;
+    });
   },
 
   /**
